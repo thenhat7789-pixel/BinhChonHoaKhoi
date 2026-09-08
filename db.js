@@ -7,6 +7,7 @@ if (process.env.DATABASE_URL) {
   const isSSL = process.env.NODE_ENV === 'production' || 
                 process.env.DATABASE_URL.includes('render.com') ||
                 process.env.DATABASE_URL.includes('dpg-') ||
+                process.env.DATABASE_URL.includes('neon.tech') ||
                 process.env.DATABASE_URL.includes('sslmode=require');
   
   pool = new Pool({
