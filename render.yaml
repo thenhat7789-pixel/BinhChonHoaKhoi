@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: binhchonhoakhoi
+    env: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hoakhoi-db
+          property: connectionString
+      - key: NODE_ENV
+        value: production
+
+databases:
+  - name: hoakhoi-db
+    plan: free
+    databaseName: hoakhoi
+    user: hoakhoi_user

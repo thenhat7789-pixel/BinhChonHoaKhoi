@@ -1,7 +1,5 @@
 .vercel
 node_modules/
-*.json
-!package.json
-!package-lock.json
+.env
 *.log
 .DS_Store
