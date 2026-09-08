@@ -195,8 +195,10 @@
       <span>LIVE SYNC 🟢</span>
     </div>
     <div class="actions">
+      <button class="btn btn-light" id="btnSyncNow" onclick="manualSync()" style="background:#fef08a;color:#854d0e">🔄 Đồng Bộ SQL Ngay</button>
       <button class="btn btn-light" onclick="downloadExcel()">📊 Tải File Excel (.csv)</button>
-      <button class="btn btn-blue" onclick="copyToClipboard()">📋 Sao Chép Để Dán Vào Google Sheets</button>
+      <button class="btn btn-blue" onclick="copyToClipboard()">📋 Sao Chép Cho Google Sheets</button>
+      <a href="index.html" class="btn btn-light" style="background:rgba(255,255,255,0.15);color:#fff">🏠 Trang Bình Chọn</a>
       <a href="admin.html" class="btn btn-light" style="background:rgba(255,255,255,0.15);color:#fff">⚙️ Quản Trị Admin</a>
     </div>
   </div>
@@ -274,6 +276,10 @@
   </div>
 
   <script>
+    const API_BASE = (window.location.protocol === 'file:' || (window.location.hostname === 'localhost' && window.location.port !== '3000'))
+      ? 'https://binhchonhoakhoi.onrender.com'
+      : '';
+
     const DEFAULT_CONTESTANTS = [
       { id: "01", name: "Thí sinh 01", subtitle: "Đến từ Hà Nội" },
       { id: "02", name: "Thí sinh 02", subtitle: "Đến từ TP.HCM" },
@@ -291,9 +297,9 @@
     async function loadData() {
       try {
         const [cRes, vRes, lRes] = await Promise.all([
-          fetch('/api/contestants').then(r => r.json()),
-          fetch('/api/votes').then(r => r.json()),
-          fetch('/api/vote-log').then(r => r.json())
+          fetch(`${API_BASE}/api/contestants`).then(r => r.json()),
+          fetch(`${API_BASE}/api/votes`).then(r => r.json()),
+          fetch(`${API_BASE}/api/vote-log`).then(r => r.json())
         ]);
 
         contestants = (cRes.contestants && cRes.contestants.length) ? cRes.contestants : DEFAULT_CONTESTANTS;
@@ -309,10 +315,25 @@
 
         renderContestants();
         renderVoters();
-        document.getElementById('lastUpdated').textContent = 'Tự động cập nhật: ' + new Date().toLocaleTimeString('vi-VN');
+        const timeStr = new Date().toLocaleTimeString('vi-VN');
+        document.getElementById('lastUpdated').innerHTML = `🟢 Đã đồng bộ SQL: <strong>${timeStr}</strong>`;
       } catch (e) {
         console.error('Error loading data:', e);
+        document.getElementById('lastUpdated').innerHTML = `🔴 Lỗi tải dữ liệu SQL (Đang thử lại...)`;
       }
+    }
+
+    async function manualSync() {
+      const btn = document.getElementById('btnSyncNow');
+      const oldText = btn.innerHTML;
+      btn.innerHTML = '⏳ Đang đồng bộ...';
+      btn.disabled = true;
+      await loadData();
+      btn.innerHTML = '✅ Đã đồng bộ!';
+      setTimeout(() => {
+        btn.innerHTML = oldText;
+        btn.disabled = false;
+      }, 1200);
     }
 
     function renderContestants() {
