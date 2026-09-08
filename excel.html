@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bảng Báo Cáo Excel Online – Hoa Khôi 2026</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    :root {
+      --excel-green: #107c41;
+      --excel-dark: #0b582e;
+      --excel-bg: #f3f3f3;
+      --excel-grid: #e1e1e1;
+      --excel-header: #f8f9fa;
+      --text: #1f2937;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+      background: #f8fafc;
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    /* Header */
+    .top-bar {
+      background: var(--excel-green);
+      color: #fff;
+      padding: 0.85rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      box-shadow: 0 4px 12px rgba(16, 124, 65, 0.2);
+    }
+    .top-title {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+    .top-title svg { width: 28px; height: 28px; fill: #fff; }
+    .top-title h1 { font-family: 'Outfit', sans-serif; font-size: 1.25rem; font-weight: 700; }
+    .top-title span { font-size: 0.75rem; background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 12px; font-weight: 600; }
+
+    .actions { display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+    .btn {
+      padding: 0.55rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      font-weight: 700;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      transition: all 0.2s;
+      text-decoration: none;
+    }
+    .btn-light { background: #ffffff; color: var(--excel-green); }
+    .btn-light:hover { background: #e2e8f0; transform: translateY(-1px); }
+    .btn-blue { background: #2563eb; color: #fff; }
+    .btn-blue:hover { background: #1d4ed8; transform: translateY(-1px); }
+
+    /* Main Container */
+    .container {
+      flex: 1;
+      padding: 1.5rem;
+      max-width: 1400px;
+      margin: 0 auto;
+      width: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    /* Tabs */
+    .tab-bar {
+      display: flex;
+      gap: 0.5rem;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 0px;
+    }
+    .tab-btn {
+      padding: 0.65rem 1.25rem;
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: #64748b;
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      transition: all 0.2s;
+      margin-bottom: -2px;
+    }
+    .tab-btn.active {
+      color: var(--excel-green);
+      border-bottom-color: var(--excel-green);
+      background: #fff;
+      border-top-left-radius: 8px;
+      border-top-right-radius: 8px;
+    }
+
+    /* Sheet Card */
+    .sheet-card {
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid #e2e8f0;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.04);
+      overflow: hidden;
+    }
+    .sheet-header {
+      padding: 1rem 1.25rem;
+      background: #f8fafc;
+      border-bottom: 1px solid #e2e8f0;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .sheet-title { font-weight: 700; font-size: 1rem; color: #0f172a; display: flex; align-items: center; gap: 0.5rem; }
+
+    /* Table Grid */
+    .table-wrap { overflow-x: auto; max-height: 650px; overflow-y: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      text-align: left;
+    }
+    th {
+      background: #f1f5f9;
+      color: #334155;
+      font-weight: 700;
+      padding: 0.75rem 1rem;
+      border: 1px solid #cbd5e1;
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      white-space: nowrap;
+    }
+    td {
+      padding: 0.7rem 1rem;
+      border: 1px solid #e2e8f0;
+      color: #334155;
+      white-space: nowrap;
+    }
+    tr:nth-child(even) { background: #f8fafc; }
+    tr:hover { background: #f0fdf4; }
+
+    .badge-rank {
+      display: inline-flex; align-items: center; justify-content: center;
+      width: 24px; height: 24px; border-radius: 50%;
+      font-weight: 800; font-size: 0.75rem; color: #fff;
+    }
+    .rank-1 { background: #eab308; }
+    .rank-2 { background: #94a3b8; }
+    .rank-3 { background: #b45309; }
+    .rank-other { background: #cbd5e1; color: #475569; }
+
+    /* Status Bar */
+    .status-bar {
+      font-size: 0.8rem;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .live-dot {
+      width: 8px; height: 8px; border-radius: 50%;
+      background: #22c55e;
+      box-shadow: 0 0 8px #22c55e;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+  </style>
+</head>
+<body>
+
+  <!-- Top Header -->
+  <div class="top-bar">
+    <div class="top-title">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zM6 20V4h7v5h5v11H6z"/><path d="M8 11h8v2H8zm0 4h8v2H8z"/></svg>
+      <div>
+        <h1>Bảng Báo Cáo Excel Online – Hoa Khôi 2026</h1>
+      </div>
+      <span>LIVE SYNC 🟢</span>
+    </div>
+    <div class="actions">
+      <button class="btn btn-light" onclick="downloadExcel()">📊 Tải File Excel (.csv)</button>
+      <button class="btn btn-blue" onclick="copyToClipboard()">📋 Sao Chép Để Dán Vào Google Sheets</button>
+      <a href="admin.html" class="btn btn-light" style="background:rgba(255,255,255,0.15);color:#fff">⚙️ Quản Trị Admin</a>
+    </div>
+  </div>
+
+  <div class="container">
+
+    <!-- Tab Bar -->
+    <div class="tab-bar">
+      <button class="tab-btn active" id="tabBtnContestants" onclick="switchTab('contestants')">
+        🏆 Xếp Hạng & Phiếu Bầu Thí Sinh
+      </button>
+      <button class="tab-btn" id="tabBtnVoters" onclick="switchTab('voters')">
+        👥 Danh Sách Người Bình Chọn Chi Tiết
+      </button>
+    </div>
+
+    <!-- TAB 1: CONTESTANTS -->
+    <div class="sheet-card" id="paneContestants">
+      <div class="sheet-header">
+        <div class="sheet-title">📊 Bảng Kết Quả Xếp Hạng Thí Sinh (Online Realtime)</div>
+        <div class="status-bar">
+          <div class="live-dot"></div>
+          <span id="lastUpdated">Đang tải dữ liệu...</span>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:60px;text-align:center">Hạng</th>
+              <th>SBD</th>
+              <th>Họ và Tên Thí Sinh</th>
+              <th>Quê Quán / Đơn Vị</th>
+              <th style="text-align:right">Số Phiếu Bầu</th>
+              <th style="text-align:right">Tỷ Lệ (%)</th>
+              <th style="text-align:right">Lượt Chia Sẻ</th>
+            </tr>
+          </thead>
+          <tbody id="contestantTableBody">
+            <tr><td colspan="7" style="text-align:center;padding:2rem;color:#94a3b8">Đang tải dữ liệu trực tuyến...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 2: VOTERS -->
+    <div class="sheet-card" id="paneVoters" style="display:none">
+      <div class="sheet-header">
+        <div class="sheet-title">👥 Nhật Ký Chi Tiết Người Bình Chọn (Online Realtime)</div>
+        <div class="status-bar">
+          <div class="live-dot"></div>
+          <span id="voterCountText">0 lượt bình chọn</span>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:50px;text-align:center">STT</th>
+              <th>Mã Lượt Vote</th>
+              <th>Tên Người Bình Chọn</th>
+              <th>SBD Thí Sinh</th>
+              <th>Thí Sinh Được Chọn</th>
+              <th>Lời Chúc / Bình Luận</th>
+              <th>Thời Gian Bình Chọn</th>
+            </tr>
+          </thead>
+          <tbody id="voterTableBody">
+            <tr><td colspan="7" style="text-align:center;padding:2rem;color:#94a3b8">Đang tải danh sách người bình chọn...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyDOHpUa5QSzq-N-PhAEqiAe0jjViq8Pm-Q",
+      authDomain: "hoakhoi-vote.firebaseapp.com",
+      projectId: "hoakhoi-vote",
+      storageBucket: "hoakhoi-vote.firebasestorage.app",
+      messagingSenderId: "526088714800",
+      appId: "1:526088714800:web:a98a1c397bda74b1484bf5"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const DEFAULT_CONTESTANTS = [
+      { id: "01", name: "Thí sinh 01", subtitle: "Đến từ Hà Nội" },
+      { id: "02", name: "Thí sinh 02", subtitle: "Đến từ TP.HCM" },
+      { id: "03", name: "Thí sinh 03", subtitle: "Đến từ Đà Nẵng" },
+      { id: "04", name: "Thí sinh 04", subtitle: "Đến từ Cần Thơ" },
+      { id: "05", name: "Thí sinh 05", subtitle: "Đến từ Huế" },
+      { id: "06", name: "Thí sinh 06", subtitle: "Đến từ Nha Trang" }
+    ];
+
+    let currentTab = 'contestants';
+    let contestants = [];
+    let votes = {};
+    let voteLog = [];
+
+    async function getStoreData(key) {
+      try {
+        const doc = await db.collection('app_settings').doc(key).get();
+        return doc.exists ? doc.data().val : null;
+      } catch (e) {
+        return localStorage.getItem(key);
+      }
+    }
+
+    async function loadData() {
+      try {
+        const rawC = await getStoreData('hh:contestants');
+        contestants = rawC ? JSON.parse(rawC) : DEFAULT_CONTESTANTS;
+
+        votes = {};
+        for (const c of contestants) {
+          const v = await getStoreData(`hh:votes:${c.id}`);
+          votes[c.id] = v ? parseInt(v, 10) : 0;
+        }
+
+        const rawL = await getStoreData('hh:vote_log');
+        voteLog = rawL ? JSON.parse(rawL) : [];
+
+        renderContestants();
+        renderVoters();
+        document.getElementById('lastUpdated').textContent = 'Tự động cập nhật: ' + new Date().toLocaleTimeString('vi-VN');
+      } catch (e) {
+        console.error('Error loading data:', e);
+      }
+    }
+
+    try {
+      db.collection('app_settings').onSnapshot(() => {
+        loadData();
+      });
+    } catch (e) {}
+
+    function renderContestants() {
+      const total = Object.values(votes).reduce((a,b)=>a+b, 0);
+      const ranked = [...contestants].sort((a,b)=>(votes[b.id]||0)-(votes[a.id]||0));
+      
+      const tbody = document.getElementById('contestantTableBody');
+      tbody.innerHTML = ranked.map((c, i) => {
+        const count = votes[c.id] || 0;
+        const pct = total ? ((count / total) * 100).toFixed(1) : '0.0';
+        const rankClass = i === 0 ? 'rank-1' : (i === 1 ? 'rank-2' : (i === 2 ? 'rank-3' : 'rank-other'));
+        
+        let shares = 0;
+        try { shares = parseInt(localStorage.getItem(`hh:shares:${c.id}`) || '0'); } catch {}
+
+        return `
+          <tr>
+            <td style="text-align:center"><span class="badge-rank ${rankClass}">${i + 1}</span></td>
+            <td><strong>SBD ${c.id}</strong></td>
+            <td><strong style="color:#0f172a">${c.name}</strong></td>
+            <td>${c.subtitle}</td>
+            <td style="text-align:right;font-weight:700;color:#2563eb">${count.toLocaleString('vi-VN')} phiếu</td>
+            <td style="text-align:right;font-weight:600">${pct}%</td>
+            <td style="text-align:right;color:#a855f7">${shares} chia sẻ</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function renderVoters() {
+      const tbody = document.getElementById('voterTableBody');
+      document.getElementById('voterCountText').textContent = voteLog.length + ' lượt bình chọn';
+
+      if (!voteLog.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:#94a3b8">Chưa có dữ liệu bình chọn nào.</td></tr>';
+        return;
+      }
+
+      const rev = [...voteLog].reverse();
+      tbody.innerHTML = rev.map((e, idx) => {
+        const voter = e.voterName || 'Người ẩn danh';
+        const comment = e.comment || '—';
+        const dateStr = new Date(e.ts).toLocaleString('vi-VN');
+        return `
+          <tr>
+            <td style="text-align:center;color:#94a3b8">${idx + 1}</td>
+            <td><code style="font-size:.78rem;background:#f1f5f9;padding:2px 6px;border-radius:4px">${e.voteId || 'N/A'}</code></td>
+            <td><strong>${voter}</strong></td>
+            <td>SBD ${e.id}</td>
+            <td><strong style="color:#2563eb">${e.name}</strong></td>
+            <td style="color:#475569;font-style:italic">"${comment}"</td>
+            <td style="color:#64748b">${dateStr}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.getElementById('tabBtnContestants').classList.toggle('active', tab === 'contestants');
+      document.getElementById('tabBtnVoters').classList.toggle('active', tab === 'voters');
+
+      document.getElementById('paneContestants').style.display = tab === 'contestants' ? 'block' : 'none';
+      document.getElementById('paneVoters').style.display = tab === 'voters' ? 'block' : 'none';
+    }
+
+    function downloadExcel() {
+      if (currentTab === 'contestants') {
+        let csv = 'Số báo danh,Tên thí sinh,Quê quán / Đơn vị,Số phiếu bình chọn,Tỷ lệ phần trăm\n';
+        const total = Object.values(votes).reduce((a,b)=>a+b,0);
+        const ranked = [...contestants].sort((a,b)=>(votes[b.id]||0)-(votes[a.id]||0));
+        ranked.forEach(c => {
+          const count = votes[c.id] || 0;
+          const pct = total ? ((count/total)*100).toFixed(1) : '0.0';
+          csv += `"${c.id}","${c.name}","${c.subtitle}",${count},${pct}%\n`;
+        });
+        saveFile('ket_qua_hoakhoi_2026.csv', '\uFEFF' + csv);
+      } else {
+        let csv = 'STT,Mã lượt bình chọn,Tên người bình chọn,Số báo danh,Thí sinh được chọn,Lời chúc / Bình luận,Thời gian bình chọn\n';
+        voteLog.forEach((e, idx) => {
+          const voter = e.voterName || 'Người ẩn danh';
+          const comment = e.comment || '';
+          const dateStr = new Date(e.ts).toLocaleString('vi-VN');
+          csv += `${idx + 1},"${e.voteId || ''}","${voter}","${e.id}","${e.name}","${comment.replace(/"/g, '""')}","${dateStr}"\n`;
+        });
+        saveFile('danh_sach_nguoi_binh_chon.csv', '\uFEFF' + csv);
+      }
+    }
+
+    function saveFile(filename, content) {
+      const blob = new Blob([content], { type: 'text/csv;charset=utf-8' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = filename;
+      link.click();
+    }
+
+    function copyToClipboard() {
+      let tsv = '';
+      if (currentTab === 'contestants') {
+        tsv = 'Hạng\tSBD\tHọ và Tên\tQuê Quán\tSố Phiếu\tTỷ Lệ %\n';
+        const total = Object.values(votes).reduce((a,b)=>a+b,0);
+        const ranked = [...contestants].sort((a,b)=>(votes[b.id]||0)-(votes[a.id]||0));
+        ranked.forEach((c, i) => {
+          const count = votes[c.id] || 0;
+          const pct = total ? ((count/total)*100).toFixed(1) : '0.0';
+          tsv += `${i+1}\t${c.id}\t${c.name}\t${c.subtitle}\t${count}\t${pct}%\n`;
+        });
+      } else {
+        tsv = 'STT\tMã Vote\tNgười Bình Chọn\tSBD\tThí Sinh\tBình Luận\tThời Gian\n';
+        voteLog.forEach((e, idx) => {
+          const voter = e.voterName || 'Người ẩn danh';
+          const comment = e.comment || '';
+          tsv += `${idx+1}\t${e.voteId||''}\t${voter}\t${e.id}\t${e.name}\t${comment}\t${new Date(e.ts).toLocaleString('vi-VN')}\n`;
+        });
+      }
+
+      navigator.clipboard.writeText(tsv).then(() => {
+        alert('Đã sao chép dữ liệu! Bạn có thể dán (Ctrl + V) trực tiếp vào Google Sheets / Excel!');
+      });
+    }
+
+    loadData();
+    setInterval(loadData, 5000);
+  </script>
+</body>
+</html>

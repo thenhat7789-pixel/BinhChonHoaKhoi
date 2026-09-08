@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bình Chọn Hoa Khôi 2026</title>
+  <meta name="description" content="Bình chọn cho thí sinh Hoa Hậu yêu thích của bạn! Mỗi người chỉ được bình chọn một lần." />
+  <meta property="og:title" content="Bình Chọn Hoa Khôi 2026" />
+  <meta property="og:description" content="Hãy trao vương miện cho Hoa Khôi bạn yêu thích!" />
+  <meta property="og:type" content="website" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+  <style>
+    /* ── PAGE ── */
+    body { background: #fff; color: #1a1a1a; }
+
+    /* ── TOP BAR ── */
+    .top-bar {
+      background: #0057a8;
+      color: #fff;
+      text-align: center;
+      padding: .55rem 1rem;
+      font-size: .82rem;
+      letter-spacing: .06em;
+      font-weight: 600;
+    }
+
+    /* ── HERO ── */
+    .hero { padding: 2.5rem 0 2rem; text-align: center; border-bottom: 3px solid #0057a8; }
+    .hero-crown { margin-bottom: .75rem; }
+    .hero-crown svg { width: 46px; height: 46px; stroke: #0057a8; stroke-width: 1.4; fill: none; filter: drop-shadow(0 0 8px rgba(0,87,168,.2)); }
+    .hero-title { font-size: clamp(1.8rem, 5vw, 3rem); font-weight: 900; color: #0057a8; letter-spacing: -.01em; line-height: 1.15; text-transform: uppercase; }
+    .hero-sub { margin-top: .4rem; color: #555; font-size: .92rem; }
+
+    /* ── COUNTDOWN BANNER ── */
+    .countdown-banner {
+      margin: 1.5rem auto 0; max-width: 520px;
+      background: #f0f6ff;
+      border: 1.5px solid rgba(0,87,168,.28);
+      border-radius: var(--r-card);
+      padding: 1.25rem 1.5rem;
+    }
+    .countdown-banner-label { font-size: .7rem; letter-spacing: .15em; color: #0057a8; text-transform: uppercase; margin-bottom: .75rem; font-weight: 700; }
+    .closed-banner {
+      background: #f0f6ff; border: 1.5px solid rgba(0,87,168,.28);
+      color: #0057a8; border-radius: var(--r-card);
+      padding: .75rem 1.25rem; text-align: center;
+      font-size: .9rem; font-weight: 600; letter-spacing: .04em;
+      margin: 1.25rem auto 0; max-width: 400px;
+    }
+
+    /* ── STATS BAR ── */
+    .stats-bar { margin: 1.25rem auto 0; max-width: 400px; display: flex; justify-content: center; gap: 1.5rem; }
+    .stat-pill {
+      display: inline-flex; align-items: center; gap: .4rem;
+      padding: .3rem 1rem;
+      background: #f0f6ff; border: 1.5px solid rgba(0,87,168,.22);
+      border-radius: 999px;
+      font-size: .8rem; font-weight: 700; color: #0057a8;
+    }
+    .stat-pill svg { width: 13px; height: 13px; stroke: #0057a8; fill: none; stroke-width: 2; }
+
+    /* ── GRID ── */
+    .grid-section { padding: 2.5rem 0 1rem; }
+    .contestant-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+      gap: 1.5rem;
+    }
+
+    /* ── CONTESTANT CARD ── */
+    .c-card {
+      position: relative;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 18px;
+      overflow: hidden;
+      cursor: default;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      flex-direction: column;
+    }
+    .c-card:hover {
+      box-shadow: 0 12px 32px rgba(0, 87, 168, 0.16);
+      transform: translateY(-4px);
+      border-color: #cbd5e1;
+    }
+    .c-card.voted-card {
+      border: 2px solid #0057a8;
+      box-shadow: 0 0 0 4px rgba(0, 87, 168, 0.15);
+    }
+
+    /* Floating SBD badge */
+    .sbd-badge {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 3;
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      color: #fff;
+      border: 1px solid rgba(255, 255, 255, 0.25);
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-weight: 700;
+      font-size: 0.72rem;
+      letter-spacing: 0.05em;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .sbd-badge::before {
+      content: '';
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #3b82f6;
+      box-shadow: 0 0 6px #3b82f6;
+    }
+
+    .c-card-img {
+      height: 280px;
+      width: 100%;
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .c-card-photo {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center top;
+      position: absolute;
+      inset: 0;
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .c-card:hover .c-card-photo {
+      transform: scale(1.06);
+    }
+    .c-card-img-overlay {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(0,0,0,0) 40%, rgba(0,0,0,0.5) 100%);
+      z-index: 1;
+      pointer-events: none;
+    }
+    .c-card-placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      z-index: 1;
+      color: rgba(255, 255, 255, 0.85);
+      user-select: none;
+    }
+    .c-card-placeholder-icon {
+      width: 54px;
+      height: 54px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    }
+    .c-card-img-num {
+      font-family: var(--font-d);
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: .05em;
+      color: #ffffff;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+
+    .c-card-body {
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      background: #fff;
+    }
+    .c-card-name {
+      font-family: var(--font-d);
+      font-size: 1.18rem;
+      font-weight: 700;
+      color: #0f172a;
+      line-height: 1.3;
+    }
+    .c-card-sub {
+      font-size: 0.82rem;
+      color: #64748b;
+      margin-top: 0.2rem;
+    }
+    .c-card-bar { margin-top: 1rem; }
+    .c-card-bar-header {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 0.4rem;
+      font-size: 0.8rem;
+      color: #475569;
+      font-weight: 600;
+    }
+    .c-card-actions {
+      margin-top: 1.1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    /* Vote button states */
+    .vote-btn {
+      padding: 0.7rem 1rem;
+      border-radius: 12px;
+      font-size: 0.88rem;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+      transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      width: 100%;
+      cursor: pointer;
+    }
+    .vote-btn.state-default {
+      background: linear-gradient(135deg, #0057a8 0%, #1d4ed8 100%);
+      color: #fff;
+      border: none;
+      box-shadow: 0 4px 14px rgba(0, 87, 168, 0.25);
+    }
+    .vote-btn.state-default:hover {
+      background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%);
+      box-shadow: 0 6px 20px rgba(0, 87, 168, 0.35);
+      transform: translateY(-1px);
+    }
+    .vote-btn.state-mine {
+      background: #eff6ff;
+      color: #1d4ed8;
+      border: 2px solid #2563eb;
+      font-weight: 800;
+    }
+    .vote-btn.state-other, .vote-btn.state-closed {
+      background: #f1f5f9;
+      color: #94a3b8;
+      border: 1px solid #e2e8f0;
+      cursor: not-allowed;
+    }
+
+    /* Share button */
+    .share-btn {
+      padding: 0.65rem 1rem;
+      border-radius: 12px;
+      background: #1877F2;
+      color: #fff;
+      border: none;
+      font-size: 0.82rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.4rem;
+      transition: all 0.2s;
+      width: 100%;
+    }
+    .share-btn:hover {
+      background: #0c63d4;
+      box-shadow: 0 4px 12px rgba(24, 119, 242, 0.3);
+    }
+    .share-btn svg { width: 14px; height: 14px; fill: #fff; }
+
+    /* ── SECTION DIVIDER ── */
+    .section-divider { border: none; border-top: 3px solid #0057a8; margin: 2.5rem 0 0; }
+
+    /* ── LEADERBOARD ── */
+    .lb-section { padding: 2.5rem 0 1rem; }
+    .lb-header { display: flex; align-items: center; gap: .6rem; justify-content: center; margin-bottom: 1.5rem; }
+    .lb-header svg { width: 22px; height: 22px; stroke: #0057a8; fill: none; stroke-width: 1.8; }
+    .lb-list { max-width: 600px; margin: 0 auto; display: flex; flex-direction: column; gap: .4rem; }
+    .lb-row {
+      display: flex; align-items: center; gap: .75rem;
+      padding: .6rem 1rem;
+      background: #fafafa; border: 1px solid #e8e8e8;
+      border-left: 4px solid #e0e0e0;
+      border-radius: .4rem;
+      transition: all .18s;
+    }
+    .lb-row:hover { background: #f0f6ff; border-left-color: #0057a8; }
+    .lb-row.lb-first { background: #f0f6ff; border-left-color: #0057a8; border-color: rgba(0,87,168,.18); }
+    .lb-rank { font-family: var(--font-d); font-weight: 700; min-width: 1.75rem; text-align: center; font-size: 1rem; color: #0057a8; }
+    .lb-name { flex: 1; font-size: .9rem; color: #1a1a1a; font-weight: 500; }
+    .lb-bar-wrap { width: 100px; }
+    .lb-count { font-size: .8rem; color: #0057a8; font-weight: 700; white-space: nowrap; }
+
+    /* ── COMMENTS SECTION ── */
+    .comments-section { padding: 2.5rem 0 1rem; }
+    .comments-header { display: flex; align-items: center; gap: .6rem; justify-content: center; margin-bottom: 1.5rem; }
+    .comments-header svg { width: 22px; height: 22px; stroke: #0057a8; fill: none; stroke-width: 1.8; }
+    .comments-list { max-width: 600px; margin: 0 auto; display: flex; flex-direction: column; gap: .6rem; }
+    .comment-card {
+      background: #fafafa; border: 1px solid #e8e8e8;
+      border-left: 4px solid #0057a8;
+      border-radius: .4rem; padding: .9rem 1.1rem;
+      transition: background .18s;
+    }
+    .comment-card:hover { background: #f0f6ff; }
+    .comment-meta { display: flex; align-items: center; gap: .5rem; font-size: .8rem; margin-bottom: .35rem; flex-wrap: wrap; }
+    .comment-voter { font-weight: 700; color: #1a1a1a; }
+    .comment-badge { font-size: .7rem; padding: .12rem .5rem; border-radius: 999px; background: rgba(0,87,168,.08); border: 1px solid rgba(0,87,168,.2); color: #0057a8; font-weight: 600; }
+    .comment-time { font-size: .72rem; color: #999; margin-left: auto; }
+    .comment-text { font-size: .875rem; color: #444; line-height: 1.55; white-space: pre-wrap; font-style: italic; }
+    .comments-empty { text-align: center; color: #999; font-size: .85rem; padding: 2rem; }
+
+    /* ── FOOTER ── */
+    .site-footer { text-align: center; padding: 2rem 0; font-size: .78rem; color: #888; border-top: 1px solid #e8e8e8; margin-top: 3rem; }
+    .site-footer a { color: #888; text-decoration: underline; }
+    .site-footer a:hover { color: #0057a8; }
+
+    /* ── LOADING ── */
+    .loading-wrap { display: flex; justify-content: center; align-items: center; padding: 5rem 0; }
+    .loading-wrap svg { width: 32px; height: 32px; stroke: #0057a8; fill: none; }
+
+    @media (max-width: 600px) {
+      .contestant-grid { grid-template-columns: 1fr; }
+      .hero { padding: 1.75rem 0 1.5rem; }
+    }
+
+    /* ── MODAL ── */
+    #voteModal .modal { border-top: 4px solid #0057a8; }
+    #voteModal .modal-title { color: #0057a8; }
+    #voteModal .modal-subtitle { color: #555 !important; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════ TOP BAR ═══════════════════ -->
+<div class="top-bar">👑 BÌNH CHỌN HOA KHÔI 2026 · Mỗi thiết bị chỉ được bình chọn một lần</div>
+
+<!-- ═══════════════════ TOAST ═══════════════════ -->
+<div class="toast-wrap" id="toastWrap"></div>
+
+<!-- ═══════════════════ HERO ═══════════════════ -->
+<div class="container">
+  <div class="hero fade-up">
+    <div class="hero-crown">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M2 20h20M4 20l2-10 6 4 4-8 4 8 2-10" stroke-linecap="round" stroke-linejoin="round"/>
+        <circle cx="12" cy="6" r="1" fill="#0057a8" stroke="none"/>
+      </svg>
+    </div>
+
+    <h1 class="hero-title font-display">Bình Chọn Hoa Khôi</h1>
+    <p class="hero-sub">Chạm để trao vương miện cho thí sinh bạn yêu thích nhất</p>
+
+    <!-- Countdown or closed -->
+    <div id="countdownBanner" class="countdown-banner hidden">
+      <div class="countdown-banner-label">⏱ Thời gian còn lại</div>
+      <div class="countdown" id="countdownDisplay">
+        <div class="countdown-unit">
+          <span class="countdown-num" id="cdDays">00</span>
+          <span class="countdown-label">Ngày</span>
+        </div>
+        <span class="countdown-sep">:</span>
+        <div class="countdown-unit">
+          <span class="countdown-num" id="cdHours">00</span>
+          <span class="countdown-label">Giờ</span>
+        </div>
+        <span class="countdown-sep">:</span>
+        <div class="countdown-unit">
+          <span class="countdown-num" id="cdMins">00</span>
+          <span class="countdown-label">Phút</span>
+        </div>
+        <span class="countdown-sep">:</span>
+        <div class="countdown-unit">
+          <span class="countdown-num" id="cdSecs">00</span>
+          <span class="countdown-label">Giây</span>
+        </div>
+      </div>
+    </div>
+    <div id="closedBanner" class="closed-banner hidden">🔒 Thời gian bình chọn đã kết thúc</div>
+
+    <!-- Stats -->
+    <div class="stats-bar" id="statsBar">
+      <div class="stat-pill">
+        <svg viewBox="0 0 24 24"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z"/><path d="M12 6v6l4 2"/></svg>
+        <span id="totalVotesBadge">Đang tải...</span>
+      </div>
+      <div class="stat-pill">
+        <svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
+        <span id="totalSharesBadge">0 lượt chia sẻ</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════ GRID ═══════════════════ -->
+  <div class="grid-section">
+    <div id="loadingWrap" class="loading-wrap">
+      <svg viewBox="0 0 24 24" class="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56" stroke-linecap="round" stroke-width="2"/></svg>
+    </div>
+    <div class="contestant-grid hidden" id="contestantGrid"></div>
+  </div>
+
+  <!-- ═══════════════════ LEADERBOARD ═══════════════════ -->
+  <hr class="section-divider hidden" id="lbDivider">
+  <div class="lb-section fade-up hidden" id="lbSection">
+    <div class="lb-header">
+      <svg viewBox="0 0 24 24">
+        <path d="M6 9H4a2 2 0 0 1-2-2V5h4M18 9h2a2 2 0 0 0 2-2V5h-4" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M6 5v4a6 6 0 0 0 12 0V5H6zM12 15v4M9 19h6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <h2 class="section-title font-display">Bảng Xếp Hạng</h2>
+    </div>
+    <div class="lb-list" id="lbList"></div>
+  </div>
+
+  <!-- ═══════════════════ COMMENTS SECTION ═══════════════════ -->
+  <hr class="section-divider hidden" id="commentsDivider">
+  <div class="comments-section fade-up hidden" id="commentsSection">
+    <div class="comments-header">
+      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-width="1.8" fill="none"/>
+      </svg>
+      <h2 class="section-title font-display">Lời Chúc Từ Người Bình Chọn</h2>
+    </div>
+    <div class="comments-list" id="commentsList"></div>
+    <div class="comments-empty hidden" id="commentsEmpty">Chưa có bình luận nào. Hãy là người đầu tiên gửi lời chúc!</div>
+  </div>
+
+  <!-- ═══════════════════ FOOTER ═══════════════════ -->
+  <footer class="site-footer">
+    <p>Mỗi người chỉ được bình chọn một lần · Kết quả cập nhật theo thời gian thực</p>
+    <p class="mt-2"><a href="admin.html">⚙ Trang quản trị</a></p>
+  </footer>
+</div>
+
+<!-- ═══════════════════ VOTE COMMENT MODAL ═══════════════════ -->
+<div class="modal-overlay hidden" id="voteModal">
+  <div class="modal">
+    <h2 class="modal-title font-display">Bình Chọn Thí Sinh</h2>
+    <p class="modal-subtitle" id="voteModalContestantName" style="color:#555; font-weight:600; margin-bottom:1.25rem;"></p>
+    <div class="c-form">
+      <div class="form-group">
+        <label class="form-label">Họ và tên của bạn</label>
+        <input class="input" id="voterNameInput" placeholder="Người ẩn danh" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Lời chúc / Bình luận</label>
+        <textarea class="input" id="voterCommentInput" rows="3" placeholder="Chúc thí sinh tỏa sáng!" style="resize:vertical; min-height:80px;"></textarea>
+      </div>
+      <div style="display:flex;gap:.5rem;margin-top:.75rem">
+        <button class="btn btn-gold btn-full" id="confirmVoteBtn">Xác nhận Bình chọn</button>
+        <button class="btn btn-ghost" onclick="closeVoteModal()">Hủy</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<!-- ═══════════════════ SCRIPT ═══════════════════ -->
+<script>
+"use strict";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDOHpUa5QSzq-N-PhAEqiAe0jjViq8Pm-Q",
+  authDomain: "hoakhoi-vote.firebaseapp.com",
+  projectId: "hoakhoi-vote",
+  storageBucket: "hoakhoi-vote.firebasestorage.app",
+  messagingSenderId: "526088714800",
+  appId: "1:526088714800:web:a98a1c397bda74b1484bf5"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+/* ─── STORAGE LAYER (ONLINE FIRESTORE SYNC) ─────────────── */
+const store = {
+  async get(key, shared = false) {
+    try {
+      const doc = await db.collection('app_settings').doc(key).get();
+      if (doc.exists && doc.data().val !== undefined) {
+        const val = doc.data().val;
+        localStorage.setItem(key, val);
+        return val;
+      }
+    } catch (e) {
+      console.warn('Firestore read error:', e);
+    }
+    return localStorage.getItem(key);
+  },
+
+  async set(key, value, shared = false) {
+    localStorage.setItem(key, value);
+    try {
+      await db.collection('app_settings').doc(key).set({
+        val: value,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } catch (e) {
+      console.error('Firestore write error:', e);
+    }
+  }
+};
+
+/* ─── DEFAULT DATA ─────────────────────────────────────── */
+const DEFAULT_CONTESTANTS = [
+  { id: "01", name: "Thí sinh 01", subtitle: "Đến từ Hà Nội",    color: "#0057a8" },
+  { id: "02", name: "Thí sinh 02", subtitle: "Đến từ TP.HCM",    color: "#003d7a" },
+  { id: "03", name: "Thí sinh 03", subtitle: "Đến từ Đà Nẵng",   color: "#005299" },
+  { id: "04", name: "Thí sinh 04", subtitle: "Đến từ Cần Thơ",   color: "#0057a8" },
+  { id: "05", name: "Thí sinh 05", subtitle: "Đến từ Huế",       color: "#003d7a" },
+  { id: "06", name: "Thí sinh 06", subtitle: "Đến từ Nha Trang", color: "#005299" },
+];
+
+/* ─── STATE ────────────────────────────────────────────── */
+let state = {
+  contestants: [],
+  votes: {},
+  votedId: null,
+  endTime: null,
+  isClosed: false,
+  loading: true,
+};
+
+/* ─── TOAST ────────────────────────────────────────────── */
+function toast(msg, type = 'info', duration = 3000) {
+  const wrap = document.getElementById('toastWrap');
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => el.remove(), duration);
+}
+
+/* ─── COUNTDOWN ────────────────────────────────────────── */
+function updateCountdown() {
+  const now = Date.now();
+  const diff = state.endTime - now;
+  if (diff <= 0) {
+    if (!state.isClosed) { state.isClosed = true; renderCards(); }
+    document.getElementById('countdownBanner').classList.add('hidden');
+    document.getElementById('closedBanner').classList.remove('hidden');
+    return;
+  }
+  document.getElementById('countdownBanner').classList.remove('hidden');
+  document.getElementById('closedBanner').classList.add('hidden');
+
+  const days  = Math.floor(diff / 86400000);
+  const hours = Math.floor((diff % 86400000) / 3600000);
+  const mins  = Math.floor((diff % 3600000)  / 60000);
+  const secs  = Math.floor((diff % 60000)    / 1000);
+
+  const set = (id, val) => {
+    const el = document.getElementById(id);
+    const str = String(val).padStart(2, '0');
+    if (el.textContent !== str) {
+      el.textContent = str;
+      el.classList.remove('tick');
+      void el.offsetWidth;
+      el.classList.add('tick');
+    }
+  };
+  set('cdDays',  days);
+  set('cdHours', hours);
+  set('cdMins',  mins);
+  set('cdSecs',  secs);
+}
+
+/* ─── FACEBOOK SHARE ───────────────────────────────────── */
+function shareOnFacebook(id) {
+  const c = state.contestants.find(item => item.id === id);
+  if (!c) return;
+  const rawShare = localStorage.getItem('hh:share_url');
+  const shareUrl = (rawShare && rawShare.trim() !== '') ? rawShare : window.location.href;
+  const url = encodeURIComponent(shareUrl);
+  const quote = encodeURIComponent(
+    `Tôi bình chọn cho ${c.name} – ${c.subtitle}! Cùng bình chọn cho Hoa Khôi yêu thích của bạn nhé! 👑`
+  );
+
+  // Tracking lượt chia sẻ
+  const totalShares = parseInt(localStorage.getItem('hh:total_shares') || '0') + 1;
+  localStorage.setItem('hh:total_shares', String(totalShares));
+  const cShares = parseInt(localStorage.getItem(`hh:shares:${id}`) || '0') + 1;
+  localStorage.setItem(`hh:shares:${id}`, String(cShares));
+  updateShareBadge();
+
+  window.open(`https://www.facebook.com/sharer/sharer.php?u=${url}&quote=${quote}`, '_blank', 'width=620,height=450,resizable=yes');
+}
+
+function updateShareBadge() {
+  const total = parseInt(localStorage.getItem('hh:total_shares') || '0');
+  const el = document.getElementById('totalSharesBadge');
+  if (el) el.textContent = `${total.toLocaleString('vi-VN')} lượt chia sẻ`;
+}
+
+
+/* ─── VOTE HANDLER ─────────────────────────────────────── */
+let pendingVoteId = null;
+
+function openVoteModal(id) {
+  if (state.votedId || state.isClosed) return;
+  const contestant = state.contestants.find(c => c.id === id);
+  if (!contestant) return;
+  pendingVoteId = id;
+  document.getElementById('voteModalContestantName').textContent = `${contestant.name} – SBD ${contestant.id}`;
+  document.getElementById('voterNameInput').value = '';
+  document.getElementById('voterCommentInput').value = '';
+  document.getElementById('voteModal').classList.remove('hidden');
+}
+
+function closeVoteModal() {
+  document.getElementById('voteModal').classList.add('hidden');
+  pendingVoteId = null;
+}
+
+document.getElementById('voteModal').addEventListener('click', function(e) {
+  if (e.target === this) closeVoteModal();
+});
+
+document.getElementById('confirmVoteBtn').onclick = async () => {
+  if (!pendingVoteId) return;
+  const id = pendingVoteId;
+  const voterName = document.getElementById('voterNameInput').value.trim() || 'Người ẩn danh';
+  const comment = document.getElementById('voterCommentInput').value.trim() || 'Ủng hộ thí sinh!';
+  closeVoteModal();
+  await submitVote(id, voterName, comment);
+};
+
+async function handleVote(id) { openVoteModal(id); }
+
+async function submitVote(id, voterName, comment) {
+  if (state.votedId || state.isClosed) return;
+  const contestant = state.contestants.find(c => c.id === id);
+  if (!contestant) return;
+
+  const prevVotes = { ...state.votes };
+  const newCount = (state.votes[id] || 0) + 1;
+  state.votes[id] = newCount;
+  state.votedId = id;
+  renderCards();
+  renderLeaderboard();
+
+  try {
+    await store.set(`hh:votes:${id}`, String(newCount), true);
+    await store.set('hh:voted_by', id, false);
+
+    let log = [];
+    try {
+      const raw = await store.get('hh:vote_log', true);
+      log = raw ? JSON.parse(raw) : [];
+    } catch {}
+    const voteId = 'vote_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    const voteData = { voteId, id, name: contestant.name, voterName, comment, ts: Date.now() };
+    log.push(voteData);
+    if (log.length > 10000) log = log.slice(-10000);
+    await store.set('hh:vote_log', JSON.stringify(log), true);
+
+    toast(`✓ Đã bình chọn cho ${contestant.name}!`, 'success');
+    await loadComments();
+
+  } catch (e) {
+    state.votes = prevVotes;
+    state.votedId = null;
+    renderCards();
+    renderLeaderboard();
+    toast('Bình chọn thất bại, vui lòng thử lại.', 'error');
+  }
+}
+
+/* ─── RENDER CARDS ─────────────────────────────────────── */
+function renderCards() {
+  const grid = document.getElementById('contestantGrid');
+  const totalVotes = Object.values(state.votes).reduce((a,b) => a+b, 0);
+  const maxVotes   = Math.max(1, ...Object.values(state.votes));
+
+  grid.innerHTML = state.contestants.map((c, i) => {
+    const count   = state.votes[c.id] || 0;
+    const pct     = totalVotes ? Math.round((count / totalVotes) * 100) : 0;
+    const barPct  = Math.round((count / maxVotes) * 100);
+    const isMine  = state.votedId === c.id;
+    const disabled = !!state.votedId || state.isClosed;
+
+    let btnClass = 'vote-btn btn btn-full';
+    let btnText  = 'Bình chọn';
+    if (isMine) {
+      btnClass += ' state-mine'; btnText = '✓ Đã bình chọn';
+    } else if (state.isClosed) {
+      btnClass += ' state-closed'; btnText = '🔒 Đã kết thúc';
+    } else if (state.votedId) {
+      btnClass += ' state-other'; btnText = 'Đã dùng lượt bình chọn';
+    } else {
+      btnClass += ' state-default';
+    }
+
+    const photoHtml = c.photo
+      ? `<img class="c-card-photo" src="${c.photo}" alt="${escHtml(c.name)}" loading="lazy" />`
+      : `<div class="c-card-placeholder">
+           <div class="c-card-placeholder-icon">👑</div>
+           <div class="c-card-img-num">SBD ${c.id}</div>
+         </div>`;
+
+    return `
+    <div class="c-card card-hover fade-up ${isMine ? 'voted-card' : ''}" style="animation-delay:${i*60}ms">
+      <div class="sbd-badge">SBD ${c.id}</div>
+      <div class="c-card-img" style="background:linear-gradient(135deg, ${c.color || '#1e293b'} 0%, #0f172a 100%)">
+        <div class="c-card-img-overlay"></div>
+        ${photoHtml}
+      </div>
+      <div class="c-card-body">
+        <div class="c-card-name">${escHtml(c.name)}</div>
+        <div class="c-card-sub">📍 ${escHtml(c.subtitle)}</div>
+        <div class="c-card-bar">
+          <div class="c-card-bar-header">
+            <span>${count.toLocaleString('vi-VN')} phiếu</span>
+            <span>${pct}%</span>
+          </div>
+          <div class="progress"><div class="progress-fill" style="width:${barPct}%"></div></div>
+        </div>
+        <div class="c-card-actions">
+          <button class="${btnClass}" ${disabled && !isMine ? 'disabled' : ''}
+            onclick="handleVote('${c.id}')">${btnText}</button>
+          <button class="btn btn-full share-btn" onclick="shareOnFacebook('${c.id}')">
+            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+              <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+            </svg>
+            Chia sẻ Facebook
+          </button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('totalVotesBadge').textContent =
+    `${totalVotes.toLocaleString('vi-VN')} lượt bình chọn`;
+}
+
+/* ─── RENDER LEADERBOARD ───────────────────────────────── */
+function renderLeaderboard() {
+  const totalVotes = Object.values(state.votes).reduce((a,b) => a+b, 0);
+  const maxVotes   = Math.max(1, ...Object.values(state.votes));
+  const section    = document.getElementById('lbSection');
+  const divider    = document.getElementById('lbDivider');
+  const list       = document.getElementById('lbList');
+
+  if (totalVotes === 0) { section.classList.add('hidden'); divider.classList.add('hidden'); return; }
+  section.classList.remove('hidden');
+  divider.classList.remove('hidden');
+
+  const ranked = [...state.contestants].sort((a,b) => (state.votes[b.id]||0)-(state.votes[a.id]||0));
+  const medals = ['🥇','🥈','🥉'];
+
+  list.innerHTML = ranked.map((c, idx) => {
+    const count  = state.votes[c.id] || 0;
+    const barPct = Math.round((count / maxVotes) * 100);
+    return `
+    <div class="lb-row ${idx===0 ? 'lb-first' : ''}">
+      <span class="lb-rank">${medals[idx] || idx+1}</span>
+      <span class="lb-name">${escHtml(c.name)}</span>
+      <div class="lb-bar-wrap">
+        <div class="progress"><div class="progress-fill" style="width:${barPct}%"></div></div>
+      </div>
+      <span class="lb-count">${count.toLocaleString('vi-VN')} phiếu</span>
+    </div>`;
+  }).join('');
+}
+
+/* ─── HELPERS ──────────────────────────────────────────── */
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function getDefaultEndTime() {
+  const d = new Date(); d.setDate(d.getDate() + 7); return d;
+}
+
+/* ─── INIT ─────────────────────────────────────────────── */
+async function init() {
+  try {
+    const savedContestants = await store.get('hh:contestants', true);
+    state.contestants = savedContestants ? JSON.parse(savedContestants) : DEFAULT_CONTESTANTS;
+
+    const savedEndTime = await store.get('hh:end_time', true);
+    state.endTime = savedEndTime ? new Date(savedEndTime) : getDefaultEndTime();
+    if (!savedEndTime) await store.set('hh:end_time', state.endTime.toISOString(), true);
+    state.isClosed = Date.now() >= state.endTime.getTime();
+
+    const results = await Promise.all(
+      state.contestants.map(async c => {
+        try {
+          const v = await store.get(`hh:votes:${c.id}`, true);
+          return [c.id, v ? Number(v) || 0 : 0];
+        } catch { return [c.id, 0]; }
+      })
+    );
+    state.votes = Object.fromEntries(results);
+
+    try {
+      const v = await store.get('hh:voted_by', false);
+      if (v) state.votedId = v;
+    } catch {}
+  } catch (e) {
+    toast('Không tải được dữ liệu. Vui lòng thử lại.', 'error');
+  }
+
+  document.getElementById('loadingWrap').classList.add('hidden');
+  document.getElementById('contestantGrid').classList.remove('hidden');
+  renderCards();
+  renderLeaderboard();
+  updateCountdown();
+  updateShareBadge();
+  if (!state.isClosed) setInterval(updateCountdown, 1000);
+  await loadComments();
+}
+
+/* ─── LOAD COMMENTS ────────────────────────────────────── */
+async function loadComments() {
+  const section  = document.getElementById('commentsSection');
+  const divider  = document.getElementById('commentsDivider');
+  const list     = document.getElementById('commentsList');
+  const empty    = document.getElementById('commentsEmpty');
+
+  let log = [];
+  try {
+    const raw = await store.get('hh:vote_log', true);
+    log = raw ? JSON.parse(raw) : [];
+  } catch {}
+
+  const comments = log.filter(c => c.comment && c.comment.trim() !== '').reverse();
+
+  if (comments.length === 0) {
+    list.innerHTML = '';
+    empty.classList.remove('hidden');
+    section.classList.remove('hidden');
+    divider.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+  section.classList.remove('hidden');
+  divider.classList.remove('hidden');
+
+  list.innerHTML = comments.slice(0, 100).map(c => {
+    const voter  = escHtml(c.voterName || 'Người ẩn danh');
+    const msg    = escHtml(c.comment || 'Ủng hộ thí sinh!');
+    const target = escHtml(c.name || 'Thí sinh');
+    const timeStr = formatTimeAgo(c.ts);
+    return `
+    <div class="comment-card">
+      <div class="comment-meta">
+        <span class="comment-voter">${voter}</span>
+        <span class="comment-badge">Bình chọn cho ${target}</span>
+        <span class="comment-time">${timeStr}</span>
+      </div>
+      <div class="comment-text">"${msg}"</div>
+    </div>`;
+  }).join('');
+}
+
+function formatTimeAgo(ts) {
+  if (!ts) return 'Vài ngày trước';
+  const diff = Date.now() - ts;
+  if (diff < 60000) return 'Vừa xong';
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `${mins} phút trước`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} giờ trước`;
+  return `${Math.floor(hours / 24)} ngày trước`;
+}
+
+init();
+</script>
+</body>
+</html>
