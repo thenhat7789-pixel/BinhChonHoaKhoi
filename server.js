@@ -11,6 +11,14 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Kiểm tra DB pool trước khi xử lý API
+app.use('/api', (req, res, next) => {
+  if (!pool) {
+    return res.status(503).json({ error: 'Database chưa được kết nối. Hãy cấu hình DATABASE_URL trong Render Environment.' });
+  }
+  next();
+});
+
 // ═══════════════════ API ROUTES ═══════════════════
 
 // ─── GET /api/contestants ─────────────────────────

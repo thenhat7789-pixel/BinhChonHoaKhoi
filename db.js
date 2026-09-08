@@ -1,13 +1,27 @@
 require('dotenv').config();
 const { Pool } = require('pg');
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
-});
+let pool = null;
+
+if (process.env.DATABASE_URL) {
+  const isSSL = process.env.NODE_ENV === 'production' || 
+                process.env.DATABASE_URL.includes('render.com') ||
+                process.env.DATABASE_URL.includes('dpg-') ||
+                process.env.DATABASE_URL.includes('sslmode=require');
+  
+  pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: isSSL ? { rejectUnauthorized: false } : false
+  });
+}
 
 // ─── Tạo bảng tự động khi khởi động ──────────────────────
 async function initDB() {
+  if (!pool) {
+    console.warn('⚠️ [DB Warning] DATABASE_URL chưa được thiết lập. Hãy thêm biến môi trường DATABASE_URL trong Render Environment.');
+    return;
+  }
+
   const client = await pool.connect();
   try {
     await client.query(`
@@ -58,6 +72,8 @@ async function initDB() {
     }
 
     console.log('✅ Database tables ready');
+  } catch (err) {
+    console.error('❌ Lỗi kết nối / khởi tạo DB:', err.message);
   } finally {
     client.release();
   }
