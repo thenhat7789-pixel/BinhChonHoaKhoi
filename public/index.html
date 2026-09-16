@@ -97,15 +97,19 @@
       clip-path: polygon(14px 0, 100% 0, 100% 100%, 0 100%);
     }
 
-    /* Hero top brand bar (Logo + Tên trường bên trái trong khung xanh) */
+    /* Top brand bar (Nền trắng, logo + chữ chuẩn màu MUCE căn trái) */
     .hero-top-bar {
+      background: #ffffff;
+      border-bottom: 2px solid #0057a8;
+      padding: .45rem 0;
+    }
+    .hero-top-bar-inner {
       max-width: 1240px;
       margin: 0 auto;
-      padding: .85rem 1.25rem;
+      padding: 0 1.25rem;
       display: flex;
       align-items: center;
       justify-content: flex-start;
-      border-bottom: 1px solid rgba(255,255,255,.1);
     }
     .hero-brand {
       display: flex;
@@ -116,31 +120,27 @@
       height: 48px;
       width: 48px;
       object-fit: contain;
-      filter: drop-shadow(0 2px 8px rgba(0,0,0,0.4));
     }
     .hero-brand-info { text-align: left; }
     .hero-brand-ministry {
-      font-size: .65rem;
-      color: #ffffff;
-      opacity: .9;
+      font-size: .68rem;
+      color: #333333;
       letter-spacing: .06em;
       font-weight: 600;
-      line-height: 1.35;
+      line-height: 1.4;
     }
     .hero-brand-name {
       font-family: var(--font-d);
-      font-size: clamp(.88rem, 2.2vw, 1.1rem);
+      font-size: clamp(.9rem, 2.3vw, 1.15rem);
       font-weight: 900;
-      color: #ffffff;
+      color: #c00000;
       letter-spacing: .02em;
-      line-height: 1.25;
+      line-height: 1.3;
       text-transform: uppercase;
-      text-shadow: 0 2px 10px rgba(0,0,0,0.3);
     }
     .hero-brand-eng {
-      font-size: .6rem;
-      color: #ffffff;
-      opacity: .85;
+      font-size: .62rem;
+      color: #0057a8;
       letter-spacing: .08em;
       font-weight: 600;
       text-transform: uppercase;
@@ -577,7 +577,7 @@
     @media (max-width: 640px) {
       .contestant-grid { grid-template-columns: 1fr; }
       .hero-content { padding: 1.5rem 1rem 1.25rem; }
-      .hero-top-bar { justify-content: center; padding: .65rem 1rem; }
+      .hero-top-bar-inner { justify-content: center; padding: 0 .5rem; }
       .hero-brand img { height: 38px; width: 38px; }
       .hero-brand-name { font-size: .8rem; }
       .hero-brand-ministry { font-size: .58rem; }
@@ -615,12 +615,9 @@
       </div>
     </div>
   </div>
-</div>
-
-<div class="hero-section">
-
-  <!-- Hero Top Brand Bar (Logo + Tên trường góc trái) -->
-  <div class="hero-top-bar">
+<!-- ═══════════════════ MUCE BRAND HEADER (WHITE BACKGROUND) ═══════════════════ -->
+<div class="hero-top-bar">
+  <div class="hero-top-bar-inner">
     <div class="hero-brand">
       <img src="logo-muce.png" alt="Logo MUCE" onerror="this.style.display='none'" />
       <div class="hero-brand-info">
@@ -630,6 +627,9 @@
       </div>
     </div>
   </div>
+</div>
+
+<div class="hero-section">
 
   <!-- Hero Content -->
   <div class="hero-content">
