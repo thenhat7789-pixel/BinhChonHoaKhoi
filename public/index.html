@@ -830,13 +830,11 @@ function updateCountdown() {
   set('cdSecs',  secs);
 }
 
-/* ─── SHARE FUNCTION ───────────────────────────────────── */
-async function shareOnFacebook(id) {
+/* ─── FACEBOOK SHARE ───────────────────────────────────── */
+function shareOnFacebook(id) {
   const c = state.contestants.find(item => item.id === id);
   const rawShare = localStorage.getItem('hh:share_url');
   const shareUrl = (rawShare && rawShare.trim() !== '') ? rawShare : window.location.href;
-  const contestantName = c ? c.name : 'thí sinh';
-  const shareText = `Tôi vừa bình chọn cho ${contestantName} - Hoa Khôi MUCE 2026! Cùng bình chọn cho thí sinh yêu thích nhé! 👑`;
 
   // Tracking lượt chia sẻ
   const totalShares = parseInt(localStorage.getItem('hh:total_shares') || '0') + 1;
@@ -847,30 +845,9 @@ async function shareOnFacebook(id) {
   }
   updateShareBadge();
 
-  // Ưu tiên Web Share API native trên điện thoại (Zalo, Facebook App, Messenger)
-  if (navigator.share) {
-    try {
-      await navigator.share({
-        title: `Bình Chọn Hoa Khôi MUCE 2026 - ${contestantName}`,
-        text: shareText,
-        url: shareUrl
-      });
-      toast('Đã chia sẻ thành công!', 'success');
-      return;
-    } catch (err) {
-      if (err.name === 'AbortError') return;
-    }
-  }
-
-  // Tự động sao chép link vào bộ nhớ tạm
-  try {
-    await navigator.clipboard.writeText(shareUrl);
-    toast('Đã sao chép link bình chọn vào bộ nhớ tạm!', 'success');
-  } catch (e) {}
-
-  // Mở tab chia sẻ Facebook mới chuẩn browser
-  const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
-  window.open(fbUrl, '_blank', 'noopener,noreferrer');
+  // Mở trực tiếp trang chia sẻ của Facebook ở tab mới
+  const fbShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+  window.open(fbShareUrl, '_blank', 'noopener,noreferrer');
 }
 
 function updateShareBadge() {
