@@ -41,6 +41,62 @@
       background: linear-gradient(90deg, #3b82f6, #f59e0b, #ef4444, #3b82f6);
     }
 
+    /* MUCE Topbar */
+    .muce-topbar {
+      background: #242d3c;
+      color: #e2e8f0;
+      font-size: .72rem;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+      position: relative;
+      z-index: 10;
+    }
+    .muce-topbar-container {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 0 0 0 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      min-height: 36px;
+    }
+    .muce-topbar-left {
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      flex-wrap: wrap;
+      padding: .2rem 0;
+    }
+    .muce-topbar-title {
+      color: rgba(255,255,255,.8);
+      font-weight: 600;
+    }
+    .muce-phone-highlight {
+      color: #ffffff;
+      font-weight: 700;
+    }
+    .muce-topbar-divider { color: rgba(255,255,255,.3); }
+    .muce-phone-list { color: rgba(255,255,255,.7); }
+    
+    .muce-topbar-right {
+      display: flex;
+      align-items: center;
+      height: 36px;
+    }
+    .muce-topbar-blue-tab {
+      background: linear-gradient(135deg, #3897e6, #1d6ed8);
+      color: #ffffff;
+      font-weight: 700;
+      padding: 0 1.25rem 0 1.75rem;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      font-size: .72rem;
+      letter-spacing: .04em;
+      text-transform: uppercase;
+      clip-path: polygon(14px 0, 100% 0, 100% 100%, 0 100%);
+    }
+
     /* University bar - white header */
     .uni-bar {
       background: #ffffff;
@@ -519,6 +575,10 @@
       .uni-info-ministry { font-size: .6rem; }
       .uni-info-eng { font-size: .55rem; }
       .c-card-img { height: 260px; }
+      .muce-topbar-container { justify-content: center; padding: .25rem .5rem; }
+      .muce-topbar-right { display: none; }
+      .muce-phone-list { display: none; }
+      .muce-topbar-divider { display: none; }
     }
 
     /* ── MODAL ── */
@@ -532,7 +592,23 @@
 <!-- ═══════════════════ TOAST ═══════════════════ -->
 <div class="toast-wrap" id="toastWrap"></div>
 
-<!-- ═══════════════════ HERO ═══════════════════ -->
+<!-- ═══════════════════ MUCE TOPBAR ═══════════════════ -->
+<div class="muce-topbar">
+  <div class="muce-topbar-container">
+    <div class="muce-topbar-left">
+      <span class="muce-topbar-title">TƯ VẤN TUYỂN SINH - HOTLINE (Zalo):</span>
+      <span class="muce-phone-highlight">096 22 44 195</span>
+      <span class="muce-topbar-divider">|</span>
+      <span class="muce-phone-list">0977 388 818 – 0935 081 799 – 0988 856 007</span>
+    </div>
+    <div class="muce-topbar-right">
+      <div class="muce-topbar-blue-tab">
+        <span>👑 BÌNH CHỌN HOA KHÔI</span>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════════ UNIVERSITY BAR ═══════════════════ -->
 <div class="uni-bar">
   <img src="logo-muce.png" alt="Logo MUCE" onerror="this.style.display='none'" />
