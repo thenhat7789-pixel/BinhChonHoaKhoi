@@ -7,7 +7,7 @@
   <meta name="robots" content="noindex, nofollow" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="style.css?v=20260916" />
   <style>
     /* ── PAGE ── */
     body { background: #f0f2f5; }
@@ -643,6 +643,26 @@
               </table>
               <div class="log-empty hidden" id="logEmpty">Chưa có nhật ký bình chọn.</div>
             </div>
+
+            <!-- Share Logs Section -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2rem;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
+              <div class="chart-title" style="margin-bottom:0">📤 Lịch sử người bấm chia sẻ</div>
+            </div>
+            <div class="log-wrap">
+              <table class="log-table">
+                <thead>
+                  <tr>
+                    <th style="width: 50px;">#</th>
+                    <th style="width: 180px;">Người chia sẻ</th>
+                    <th style="width: 180px;">Thí sinh được chia sẻ</th>
+                    <th style="width: 120px;">Kênh chia sẻ</th>
+                    <th style="width: 180px;">Thời điểm</th>
+                  </tr>
+                </thead>
+                <tbody id="shareLogTableBody"></tbody>
+              </table>
+              <div class="log-empty hidden" id="shareLogEmpty">Chưa có nhật ký chia sẻ.</div>
+            </div>
           </div>
         </div>
 
@@ -676,6 +696,32 @@
               <button class="btn btn-ghost btn-sm" onclick="setQuickTime(3)">+3 ngày</button>
               <button class="btn btn-ghost btn-sm" onclick="setQuickTime(7)">+7 ngày</button>
               <button class="btn btn-ghost btn-sm" onclick="setQuickTime(30)">+30 ngày</button>
+            </div>
+          </div>
+
+          <!-- Event Content Settings -->
+          <div class="settings-section">
+            <div class="settings-label">👑 Thay đổi Tiêu đề & Logo Sự kiện</div>
+            <div class="settings-grid">
+              <div class="form-group">
+                <label class="form-label">Tiêu đề chính sự kiện</label>
+                <input class="input" id="setEventTitle" placeholder="Bình Chọn <span class='hero-title-accent'>Hoa Khôi</span>" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Năm học / Giai đoạn</label>
+                <input class="input" id="setEventYear" placeholder="✦ NĂM HỌC 2025 – 2026 ✦" />
+              </div>
+            </div>
+            <div class="form-group" style="margin-top:.75rem">
+              <label class="form-label">Mô tả phụ sự kiện</label>
+              <input class="input" id="setEventSub" placeholder="Chạm để trao vương miện cho thí sinh bạn yêu thích nhất" />
+            </div>
+            <div class="form-group" style="margin-top:.75rem">
+              <label class="form-label">Link hoặc tên file Logo (Ví dụ: logo-muce.png hoặc URL ảnh)</label>
+              <input class="input" id="setLogoUrl" placeholder="logo-muce.png" />
+            </div>
+            <div style="margin-top:.75rem">
+              <button class="btn btn-gold btn-sm" onclick="saveEventSettings()">Lưu thông tin sự kiện</button>
             </div>
           </div>
 
@@ -1289,6 +1335,7 @@ function renderAll() {
   renderTopThree();
   renderTimeline();
   renderLogTable();
+  loadShareLogs();
   renderContestantList();
   renderSettings();
   renderStatusPill();
@@ -1503,6 +1550,41 @@ function renderLogTable() {
   }).join('');
 }
 
+/* ─── SHARE LOG TABLE ───────────────────────────────────── */
+async function loadShareLogs() {
+  let log = [];
+  try {
+    const data = await api.get('/api/share-log');
+    log = data.log || [];
+  } catch (e) {}
+
+  const body = document.getElementById('shareLogTableBody');
+  const empty = document.getElementById('shareLogEmpty');
+  if (!body) return;
+
+  if (log.length === 0) {
+    body.innerHTML = '';
+    if (empty) empty.classList.remove('hidden');
+    return;
+  }
+  if (empty) empty.classList.add('hidden');
+
+  body.innerHTML = log.slice(0, 500).map((entry, i) => {
+    const sharer = entry.sharerName || 'Người dùng ẩn danh';
+    const contestant = entry.contestantName ? `${entry.contestantName} (SBD ${entry.contestantId})` : 'Trang chủ bình chọn';
+    const platform = (entry.platform || 'facebook').toUpperCase();
+    const dateStr = formatDateFull(new Date(entry.ts));
+    return `
+    <tr>
+      <td class="td-id">${log.length - i}</td>
+      <td class="td-name fw-600" style="color:var(--text-0)">${esc(sharer)}</td>
+      <td style="color:#2563eb;font-weight:600">${esc(contestant)}</td>
+      <td><span class="badge" style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe">📲 ${esc(platform)}</span></td>
+      <td class="td-ts">${dateStr}</td>
+    </tr>`;
+  }).join('');
+}
+
 /* ─── CONTESTANT LIST ───────────────────────────────────── */
 function renderContestantList() {
   document.getElementById('contestantList').innerHTML = appData.contestants.map(c => {
@@ -1540,6 +1622,14 @@ function renderSettings() {
   // Start time – not stored separately, just for display
   const start = new Date(); start.setDate(start.getDate() - 7);
   document.getElementById('setStartTime').value = toDatetimeLocal(start);
+
+  if (appData.settings) {
+    if (appData.settings.share_url) document.getElementById('setShareUrl').value = appData.settings.share_url;
+    if (appData.settings.event_title) document.getElementById('setEventTitle').value = appData.settings.event_title;
+    if (appData.settings.event_sub) document.getElementById('setEventSub').value = appData.settings.event_sub;
+    if (appData.settings.event_year) document.getElementById('setEventYear').value = appData.settings.event_year;
+    if (appData.settings.logo_url) document.getElementById('setLogoUrl').value = appData.settings.logo_url;
+  }
 }
 
 /* ─── SETTINGS ACTIONS ──────────────────────────────────── */
@@ -1562,6 +1652,26 @@ async function saveShareUrl() {
   const url = document.getElementById('setShareUrl').value.trim();
   await api.post('/api/settings', { share_url: url });
   toast('Đã lưu link chia sẻ!', 'success');
+}
+
+async function saveEventSettings() {
+  const event_title = document.getElementById('setEventTitle').value.trim();
+  const event_sub = document.getElementById('setEventSub').value.trim();
+  const event_year = document.getElementById('setEventYear').value.trim();
+  const logo_url = document.getElementById('setLogoUrl').value.trim();
+
+  await api.post('/api/settings', {
+    event_title,
+    event_sub,
+    event_year,
+    logo_url
+  });
+  if (!appData.settings) appData.settings = {};
+  appData.settings.event_title = event_title;
+  appData.settings.event_sub = event_sub;
+  appData.settings.event_year = event_year;
+  appData.settings.logo_url = logo_url;
+  toast('Đã lưu thông tin sự kiện & logo thành công!', 'success');
 }
 
 
