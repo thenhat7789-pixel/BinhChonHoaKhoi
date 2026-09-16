@@ -100,16 +100,26 @@
     /* University bar - white header */
     .uni-bar {
       background: #ffffff;
-      padding: .45rem 1.25rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: .75rem;
+      padding: .55rem 0;
       border-bottom: 2px solid #0057a8;
     }
+    .uni-bar-container {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 0 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+    .uni-bar-brand {
+      display: flex;
+      align-items: center;
+      gap: .85rem;
+    }
     .uni-bar img {
-      height: 44px;
-      width: 44px;
+      height: 48px;
+      width: 48px;
       object-fit: contain;
       flex-shrink: 0;
     }
@@ -137,6 +147,27 @@
       font-weight: 600;
       text-transform: uppercase;
       margin-top: .1rem;
+    }
+    .uni-bar-badge {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      text-align: right;
+    }
+    .uni-bar-badge-tag {
+      font-size: .62rem;
+      color: #0057a8;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .uni-bar-badge-title {
+      font-family: var(--font-d);
+      font-size: 1.1rem;
+      font-weight: 900;
+      color: #c00000;
+      text-transform: uppercase;
+      letter-spacing: .02em;
     }
 
     /* Hero content */
@@ -575,10 +606,8 @@
       .uni-info-ministry { font-size: .6rem; }
       .uni-info-eng { font-size: .55rem; }
       .c-card-img { height: 260px; }
-      .muce-topbar-container { justify-content: center; padding: .25rem .5rem; }
-      .muce-topbar-right { display: none; }
-      .muce-phone-list { display: none; }
-      .muce-topbar-divider { display: none; }
+      .uni-bar-container { justify-content: center; }
+      .uni-bar-badge { display: none; }
     }
 
     /* ── MODAL ── */
@@ -611,11 +640,19 @@
 
 <!-- ═══════════════════ UNIVERSITY BAR ═══════════════════ -->
 <div class="uni-bar">
-  <img src="logo-muce.png" alt="Logo MUCE" onerror="this.style.display='none'" />
-  <div class="uni-info">
-    <div class="uni-info-ministry">Bộ Xây Dựng</div>
-    <div class="uni-info-name">Trường Đại Học Xây Dựng Miền Trung</div>
-    <div class="uni-info-eng">Mientrung University of Civil Engineering</div>
+  <div class="uni-bar-container">
+    <div class="uni-bar-brand">
+      <img src="logo-muce.png" alt="Logo MUCE" onerror="this.style.display='none'" />
+      <div class="uni-info">
+        <div class="uni-info-ministry">Bộ Xây Dựng</div>
+        <div class="uni-info-name">Trường Đại Học Xây Dựng Miền Trung</div>
+        <div class="uni-info-eng">Mientrung University of Civil Engineering</div>
+      </div>
+    </div>
+    <div class="uni-bar-badge">
+      <div class="uni-bar-badge-tag">HỘI THI 2026</div>
+      <div class="uni-bar-badge-title">BÌNH CHỌN HOA KHÔI</div>
+    </div>
   </div>
 </div>
 
