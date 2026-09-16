@@ -831,12 +831,13 @@ function updateCountdown() {
 }
 
 /* ─── FACEBOOK SHARE ───────────────────────────────────── */
-function shareOnFacebook(id) {
+async function shareOnFacebook(id) {
   const c = state.contestants.find(item => item.id === id);
   const rawShare = localStorage.getItem('hh:share_url');
   const shareUrl = (rawShare && rawShare.trim() !== '') ? rawShare : window.location.href;
+  const voterName = localStorage.getItem('hh:voter_name') || 'Người dùng ẩn danh';
 
-  // Tracking lượt chia sẻ
+  // Tracking lượt chia sẻ ở client
   const totalShares = parseInt(localStorage.getItem('hh:total_shares') || '0') + 1;
   localStorage.setItem('hh:total_shares', String(totalShares));
   if (id) {
@@ -844,6 +845,15 @@ function shareOnFacebook(id) {
     localStorage.setItem(`hh:shares:${id}`, String(cShares));
   }
   updateShareBadge();
+
+  // Gửi thông tin chia sẻ về server backend
+  try {
+    await api.post('/api/share', {
+      contestant_id: id || null,
+      sharer_name: voterName,
+      platform: 'facebook'
+    });
+  } catch (e) {}
 
   // Mở trực tiếp trang chia sẻ của Facebook ở tab mới
   const fbShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
@@ -900,6 +910,7 @@ async function submitVote(id, voterName, comment) {
   const newCount = (state.votes[id] || 0) + 1;
   state.votes[id] = newCount;
   state.votedId = id;
+  localStorage.setItem('hh:voter_name', voterName);
   renderCards();
   renderLeaderboard();
 

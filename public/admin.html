@@ -643,6 +643,26 @@
               </table>
               <div class="log-empty hidden" id="logEmpty">Chưa có nhật ký bình chọn.</div>
             </div>
+
+            <!-- Share Logs Section -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2rem;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
+              <div class="chart-title" style="margin-bottom:0">📤 Lịch sử người bấm chia sẻ</div>
+            </div>
+            <div class="log-wrap">
+              <table class="log-table">
+                <thead>
+                  <tr>
+                    <th style="width: 50px;">#</th>
+                    <th style="width: 180px;">Người chia sẻ</th>
+                    <th style="width: 180px;">Thí sinh được chia sẻ</th>
+                    <th style="width: 120px;">Kênh chia sẻ</th>
+                    <th style="width: 180px;">Thời điểm</th>
+                  </tr>
+                </thead>
+                <tbody id="shareLogTableBody"></tbody>
+              </table>
+              <div class="log-empty hidden" id="shareLogEmpty">Chưa có nhật ký chia sẻ.</div>
+            </div>
           </div>
         </div>
 
@@ -1289,6 +1309,7 @@ function renderAll() {
   renderTopThree();
   renderTimeline();
   renderLogTable();
+  loadShareLogs();
   renderContestantList();
   renderSettings();
   renderStatusPill();
@@ -1499,6 +1520,41 @@ function renderLogTable() {
           <button class="btn btn-danger btn-sm" onclick="deleteVote('${esc(voteId)}')">✕</button>
         </div>
       </td>
+    </tr>`;
+  }).join('');
+}
+
+/* ─── SHARE LOG TABLE ───────────────────────────────────── */
+async function loadShareLogs() {
+  let log = [];
+  try {
+    const data = await api.get('/api/share-log');
+    log = data.log || [];
+  } catch (e) {}
+
+  const body = document.getElementById('shareLogTableBody');
+  const empty = document.getElementById('shareLogEmpty');
+  if (!body) return;
+
+  if (log.length === 0) {
+    body.innerHTML = '';
+    if (empty) empty.classList.remove('hidden');
+    return;
+  }
+  if (empty) empty.classList.add('hidden');
+
+  body.innerHTML = log.slice(0, 500).map((entry, i) => {
+    const sharer = entry.sharerName || 'Người dùng ẩn danh';
+    const contestant = entry.contestantName ? `${entry.contestantName} (SBD ${entry.contestantId})` : 'Trang chủ bình chọn';
+    const platform = (entry.platform || 'facebook').toUpperCase();
+    const dateStr = formatDateFull(new Date(entry.ts));
+    return `
+    <tr>
+      <td class="td-id">${log.length - i}</td>
+      <td class="td-name fw-600" style="color:var(--text-0)">${esc(sharer)}</td>
+      <td style="color:#2563eb;font-weight:600">${esc(contestant)}</td>
+      <td><span class="badge" style="background:#eff6ff;color:#2563eb;border:1px solid #bfdbfe">📲 ${esc(platform)}</span></td>
+      <td class="td-ts">${dateStr}</td>
     </tr>`;
   }).join('');
 }

@@ -138,6 +138,39 @@ app.get('/api/vote-log', async (req, res) => {
   }
 });
 
+// ─── POST /api/share ──────────────────────────────
+app.post('/api/share', async (req, res) => {
+  const { contestant_id, sharer_name, platform } = req.body;
+  try {
+    await pool.query(
+      'INSERT INTO shares (contestant_id, sharer_name, platform) VALUES ($1, $2, $3)',
+      [contestant_id || null, sharer_name || 'Người dùng', platform || 'facebook']
+    );
+    res.json({ success: true });
+  } catch (e) {
+    console.error('POST /api/share error:', e);
+    res.status(500).json({ error: 'Lỗi ghi lượt chia sẻ' });
+  }
+});
+
+// ─── GET /api/share-log ───────────────────────────
+app.get('/api/share-log', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT s.id, s.contestant_id as "contestantId", c.name as "contestantName",
+             s.sharer_name as "sharerName", s.platform, s.created_at as ts
+      FROM shares s
+      LEFT JOIN contestants c ON c.id = s.contestant_id
+      ORDER BY s.created_at DESC
+      LIMIT 10000
+    `);
+    res.json({ log: rows, total: rows.length });
+  } catch (e) {
+    console.error('GET /api/share-log error:', e);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
 // ─── PUT /api/vote/:voteId ────────────────────────
 app.put('/api/vote/:voteId', async (req, res) => {
   const { contestant_id, voter_name, comment } = req.body;

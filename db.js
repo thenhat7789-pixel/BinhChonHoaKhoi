@@ -45,6 +45,14 @@ async function initDB() {
         created_at TIMESTAMP DEFAULT NOW()
       );
 
+      CREATE TABLE IF NOT EXISTS shares (
+        id SERIAL PRIMARY KEY,
+        contestant_id VARCHAR(10) REFERENCES contestants(id) ON DELETE CASCADE,
+        sharer_name VARCHAR(255) DEFAULT 'Người dùng',
+        platform VARCHAR(50) DEFAULT 'facebook',
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+
       CREATE TABLE IF NOT EXISTS settings (
         key VARCHAR(100) PRIMARY KEY,
         value TEXT,
