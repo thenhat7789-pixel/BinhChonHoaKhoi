@@ -699,6 +699,32 @@
             </div>
           </div>
 
+          <!-- Event Content Settings -->
+          <div class="settings-section">
+            <div class="settings-label">👑 Thay đổi Tiêu đề & Logo Sự kiện</div>
+            <div class="settings-grid">
+              <div class="form-group">
+                <label class="form-label">Tiêu đề chính sự kiện</label>
+                <input class="input" id="setEventTitle" placeholder="Bình Chọn <span class='hero-title-accent'>Hoa Khôi</span>" />
+              </div>
+              <div class="form-group">
+                <label class="form-label">Năm học / Giai đoạn</label>
+                <input class="input" id="setEventYear" placeholder="✦ NĂM HỌC 2025 – 2026 ✦" />
+              </div>
+            </div>
+            <div class="form-group" style="margin-top:.75rem">
+              <label class="form-label">Mô tả phụ sự kiện</label>
+              <input class="input" id="setEventSub" placeholder="Chạm để trao vương miện cho thí sinh bạn yêu thích nhất" />
+            </div>
+            <div class="form-group" style="margin-top:.75rem">
+              <label class="form-label">Link hoặc tên file Logo (Ví dụ: logo-muce.png hoặc URL ảnh)</label>
+              <input class="input" id="setLogoUrl" placeholder="logo-muce.png" />
+            </div>
+            <div style="margin-top:.75rem">
+              <button class="btn btn-gold btn-sm" onclick="saveEventSettings()">Lưu thông tin sự kiện</button>
+            </div>
+          </div>
+
           <!-- Share URL -->
           <div class="settings-section">
             <div class="settings-label">🔗 Link chia sẻ Facebook</div>
@@ -1596,6 +1622,14 @@ function renderSettings() {
   // Start time – not stored separately, just for display
   const start = new Date(); start.setDate(start.getDate() - 7);
   document.getElementById('setStartTime').value = toDatetimeLocal(start);
+
+  if (appData.settings) {
+    if (appData.settings.share_url) document.getElementById('setShareUrl').value = appData.settings.share_url;
+    if (appData.settings.event_title) document.getElementById('setEventTitle').value = appData.settings.event_title;
+    if (appData.settings.event_sub) document.getElementById('setEventSub').value = appData.settings.event_sub;
+    if (appData.settings.event_year) document.getElementById('setEventYear').value = appData.settings.event_year;
+    if (appData.settings.logo_url) document.getElementById('setLogoUrl').value = appData.settings.logo_url;
+  }
 }
 
 /* ─── SETTINGS ACTIONS ──────────────────────────────────── */
@@ -1618,6 +1652,26 @@ async function saveShareUrl() {
   const url = document.getElementById('setShareUrl').value.trim();
   await api.post('/api/settings', { share_url: url });
   toast('Đã lưu link chia sẻ!', 'success');
+}
+
+async function saveEventSettings() {
+  const event_title = document.getElementById('setEventTitle').value.trim();
+  const event_sub = document.getElementById('setEventSub').value.trim();
+  const event_year = document.getElementById('setEventYear').value.trim();
+  const logo_url = document.getElementById('setLogoUrl').value.trim();
+
+  await api.post('/api/settings', {
+    event_title,
+    event_sub,
+    event_year,
+    logo_url
+  });
+  if (!appData.settings) appData.settings = {};
+  appData.settings.event_title = event_title;
+  appData.settings.event_sub = event_sub;
+  appData.settings.event_year = event_year;
+  appData.settings.logo_url = logo_url;
+  toast('Đã lưu thông tin sự kiện & logo thành công!', 'success');
 }
 
 

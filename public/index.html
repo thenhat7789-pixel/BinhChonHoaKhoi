@@ -620,7 +620,7 @@
 <div class="hero-top-bar">
   <div class="hero-top-bar-inner">
     <div class="hero-brand">
-      <img src="logo-muce.png" alt="Logo MUCE" onerror="this.style.display='none'" />
+      <img id="headerLogoImg" src="logo-muce.png" alt="Logo MUCE" onerror="this.style.display='none'" />
       <div class="hero-brand-info">
         <div class="hero-brand-ministry">BỘ XÂY DỰNG</div>
         <div class="hero-brand-name">TRƯỜNG ĐẠI HỌC XÂY DỰNG MIỀN TRUNG</div>
@@ -635,9 +635,9 @@
   <!-- Hero Content -->
   <div class="hero-content">
     <div class="hero-crown-icon">👑</div>
-    <h1 class="hero-title font-display">Bình Chọn <span class="hero-title-accent">Hoa Khôi</span></h1>
-    <p class="hero-sub">Chạm để trao vương miện cho thí sinh bạn yêu thích nhất</p>
-    <div class="hero-year">✦ NĂM HỌC 2025 – 2026 ✦</div>
+    <h1 class="hero-title font-display" id="heroTitle">Bình Chọn <span class="hero-title-accent">Hoa Khôi</span></h1>
+    <p class="hero-sub" id="heroSub">Chạm để trao vương miện cho thí sinh bạn yêu thích nhất</p>
+    <div class="hero-year" id="heroYear">✦ NĂM HỌC 2025 – 2026 ✦</div>
 
     <!-- Countdown or closed -->
     <div id="countdownBanner" class="countdown-banner hidden">
@@ -1047,10 +1047,27 @@ async function init() {
     const contestantData = await api.get('/api/contestants');
     state.contestants = contestantData.contestants.length ? contestantData.contestants : DEFAULT_CONTESTANTS;
 
-    // Load settings (end_time)
+    // Load settings (end_time, titles, logo)
     const settings = await api.get('/api/settings');
     state.endTime = settings.end_time ? new Date(settings.end_time) : getDefaultEndTime();
     state.isClosed = Date.now() >= state.endTime.getTime();
+
+    if (settings.event_title) {
+      const titleEl = document.getElementById('heroTitle');
+      if (titleEl) titleEl.innerHTML = settings.event_title;
+    }
+    if (settings.event_sub) {
+      const subEl = document.getElementById('heroSub');
+      if (subEl) subEl.textContent = settings.event_sub;
+    }
+    if (settings.event_year) {
+      const yearEl = document.getElementById('heroYear');
+      if (yearEl) yearEl.textContent = settings.event_year;
+    }
+    if (settings.logo_url) {
+      const logoEl = document.getElementById('headerLogoImg');
+      if (logoEl) logoEl.src = settings.logo_url;
+    }
 
     // Load vote counts
     const voteData = await api.get('/api/votes');
