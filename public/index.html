@@ -44,16 +44,16 @@
     /* University bar - white header */
     .uni-bar {
       background: #ffffff;
-      padding: .75rem 1.5rem;
+      padding: .45rem 1.25rem;
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: .85rem;
+      gap: .75rem;
       border-bottom: 2px solid #0057a8;
     }
     .uni-bar img {
-      height: 52px;
-      width: 52px;
+      height: 44px;
+      width: 44px;
       object-fit: contain;
       flex-shrink: 0;
     }
@@ -86,29 +86,29 @@
     /* Hero content */
     .hero-content {
       text-align: center;
-      padding: 2.5rem 1.5rem 2rem;
+      padding: 1.25rem 1rem 1.15rem;
     }
     .hero-crown-icon {
-      width: 52px;
-      height: 52px;
-      margin: 0 auto .8rem;
+      width: 36px;
+      height: 36px;
+      margin: 0 auto .35rem;
       background: linear-gradient(135deg, rgba(245,158,11,.2), rgba(245,158,11,.05));
       border: 1px solid rgba(245,158,11,.3);
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.6rem;
-      box-shadow: 0 0 30px rgba(245,158,11,.15);
+      font-size: 1.15rem;
+      box-shadow: 0 0 20px rgba(245,158,11,.15);
     }
     .hero-title {
-      font-size: clamp(1.6rem, 5vw, 2.8rem);
+      font-size: clamp(1.35rem, 3.5vw, 1.95rem);
       font-weight: 900;
       color: #ffffff;
       letter-spacing: .02em;
-      line-height: 1.1;
+      line-height: 1.15;
       text-transform: uppercase;
-      text-shadow: 0 2px 20px rgba(0,0,0,.3);
+      text-shadow: 0 2px 15px rgba(0,0,0,.3);
     }
     .hero-title-accent {
       background: linear-gradient(135deg, #f59e0b, #fbbf24, #f59e0b);
@@ -117,77 +117,98 @@
       background-clip: text;
     }
     .hero-sub {
-      margin-top: .6rem;
-      color: rgba(255,255,255,.6);
-      font-size: .9rem;
+      margin-top: .35rem;
+      color: rgba(255,255,255,.65);
+      font-size: .82rem;
       font-weight: 400;
     }
     .hero-year {
       display: inline-block;
-      margin-top: .5rem;
-      padding: .25rem 1rem;
+      margin-top: .35rem;
+      padding: .15rem .75rem;
       background: rgba(255,255,255,.06);
       border: 1px solid rgba(255,255,255,.1);
       border-radius: 999px;
-      font-size: .72rem;
-      color: rgba(255,255,255,.5);
-      letter-spacing: .15em;
+      font-size: .68rem;
+      color: rgba(255,255,255,.55);
+      letter-spacing: .12em;
       font-weight: 600;
     }
 
     /* ── COUNTDOWN BANNER ── */
     .countdown-banner {
-      margin: 1.5rem auto 0;
-      max-width: 480px;
+      margin: .75rem auto 0;
+      max-width: 380px;
       background: rgba(255,255,255,.06);
       border: 1px solid rgba(255,255,255,.1);
-      border-radius: 16px;
-      padding: 1rem 1.5rem;
+      border-radius: 12px;
+      padding: .5rem 1rem;
       backdrop-filter: blur(10px);
     }
+    .countdown-banner .countdown {
+      gap: .35rem;
+    }
+    .countdown-banner .countdown-unit {
+      min-width: 2.2rem;
+    }
+    .countdown-banner .countdown-num {
+      font-size: 1.3rem;
+      color: #60a5fa;
+      text-shadow: 0 0 12px rgba(96,165,250,.4);
+    }
+    .countdown-banner .countdown-sep {
+      font-size: 1.1rem;
+      color: rgba(255,255,255,.4);
+      margin-bottom: .6rem;
+    }
+    .countdown-banner .countdown-label {
+      font-size: .58rem;
+      color: rgba(255,255,255,.5);
+      margin-top: 0;
+    }
     .countdown-banner-label {
-      font-size: .65rem;
-      letter-spacing: .18em;
+      font-size: .6rem;
+      letter-spacing: .15em;
       color: rgba(255,255,255,.5);
       text-transform: uppercase;
-      margin-bottom: .6rem;
+      margin-bottom: .25rem;
       font-weight: 600;
     }
     .closed-banner {
       background: rgba(239,68,68,.12);
       border: 1px solid rgba(239,68,68,.3);
       color: #fca5a5;
-      border-radius: 12px;
-      padding: .75rem 1.25rem;
+      border-radius: 10px;
+      padding: .5rem 1rem;
       text-align: center;
-      font-size: .88rem;
+      font-size: .8rem;
       font-weight: 600;
-      margin: 1rem auto 0;
-      max-width: 380px;
+      margin: .6rem auto 0;
+      max-width: 340px;
     }
 
     /* ── STATS BAR ── */
     .stats-bar {
-      margin: 1.25rem auto 0;
-      max-width: 400px;
+      margin: .65rem auto 0;
+      max-width: 380px;
       display: flex;
       justify-content: center;
-      gap: 1rem;
+      gap: .6rem;
     }
     .stat-pill {
       display: inline-flex;
       align-items: center;
-      gap: .35rem;
-      padding: .35rem .85rem;
+      gap: .3rem;
+      padding: .25rem .7rem;
       background: rgba(255,255,255,.06);
       border: 1px solid rgba(255,255,255,.12);
       border-radius: 999px;
-      font-size: .78rem;
+      font-size: .72rem;
       font-weight: 600;
       color: rgba(255,255,255,.7);
       backdrop-filter: blur(6px);
     }
-    .stat-pill svg { width: 13px; height: 13px; stroke: rgba(255,255,255,.5); fill: none; stroke-width: 2; }
+    .stat-pill svg { width: 12px; height: 12px; stroke: rgba(255,255,255,.5); fill: none; stroke-width: 2; }
 
     /* ── GRID ── */
     .grid-section { padding: 2.5rem 0 1rem; }
