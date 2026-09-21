@@ -233,10 +233,26 @@ select.input { appearance: none; cursor: pointer; }
   border-radius: var(--r-card);
   padding: 2rem;
   width: 100%; max-width: 440px;
+  max-height: 90vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
   box-shadow: 0 8px 32px rgba(0,0,0,.15);
   animation: fadeUp .25s ease;
 }
 .modal-title { font-family: var(--font-d); font-size: 1.35rem; color: var(--red); margin-bottom: 1.5rem; }
+
+/* Responsive Media & Images */
+img, video {
+  max-width: 100%;
+  height: auto;
+}
+
+@media (max-width: 640px) {
+  .modal {
+    padding: 1.25rem 1rem;
+    border-radius: 16px;
+  }
+}
 
 /* ─── COUNTDOWN ──────────────────────────────────────────── */
 .countdown {
