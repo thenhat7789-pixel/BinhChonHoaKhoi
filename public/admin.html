@@ -413,6 +413,45 @@
   </div>
 </div>
 
+<!-- ═══════════════════ EDIT ADMIN & PASSWORD MODAL ═══════════════════ -->
+<div class="modal-overlay hidden" id="editAdminModal">
+  <div class="modal" style="max-width:440px;">
+    <h2 class="modal-title" id="adminModalTitle">Chỉnh Sửa Tài Khoản & Mật Khẩu</h2>
+    <input type="hidden" id="editAdminUid" />
+    <div class="c-form">
+      <div class="form-group">
+        <label class="form-label">Họ và tên</label>
+        <input class="input" id="editAdminName" placeholder="Tên quản trị viên" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email tài khoản</label>
+        <input class="input" type="email" id="editAdminEmail" placeholder="admin@example.com" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mật khẩu (Xem & Đổi mật khẩu mới)</label>
+        <div style="position:relative;">
+          <input class="input" type="text" id="editAdminPassword" placeholder="Nhập mật khẩu mới..." style="padding-right:45px;font-family:monospace;font-weight:700;" />
+          <button type="button" onclick="generateRandomPass()" title="Tạo mật khẩu ngẫu nhiên" style="position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:1.15rem;">🎲</button>
+        </div>
+        <small style="color:var(--text-dim);font-size:.75rem;margin-top:.25rem;display:block;">
+          Super Admin có thể đặt trực tiếp mật khẩu cho tài khoản này để người dùng đăng nhập ngay.
+        </small>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Vai trò quản trị</label>
+        <select class="input" id="editAdminRole">
+          <option value="admin">🛡️ Quản trị viên (Admin)</option>
+          <option value="superadmin">👑 Quản trị cấp cao (Super Admin)</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:.5rem;margin-top:.75rem">
+        <button class="btn btn-gold btn-full" onclick="saveAdminEdit()" style="font-weight:700;">💾 Lưu Thay Đổi</button>
+        <button class="btn btn-ghost" onclick="closeAdminModal()">Hủy</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════════ LOGIN ═══════════════════ -->
 <div id="loginScreen">
   <div class="login-box fade-up" style="max-width:420px">
@@ -422,16 +461,10 @@
     <h1 class="login-title font-display">Quản Trị Hệ Thống</h1>
     <p class="login-subtitle">Cổng quản trị hệ thống bình chọn trực tuyến</p>
 
-    <!-- Auth Tabs -->
-    <div class="auth-tabs">
-      <button class="auth-tab active" onclick="showAuthTab('login')" id="authTabLogin">Đăng nhập</button>
-      <button class="auth-tab" onclick="showAuthTab('register')" id="authTabRegister">Đăng ký</button>
-    </div>
-
-    <!-- ═══ TAB: LOGIN ═══ -->
-    <div class="auth-pane active" id="authPaneLogin">
+    <!-- ═══ LOGIN FORM (ĐĂNG NHẬP TRỰC TIẾP) ═══ -->
+    <div class="auth-pane active" id="authPaneLogin" style="margin-top:1.5rem;">
       <div class="form-group">
-        <label class="form-label">Email</label>
+        <label class="form-label">Email tài khoản</label>
         <input class="input" type="email" id="loginEmail" placeholder="admin@example.com" autocomplete="email"
           onkeydown="if(event.key==='Enter') document.getElementById('loginPassword').focus()" />
       </div>
@@ -441,7 +474,7 @@
           onkeydown="if(event.key==='Enter') doEmailLogin()" />
       </div>
       <div id="loginError" class="text-danger fs-sm mb-2 hidden"></div>
-      <button class="btn btn-gold btn-full" id="btnEmailLogin" onclick="doEmailLogin()">Đăng nhập</button>
+      <button class="btn btn-gold btn-full" id="btnEmailLogin" onclick="doEmailLogin()" style="font-weight:700;">Đăng nhập</button>
 
       <div class="auth-divider">hoặc</div>
       <button class="google-btn" id="btnGoogleLogin" onclick="doGoogleLogin()">
@@ -453,65 +486,6 @@
         </svg>
         Đăng nhập bằng Google
       </button>
-
-      <div style="text-align:center;margin-top:.75rem">
-        <button class="auth-link" onclick="showAuthTab('forgot')">Quên mật khẩu?</button>
-      </div>
-    </div>
-
-    <!-- ═══ TAB: REGISTER ═══ -->
-    <div class="auth-pane" id="authPaneRegister">
-      <div class="form-group">
-        <label class="form-label">Họ và tên</label>
-        <input class="input" id="regName" placeholder="Nguyễn Văn A" autocomplete="name" />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Email</label>
-        <input class="input" type="email" id="regEmail" placeholder="admin@example.com" autocomplete="email" />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Mật khẩu (ít nhất 6 ký tự)</label>
-        <input class="input" type="password" id="regPassword" placeholder="Nhập mật khẩu..." autocomplete="new-password" />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Xác nhận mật khẩu</label>
-        <input class="input" type="password" id="regConfirmPassword" placeholder="Nhập lại mật khẩu..." autocomplete="new-password"
-          onkeydown="if(event.key==='Enter') doRegister()" />
-      </div>
-      <div id="regError" class="text-danger fs-sm mb-2 hidden"></div>
-      <button class="btn btn-gold btn-full" id="btnRegister" onclick="doRegister()">Đăng ký tài khoản</button>
-
-      <div class="auth-divider">hoặc</div>
-      <button class="google-btn" onclick="doGoogleLogin()">
-        <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-          <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/>
-          <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-          <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-          <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-        </svg>
-        Đăng ký bằng Google
-      </button>
-    </div>
-
-    <!-- ═══ TAB: FORGOT PASSWORD ═══ -->
-    <div class="auth-pane" id="authPaneForgot">
-      <p style="font-size:.85rem;color:var(--text-2);margin-bottom:1rem;line-height:1.5">
-        Nhập email đã đăng ký, chúng tôi sẽ gửi link khôi phục mật khẩu cho bạn.
-      </p>
-      <div class="form-group">
-        <label class="form-label">Email</label>
-        <input class="input" type="email" id="forgotEmail" placeholder="admin@example.com"
-          onkeydown="if(event.key==='Enter') doForgotPassword()" />
-      </div>
-      <div id="forgotError" class="text-danger fs-sm mb-2 hidden"></div>
-      <div id="forgotSuccess" class="auth-success hidden">
-        <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke-linecap="round" stroke-linejoin="round"/><polyline points="22 4 12 14.01 9 11.01" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        <p>Đã gửi email khôi phục! Hãy kiểm tra hộp thư của bạn.</p>
-      </div>
-      <button class="btn btn-gold btn-full" id="btnForgot" onclick="doForgotPassword()">Gửi email khôi phục</button>
-      <div style="text-align:center;margin-top:.75rem">
-        <button class="auth-link" onclick="showAuthTab('login')">← Quay lại đăng nhập</button>
-      </div>
     </div>
 
   </div>
@@ -979,9 +953,14 @@
         <!-- ─── TAB: ADMINS ─── -->
         <div class="tab-pane" id="tab-admins">
           <div class="chart-card">
-            <div class="chart-title">
-              <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              Danh sách quản trị viên
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;margin-bottom:1rem;">
+              <div class="chart-title" style="margin-bottom:0;">
+                <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Danh sách tài khoản & mật khẩu quản trị
+              </div>
+              <button class="btn btn-gold btn-sm" onclick="openCreateAdminModal()" style="font-weight:700;display:inline-flex;align-items:center;gap:.35rem;">
+                <span>+</span> Thêm Tài Khoản Mới
+              </button>
             </div>
             <div class="admin-list" id="adminList">
               <div style="text-align:center;padding:1rem;color:var(--text-dim)">Đang tải...</div>
@@ -1204,7 +1183,7 @@ function firebaseErrorMsg(e) {
 
 /* ─── EMAIL LOGIN ──────────────────────────────────────── */
 async function doEmailLogin() {
-  const email = document.getElementById('loginEmail').value.trim();
+  const email = document.getElementById('loginEmail').value.trim().toLowerCase();
   const password = document.getElementById('loginPassword').value;
   const errEl = document.getElementById('loginError');
   const btn = document.getElementById('btnEmailLogin');
@@ -1216,8 +1195,43 @@ async function doEmailLogin() {
   errEl.classList.add('hidden');
 
   try {
-    await auth.signInWithEmailAndPassword(email, password);
-    // onAuthStateChanged will handle the rest
+    // 1. Kiểm tra đối chiếu trực tiếp với mật khẩu đã lưu trong database Firestore
+    const snap = await db.collection('admins').where('email', '==', email).limit(1).get();
+    if (!snap.empty) {
+      const docData = snap.docs[0].data();
+      if (docData.password && docData.password === password) {
+        // Mật khẩu khớp với dữ liệu Super Admin quản lý
+        try {
+          await auth.signInWithEmailAndPassword(email, password);
+        } catch (authErr) {
+          // Firebase Auth password khác hoặc chưa sync -> Đăng nhập phiên trực tiếp
+          currentUser = {
+            uid: snap.docs[0].id,
+            email: docData.email,
+            displayName: docData.name || 'Admin'
+          };
+          currentAdminDoc = docData;
+          localStorage.setItem('hh:admin_session', JSON.stringify({
+            uid: currentUser.uid,
+            email: currentUser.email,
+            name: currentUser.displayName,
+            role: docData.role
+          }));
+          _showAdmin();
+          return;
+        }
+        return;
+      }
+    }
+
+    // 2. Đăng nhập qua Firebase Auth thông thường
+    const cred = await auth.signInWithEmailAndPassword(email, password);
+    if (cred.user) {
+      // Lưu lại mật khẩu vào doc admin để Super Admin luôn nhìn thấy và quản lý được
+      await db.collection('admins').doc(cred.user.uid).set({
+        password: password
+      }, { merge: true });
+    }
   } catch (e) {
     errEl.textContent = firebaseErrorMsg(e);
     errEl.classList.remove('hidden');
@@ -1382,7 +1396,8 @@ function _showAdmin() {
 
 /* ─── LOGOUT ───────────────────────────────────────────── */
 function logout() {
-  auth.signOut().then(() => {
+  try { localStorage.removeItem('hh:admin_session'); } catch(e) {}
+  auth.signOut().finally(() => {
     currentUser = null;
     currentAdminDoc = null;
     window.location.reload();
@@ -1412,6 +1427,30 @@ auth.onAuthStateChanged(async (user) => {
       console.error('Auth check error:', e);
       toast('Lỗi xác thực. Vui lòng thử lại.', 'error');
     }
+  } else {
+    // Check custom admin session
+    try {
+      const saved = localStorage.getItem('hh:admin_session');
+      if (saved) {
+        const s = JSON.parse(saved);
+        if (s && s.email) {
+          const snap = await db.collection('admins').where('email', '==', s.email).limit(1).get();
+          if (!snap.empty) {
+            currentAdminDoc = snap.docs[0].data();
+            currentUser = {
+              uid: snap.docs[0].id,
+              email: currentAdminDoc.email,
+              displayName: currentAdminDoc.name || 'Admin'
+            };
+            _showAdmin();
+          } else {
+            localStorage.removeItem('hh:admin_session');
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Session load error:', e);
+    }
   }
 });
 
@@ -1430,23 +1469,41 @@ async function loadAdminList() {
       const isSuper = d.role === 'superadmin';
       const isMe = currentUser && doc.id === currentUser.uid;
       const initial = (d.name || d.email || '?').charAt(0).toUpperCase();
+      const pw = d.password || '';
+
       return `
-      <div class="admin-item">
-        <div class="admin-avatar">${initial}</div>
-        <div class="admin-info">
-          <div class="admin-name">${esc(d.name || 'Admin')} ${isMe ? '(Bạn)' : ''}</div>
-          <div class="admin-email">${esc(d.email || '')}</div>
+      <div class="admin-item" style="display:flex;align-items:center;justify-content:space-between;padding:.85rem 1rem;gap:.75rem;border-radius:8px;background:#fff;border:1px solid #e2e8f0;margin-bottom:.65rem;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:.75rem;min-width:200px;">
+          <div class="admin-avatar">${initial}</div>
+          <div class="admin-info">
+            <div class="admin-name" style="font-weight:700;color:#0f172a;">${esc(d.name || 'Admin')} ${isMe ? '<span style="color:#2563eb;font-size:.78rem;">(Bạn)</span>' : ''}</div>
+            <div class="admin-email" style="font-size:.8rem;color:#64748b;">${esc(d.email || '')}</div>
+          </div>
         </div>
+
+        ${currentAdminDoc?.role === 'superadmin' ? `
+          <div style="display:flex;align-items:center;gap:.35rem;background:#f8fafc;border:1px solid #cbd5e1;padding:4px 10px;border-radius:6px;font-family:monospace;font-size:.85rem;">
+            <span style="color:#64748b;" title="Mật khẩu tài khoản">🔑</span>
+            <span id="pw_val_${doc.id}" style="font-weight:700;color:#0f172a;letter-spacing:1.5px;">••••••••</span>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="togglePasswordView('${doc.id}', '${esc(pw)}')" style="padding:2px 6px;font-size:.85rem;border:none;background:none;cursor:pointer;" title="Hiện / Ẩn mật khẩu">👁️</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="copyPasswordText('${esc(pw)}')" style="padding:2px 6px;font-size:.85rem;border:none;background:none;cursor:pointer;" title="Sao chép mật khẩu">📋</button>
+          </div>
+        ` : ''}
+
         <span class="admin-badge ${isSuper ? 'admin-badge-super' : 'admin-badge-admin'}">
           ${isSuper ? '👑 SUPER ADMIN' : '🛡 ADMIN'}
         </span>
-        ${(!isMe && currentAdminDoc?.role === 'superadmin') ? `
+
+        ${currentAdminDoc?.role === 'superadmin' ? `
           <div style="display:flex;gap:.35rem;align-items:center;">
+            <button class="btn btn-outline-gold btn-sm" onclick="openEditAdmin('${doc.id}', '${esc(d.name || '')}', '${esc(d.email || '')}', '${esc(pw)}', '${d.role || 'admin'}')" title="Chỉnh sửa thông tin & đổi mật khẩu">
+              ✏️ Sửa & Đổi MK
+            </button>
             ${!isSuper
-              ? `<button class="btn btn-outline-gold btn-sm" onclick="transferSuperAdmin('${doc.id}','${esc(d.email)}')" title="Cấp quyền Super Admin cho người này">👑 Cấp Super Admin</button>`
-              : `<button class="btn btn-ghost btn-sm" onclick="demoteSuperAdmin('${doc.id}','${esc(d.email)}')" title="Hạ quyền xuống Admin">Hạ quyền</button>`
+              ? `<button class="btn btn-ghost btn-sm" onclick="transferSuperAdmin('${doc.id}','${esc(d.email)}')" title="Thăng cấp Super Admin" style="border:1px solid #cbd5e1;">👑 Cấp Super</button>`
+              : (!isMe ? `<button class="btn btn-ghost btn-sm" onclick="demoteSuperAdmin('${doc.id}','${esc(d.email)}')" title="Hạ quyền xuống Admin">Hạ quyền</button>` : '')
             }
-            <button class="btn btn-danger btn-sm" onclick="removeAdmin('${doc.id}','${esc(d.email)}')">✕</button>
+            ${!isMe ? `<button class="btn btn-danger btn-sm" onclick="removeAdmin('${doc.id}','${esc(d.email)}')" title="Xóa tài khoản">✕</button>` : ''}
           </div>
         ` : ''}
       </div>`;
@@ -1578,7 +1635,109 @@ async function demoteSuperAdmin(targetUid, targetEmail) {
   }
 }
 
-/* ─── REMOVE ADMIN ─────────────────────────────────────── */
+/* ─── PASSWORD VIEWER & ADMIN EDIT (SUPER ADMIN) ───────── */
+function togglePasswordView(docId, rawPw) {
+  const el = document.getElementById('pw_val_' + docId);
+  if (!el) return;
+  if (el.textContent === '••••••••') {
+    el.textContent = rawPw || '(Chưa có)';
+    el.style.letterSpacing = 'normal';
+    el.style.color = '#2563eb';
+  } else {
+    el.textContent = '••••••••';
+    el.style.letterSpacing = '1.5px';
+    el.style.color = '#0f172a';
+  }
+}
+
+function copyPasswordText(pw) {
+  if (!pw) { toast('Tài khoản chưa có mật khẩu lưu sẵn.', 'info'); return; }
+  navigator.clipboard.writeText(pw).then(() => {
+    toast('Đã sao chép mật khẩu vào bộ nhớ tạm! 📋', 'success');
+  }).catch(() => {
+    toast('Mật khẩu: ' + pw, 'info');
+  });
+}
+
+function openEditAdmin(docId, name, email, pw, role) {
+  document.getElementById('editAdminUid').value = docId;
+  document.getElementById('editAdminName').value = name;
+  document.getElementById('editAdminEmail').value = email;
+  document.getElementById('editAdminPassword').value = pw;
+  document.getElementById('editAdminRole').value = role || 'admin';
+  document.getElementById('adminModalTitle').textContent = '✏️ Chỉnh Sửa Tài Khoản & Đổi Mật Khẩu';
+  document.getElementById('editAdminModal').classList.remove('hidden');
+}
+
+function openCreateAdminModal() {
+  document.getElementById('editAdminUid').value = '';
+  document.getElementById('editAdminName').value = '';
+  document.getElementById('editAdminEmail').value = '';
+  document.getElementById('editAdminPassword').value = '';
+  document.getElementById('editAdminRole').value = 'admin';
+  document.getElementById('adminModalTitle').textContent = '➕ Thêm Tài Khoản Quản Trị Mới';
+  document.getElementById('editAdminModal').classList.remove('hidden');
+}
+
+function closeAdminModal() {
+  document.getElementById('editAdminModal').classList.add('hidden');
+}
+
+function generateRandomPass() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$';
+  let pass = '';
+  for (let i = 0; i < 8; i++) {
+    pass += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  document.getElementById('editAdminPassword').value = pass;
+}
+
+async function saveAdminEdit() {
+  const uid = document.getElementById('editAdminUid').value.trim();
+  const name = document.getElementById('editAdminName').value.trim();
+  const email = document.getElementById('editAdminEmail').value.trim().toLowerCase();
+  const password = document.getElementById('editAdminPassword').value.trim();
+  const role = document.getElementById('editAdminRole').value;
+
+  if (!email || !email.includes('@')) { toast('Vui lòng nhập email hợp lệ!', 'error'); return; }
+  if (!password || password.length < 6) { toast('Mật khẩu phải có ít nhất 6 ký tự!', 'error'); return; }
+
+  try {
+    if (uid) {
+      // 1. Cập nhật tài khoản hiện có
+      await db.collection('admins').doc(uid).update({
+        name,
+        email,
+        password,
+        role,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      toast(`✅ Đã cập nhật tài khoản và đổi mật khẩu cho ${email} thành công!`, 'success');
+    } else {
+      // 2. Thêm mới tài khoản
+      const snap = await db.collection('admins').where('email', '==', email).limit(1).get();
+      if (!snap.empty) {
+        toast('Email này đã tồn tại trong danh sách admin!', 'error');
+        return;
+      }
+      const newDocRef = db.collection('admins').doc();
+      await newDocRef.set({
+        name: name || 'Admin',
+        email,
+        password,
+        role,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        uid: newDocRef.id
+      });
+      toast(`🎉 Đã tạo mới tài khoản cho ${email} thành công!`, 'success');
+    }
+
+    closeAdminModal();
+    loadAdminList();
+  } catch (e) {
+    toast('Lỗi khi lưu tài khoản: ' + e.message, 'error');
+  }
+}
 async function removeAdmin(uid, email) {
   if (!await customConfirm(`Xóa quyền admin của ${email}?`, '🛡️')) return;
   try {
@@ -2733,6 +2892,10 @@ document.getElementById('editModal').addEventListener('click', function(e) {
 
 document.getElementById('editVoteModal').addEventListener('click', function(e) {
   if (e.target === this) closeVoteModal();
+});
+
+document.getElementById('editAdminModal')?.addEventListener('click', function(e) {
+  if (e.target === this) closeAdminModal();
 });
 
 /* ─── AUTO-REFRESH EVERY 30s ────────────────────────────── */
