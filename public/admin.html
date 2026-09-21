@@ -826,6 +826,28 @@
               </div>
             </div>
           </div>
+
+          <!-- ─── KHO SỰ KIỆN ĐÃ LƯU (EVENT ARCHIVE / LIBRARY) ─── -->
+          <div class="card" style="margin-top:1.75rem;background:#fff;border-radius:12px;padding:1.5rem;box-shadow:0 4px 16px rgba(0,0,0,0.06);border:1px solid #e2e8f0;">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.25rem;border-bottom:1px solid #e2e8f0;padding-bottom:.85rem;">
+              <div>
+                <h3 style="margin:0;font-size:1.15rem;color:#0f172a;display:flex;align-items:center;gap:.5rem;">
+                  <span>📚</span> Kho Sự Kiện Đã Lưu (Lịch Sử Cuộc Thi)
+                </h3>
+                <p style="margin:.3rem 0 0 0;font-size:.82rem;color:#64748b;">
+                  Tất cả các sự kiện cũ và mới được lưu giữ an toàn tại đây. Khi cần đổi sang cuộc thi nào, chỉ cần nhấn <strong>"⚡ Kích hoạt sự kiện này"</strong> là toàn bộ trang web sẽ đổi ngay!
+                </p>
+              </div>
+              <button type="button" class="btn btn-outline-gold btn-sm" onclick="saveCurrentAsNewEvent()" style="display:inline-flex;align-items:center;gap:.4rem;font-weight:700;">
+                <span>+</span> Lưu Sự Kiện Hiện Tại Thành Bản Mới
+              </button>
+            </div>
+
+            <!-- List of Saved Events -->
+            <div id="savedEventsList" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:1rem;">
+              <!-- Rendered by renderSavedEventsList() -->
+            </div>
+          </div>
         </div>
 
         <!-- ─── TAB: SETTINGS ─── -->
@@ -1446,6 +1468,7 @@ function showTab(name) {
   document.getElementById('mainTitle').textContent = titles[name] || '';
   if (name === 'event') {
     updateEventPreview();
+    renderSavedEventsList();
   }
 }
 
@@ -1473,6 +1496,7 @@ async function loadAdminData() {
 
     // Load settings from API
     const settings = await api.get('/api/settings');
+    appData.settings = settings || {};
     appData.endTime = settings.end_time ? new Date(settings.end_time) : null;
     if (settings.share_url) document.getElementById('setShareUrl').value = settings.share_url;
 
@@ -1492,9 +1516,9 @@ function renderAll() {
   loadShareLogs();
   renderContestantList();
   renderSettings();
+  loadSavedEvents();
   renderStatusPill();
   renderDebug();
-
 }
 /* ─── DEBUG PANEL ───────────────────────────────────────── */
 function renderDebug() {
@@ -1837,7 +1861,7 @@ async function saveEventSettings() {
   const event_title = document.getElementById('setEventTitle').value.trim();
   const event_sub = document.getElementById('setEventSub').value.trim();
   const event_year = document.getElementById('setEventYear').value.trim();
-  const logo_url = document.getElementById('setLogoUrl').value.trim();
+  const logo_url = document.getElementById('setLogoUrl').value.trim() || 'logo-muce.png';
   const end_time_val = document.getElementById('setEventEndTime')?.value || document.getElementById('setEndTime')?.value;
 
   const payload = {
@@ -1855,14 +1879,49 @@ async function saveEventSettings() {
     if (eventEndEl) eventEndEl.value = end_time_val;
   }
 
+  // Update or insert into savedEvents library
+  if (!appData.savedEvents) appData.savedEvents = [];
+  const cleanTitle = event_title.replace(/<[^>]*>?/gm, '').trim();
+  let existing = appData.savedEvents.find(e => (e.title || '').replace(/<[^>]*>?/gm, '').trim() === cleanTitle);
+  if (existing) {
+    existing.title = event_title;
+    existing.sub = event_sub;
+    existing.year = event_year;
+    existing.logo = logo_url;
+    existing.endTime = end_time_val || existing.endTime;
+    existing.isActive = true;
+    existing.updatedAt = new Date().toISOString();
+  } else if (cleanTitle) {
+    appData.savedEvents.unshift({
+      id: 'evt_' + Date.now(),
+      title: event_title,
+      sub: event_sub,
+      year: event_year,
+      logo: logo_url,
+      endTime: end_time_val || null,
+      isActive: true,
+      updatedAt: new Date().toISOString()
+    });
+  }
+  appData.savedEvents.forEach(e => {
+    if ((e.title || '').replace(/<[^>]*>?/gm, '').trim() !== cleanTitle) {
+      e.isActive = false;
+    }
+  });
+
+  payload.saved_events = JSON.stringify(appData.savedEvents);
+  localStorage.setItem('hh:saved_events', payload.saved_events);
+
   await api.post('/api/settings', payload);
   if (!appData.settings) appData.settings = {};
   appData.settings.event_title = event_title;
   appData.settings.event_sub = event_sub;
   appData.settings.event_year = event_year;
   appData.settings.logo_url = logo_url;
+  appData.settings.saved_events = payload.saved_events;
 
   updateEventPreview();
+  renderSavedEventsList();
   renderStatusPill();
   toast('🎉 Đã lưu và áp dụng sự kiện mới thành công!', 'success');
 }
@@ -1885,6 +1944,209 @@ function updateEventPreview() {
     previewLogo.src = logo;
     previewLogo.onerror = () => { previewLogo.src = 'logo-muce.png'; };
   }
+}
+
+/* ─── KHO SỰ KIỆN ĐÃ LƯU (EVENT ARCHIVE / LIBRARY) ────────── */
+const DEFAULT_SAVED_EVENTS = [
+  {
+    id: 'evt_hoakhoi_2026',
+    title: "Bình Chọn <span class='hero-title-accent'>Hoa Khôi</span>",
+    sub: "Chạm để trao vương miện cho thí sinh bạn yêu thích nhất",
+    year: "✦ NĂM HỌC 2025 – 2026 ✦",
+    logo: "logo-muce.png",
+    isActive: true,
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'evt_namvuong_2026',
+    title: "Bình Chọn <span class='hero-title-accent'>Nam Vương</span>",
+    sub: "Bình chọn nam sinh tài năng, phong cách và ưu tú nhất",
+    year: "✦ NĂM HỌC 2025 – 2026 ✦",
+    logo: "logo-muce.png",
+    isActive: false,
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'evt_tienghat_2026',
+    title: "Bình Chọn <span class='hero-title-accent'>Tiếng Hát Sinh Viên</span>",
+    sub: "Bình chọn tiết mục và giọng ca vàng xuất sắc nhất",
+    year: "✦ HỘI THI 2026 ✦",
+    logo: "logo-muce.png",
+    isActive: false,
+    updatedAt: new Date().toISOString()
+  },
+  {
+    id: 'evt_daisu_2026',
+    title: "Bình Chọn <span class='hero-title-accent'>Gương Mặt Đại Sứ</span>",
+    sub: "Tôn vinh gương mặt đại diện và nét đẹp sinh viên tiêu biểu",
+    year: "✦ NHIỆM KỲ 2026 – 2027 ✦",
+    logo: "logo-muce.png",
+    isActive: false,
+    updatedAt: new Date().toISOString()
+  }
+];
+
+function loadSavedEvents() {
+  let list = [];
+  if (appData.settings && appData.settings.saved_events) {
+    try {
+      list = JSON.parse(appData.settings.saved_events);
+    } catch (e) {
+      console.warn('Lỗi đọc saved_events từ DB settings:', e);
+    }
+  }
+  if (!Array.isArray(list) || list.length === 0) {
+    const local = localStorage.getItem('hh:saved_events');
+    if (local) {
+      try { list = JSON.parse(local); } catch(e){}
+    }
+  }
+  if (!Array.isArray(list) || list.length === 0) {
+    list = DEFAULT_SAVED_EVENTS;
+  }
+  appData.savedEvents = list;
+  renderSavedEventsList();
+}
+
+function renderSavedEventsList() {
+  const container = document.getElementById('savedEventsList');
+  if (!container) return;
+
+  const currentTitle = appData.settings?.event_title || document.getElementById('setEventTitle')?.value || '';
+  const currentClean = currentTitle.replace(/<[^>]*>?/gm, '').trim();
+
+  if (!appData.savedEvents || appData.savedEvents.length === 0) {
+    container.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2rem;color:#94a3b8">Chưa có sự kiện nào được lưu trong kho.</div>';
+    return;
+  }
+
+  container.innerHTML = appData.savedEvents.map(evt => {
+    const evtClean = (evt.title || '').replace(/<[^>]*>?/gm, '').trim();
+    const isActive = (currentClean && evtClean === currentClean) || evt.isActive;
+    const borderStyle = isActive ? 'border:2px solid #22c55e;background:#f0fdf4;' : 'border:1.5px solid #e2e8f0;background:#ffffff;';
+
+    return `
+    <div style="${borderStyle}border-radius:10px;padding:1.15rem;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 2px 8px rgba(0,0,0,0.04);transition:all .2s ease;">
+      <div>
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;margin-bottom:.65rem;">
+          <div style="display:flex;align-items:center;gap:.65rem;">
+            <img src="${evt.logo || 'logo-muce.png'}" style="width:38px;height:38px;object-fit:contain;background:#fff;padding:2px;border-radius:6px;border:1px solid #cbd5e1;flex-shrink:0;" onerror="this.src='logo-muce.png'" />
+            <div>
+              <div style="font-weight:800;font-size:1rem;color:#0f172a;line-height:1.25;">${evt.title}</div>
+              <div style="font-size:.72rem;color:#64748b;margin-top:2px;">${evt.year || ''}</div>
+            </div>
+          </div>
+          ${isActive
+            ? `<span style="background:#dcfce7;color:#15803d;font-weight:700;font-size:.65rem;padding:3px 8px;border-radius:99px;border:1px solid #86efac;white-space:nowrap;">🟢 ĐANG KÍCH HOẠT</span>`
+            : `<span style="background:#f1f5f9;color:#64748b;font-weight:600;font-size:.65rem;padding:3px 8px;border-radius:99px;border:1px solid #cbd5e1;white-space:nowrap;">⚪ ĐÃ LƯU</span>`
+          }
+        </div>
+        <div style="font-size:.8rem;color:#475569;margin-bottom:.85rem;line-height:1.4;">
+          ${evt.sub || '(Không có mô tả phụ)'}
+        </div>
+      </div>
+
+      <div style="display:flex;gap:.4rem;flex-wrap:wrap;padding-top:.75rem;border-top:1px solid rgba(0,0,0,0.06);">
+        ${isActive
+          ? `<button class="btn btn-sm" disabled style="background:#dcfce7;color:#15803d;font-weight:700;flex:1;cursor:default;border:1px solid #86efac;">✓ Sự kiện đang chạy</button>`
+          : `<button class="btn btn-gold btn-sm" onclick="activateSavedEvent('${evt.id}')" style="font-weight:700;flex:1;display:inline-flex;align-items:center;justify-content:center;gap:.35rem;box-shadow:0 2px 6px rgba(234,179,8,.3);">⚡ Kích hoạt ngay</button>`
+        }
+        <button class="btn btn-ghost btn-sm" onclick="loadSavedEventToForm('${evt.id}')" title="Tải thông tin vào ô nhập để chỉnh sửa" style="border:1px solid #cbd5e1;background:#fff;">✏️ Sửa</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteSavedEvent('${evt.id}')" title="Xóa sự kiện này khỏi danh sách">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+async function activateSavedEvent(id) {
+  const evt = appData.savedEvents.find(e => e.id === id);
+  if (!evt) return;
+
+  document.getElementById('setEventTitle').value = evt.title;
+  document.getElementById('setEventSub').value = evt.sub;
+  document.getElementById('setEventYear').value = evt.year;
+  document.getElementById('setLogoUrl').value = evt.logo || 'logo-muce.png';
+  if (evt.endTime) {
+    const formatted = toDatetimeLocal(new Date(evt.endTime));
+    const el1 = document.getElementById('setEventEndTime');
+    const el2 = document.getElementById('setEndTime');
+    if (el1) el1.value = formatted;
+    if (el2) el2.value = formatted;
+  }
+
+  // Update active flags
+  appData.savedEvents.forEach(e => { e.isActive = (e.id === id); });
+  localStorage.setItem('hh:saved_events', JSON.stringify(appData.savedEvents));
+
+  // Save event settings to live database
+  await saveEventSettings();
+  renderSavedEventsList();
+  toast(`🎉 Đã kích hoạt cuộc thi "${evt.title.replace(/<[^>]*>?/gm, '')}" thành công!`, 'success');
+}
+
+function loadSavedEventToForm(id) {
+  const evt = appData.savedEvents.find(e => e.id === id);
+  if (!evt) return;
+  document.getElementById('setEventTitle').value = evt.title;
+  document.getElementById('setEventSub').value = evt.sub;
+  document.getElementById('setEventYear').value = evt.year;
+  document.getElementById('setLogoUrl').value = evt.logo || 'logo-muce.png';
+  if (evt.endTime) {
+    const formatted = toDatetimeLocal(new Date(evt.endTime));
+    const el1 = document.getElementById('setEventEndTime');
+    const el2 = document.getElementById('setEndTime');
+    if (el1) el1.value = formatted;
+    if (el2) el2.value = formatted;
+  }
+  updateEventPreview();
+  // Scroll form into view
+  document.getElementById('setEventTitle').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  toast(`Đã tải dữ liệu "${evt.title.replace(/<[^>]*>?/gm, '')}" vào ô nhập!`, 'info');
+}
+
+async function saveCurrentAsNewEvent() {
+  const title = document.getElementById('setEventTitle').value.trim();
+  if (!title) { toast('Vui lòng nhập tiêu đề sự kiện!', 'error'); return; }
+  const sub = document.getElementById('setEventSub').value.trim();
+  const year = document.getElementById('setEventYear').value.trim();
+  const logo = document.getElementById('setLogoUrl').value.trim() || 'logo-muce.png';
+  const endTime = document.getElementById('setEventEndTime')?.value || null;
+
+  const newId = 'evt_' + Date.now();
+  const newEvt = {
+    id: newId,
+    title,
+    sub,
+    year,
+    logo,
+    endTime,
+    isActive: true,
+    updatedAt: new Date().toISOString()
+  };
+
+  if (!appData.savedEvents) appData.savedEvents = [];
+  // Mark other events as inactive
+  appData.savedEvents.forEach(e => { e.isActive = false; });
+  appData.savedEvents.unshift(newEvt);
+
+  // Save to database & localStorage
+  localStorage.setItem('hh:saved_events', JSON.stringify(appData.savedEvents));
+  await saveEventSettings();
+  renderSavedEventsList();
+  toast('🎉 Đã thêm sự kiện mới vào kho lưu trữ thành công!', 'success');
+}
+
+async function deleteSavedEvent(id) {
+  const evt = appData.savedEvents.find(e => e.id === id);
+  if (!evt) return;
+  const c = confirm(`Bạn có chắc chắn muốn xóa sự kiện "${evt.title.replace(/<[^>]*>?/gm, '')}" khỏi kho lưu trữ?`);
+  if (!c) return;
+
+  appData.savedEvents = appData.savedEvents.filter(e => e.id !== id);
+  localStorage.setItem('hh:saved_events', JSON.stringify(appData.savedEvents));
+  await api.post('/api/settings', { saved_events: JSON.stringify(appData.savedEvents) });
+  renderSavedEventsList();
+  toast('Đã xóa sự kiện khỏi danh sách lưu trữ!', 'info');
 }
 
 function applyEventPreset(type) {
