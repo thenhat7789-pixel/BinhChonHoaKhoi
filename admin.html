@@ -1007,6 +1007,28 @@
             </div>
           </div>
 
+          <div class="chart-card" id="transferSuperAdminCard" style="border:1.5px solid #f59e0b;background:#fffbeb;">
+            <div class="chart-title" style="color:#b45309;">
+              <svg viewBox="0 0 24 24"><path d="M2 20h20M4 20l2-10 6 4 4-8 4 8 2-10" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              👑 Chuyển Giao Quyền Super Admin (Chủ Sở Hữu)
+            </div>
+            <p style="font-size:.82rem;color:#78350f;margin:0 0 1rem 0;line-height:1.5;">
+              Bạn có thể chỉ định hoặc chuyển giao quyền <strong>SUPER ADMIN</strong> cao nhất cho một email khác. Người được nhận sẽ có toàn quyền tối cao để thêm/xóa admin và đổi mọi cài đặt hệ thống.
+            </p>
+            <div style="max-width:480px">
+              <div class="form-group">
+                <label class="form-label" style="color:#78350f;font-weight:600;">Email người nhận quyền Super Admin mới:</label>
+                <div style="display:flex;gap:.5rem">
+                  <input class="input" type="email" id="newSuperAdminEmail" placeholder="admin.moi@example.com" style="background:#fff;" />
+                  <button class="btn btn-gold btn-sm" onclick="transferSuperAdminByEmail()" style="font-weight:700;white-space:nowrap;">👑 Chuyển Quyền</button>
+                </div>
+              </div>
+              <small style="color:#92400e;display:block;margin-top:.35rem">
+                * Nếu tài khoản đã tồn tại, quyền sẽ được nâng cấp ngay lập tức. Nếu chưa có, người đó sẽ tự động thành Super Admin khi đăng nhập.
+              </small>
+            </div>
+          </div>
+
           <div class="chart-card">
             <div class="chart-title">
               <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
@@ -1091,7 +1113,13 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 const googleProvider = new firebase.auth.GoogleAuthProvider();
 
-const SUPERADMIN_EMAIL = 'thenhat7789@gmail.com';
+let SUPERADMIN_EMAIL = 'thenhat7789@gmail.com';
+function getSuperAdminEmail() {
+  if (appData?.settings?.superadmin_email) {
+    return appData.settings.superadmin_email.toLowerCase();
+  }
+  return SUPERADMIN_EMAIL.toLowerCase();
+}
 
 let currentUser = null;
 let currentAdminDoc = null;
@@ -1238,7 +1266,7 @@ async function doRegister() {
     // Check if this is the first admin
     const adminsSnap = await db.collection('admins').limit(1).get();
     const isFirst = adminsSnap.empty;
-    const isSuperOwner = email.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase();
+    const isSuperOwner = email.toLowerCase() === getSuperAdminEmail();
 
     if (!isFirst && !isSuperOwner) {
       // Check if email is invited
@@ -1306,7 +1334,7 @@ async function doForgotPassword() {
 async function ensureAdminDoc(user) {
   if (!user || !user.email) return;
   const userEmail = user.email.toLowerCase();
-  const isSuperOwner = userEmail === SUPERADMIN_EMAIL.toLowerCase();
+  const isSuperOwner = userEmail === getSuperAdminEmail();
 
   const docRef = db.collection('admins').doc(user.uid);
   const doc = await docRef.get();
@@ -1412,14 +1440,26 @@ async function loadAdminList() {
         <span class="admin-badge ${isSuper ? 'admin-badge-super' : 'admin-badge-admin'}">
           ${isSuper ? '👑 SUPER ADMIN' : '🛡 ADMIN'}
         </span>
-        ${(!isMe && currentAdminDoc?.role === 'superadmin') ? `<button class="btn btn-danger btn-sm" onclick="removeAdmin('${doc.id}','${esc(d.email)}')">✕</button>` : ''}
+        ${(!isMe && currentAdminDoc?.role === 'superadmin') ? `
+          <div style="display:flex;gap:.35rem;align-items:center;">
+            ${!isSuper
+              ? `<button class="btn btn-outline-gold btn-sm" onclick="transferSuperAdmin('${doc.id}','${esc(d.email)}')" title="Cấp quyền Super Admin cho người này">👑 Cấp Super Admin</button>`
+              : `<button class="btn btn-ghost btn-sm" onclick="demoteSuperAdmin('${doc.id}','${esc(d.email)}')" title="Hạ quyền xuống Admin">Hạ quyền</button>`
+            }
+            <button class="btn btn-danger btn-sm" onclick="removeAdmin('${doc.id}','${esc(d.email)}')">✕</button>
+          </div>
+        ` : ''}
       </div>`;
     }).join('');
 
-    // Show/hide invite card based on role
+    // Show/hide invite & transfer cards based on role
     const inviteCard = document.getElementById('inviteAdminCard');
     if (inviteCard && currentAdminDoc?.role !== 'superadmin') {
       inviteCard.style.display = 'none';
+    }
+    const transferCard = document.getElementById('transferSuperAdminCard');
+    if (transferCard && currentAdminDoc?.role !== 'superadmin') {
+      transferCard.style.display = 'none';
     }
   } catch (e) {
     listEl.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--text-dim)">Lỗi tải danh sách admin.</div>';
@@ -1451,6 +1491,91 @@ async function inviteAdmin() {
     toast('Lỗi gửi lời mời: ' + e.message, 'error');
   }
   btn.classList.remove('btn-loading');
+}
+
+/* ─── TRANSFER & DEMOTE SUPER ADMIN ──────────────────── */
+async function transferSuperAdmin(targetUid, targetEmail) {
+  if (!targetEmail) return;
+  const c = confirm(`XÁC NHẬN CẤP QUYỀN SUPER ADMIN:\n\nBạn có chắc chắn muốn cấp quyền SUPER ADMIN (Toàn quyền cao nhất) cho tài khoản:\n${targetEmail} không?`);
+  if (!c) return;
+
+  try {
+    if (targetUid) {
+      await db.collection('admins').doc(targetUid).update({
+        role: 'superadmin',
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+
+    await api.post('/api/settings', { superadmin_email: targetEmail.toLowerCase() });
+    if (!appData.settings) appData.settings = {};
+    appData.settings.superadmin_email = targetEmail.toLowerCase();
+    SUPERADMIN_EMAIL = targetEmail.toLowerCase();
+
+    toast(`👑 Đã cấp quyền Super Admin cho ${targetEmail} thành công!`, 'success');
+    loadAdminList();
+  } catch (e) {
+    toast('Lỗi khi chuyển quyền: ' + e.message, 'error');
+  }
+}
+
+async function transferSuperAdminByEmail() {
+  const input = document.getElementById('newSuperAdminEmail');
+  const email = input ? input.value.trim().toLowerCase() : '';
+  if (!email || !email.includes('@')) {
+    toast('Vui lòng nhập email hợp lệ.', 'error');
+    return;
+  }
+
+  const c = confirm(`XÁC NHẬN:\n\nBạn có chắc chắn muốn chuyển giao/đặt ${email} làm SUPER ADMIN mới của hệ thống?`);
+  if (!c) return;
+
+  try {
+    const snap = await db.collection('admins').where('email', '==', email).limit(1).get();
+    if (!snap.empty) {
+      const targetUid = snap.docs[0].id;
+      await db.collection('admins').doc(targetUid).update({
+        role: 'superadmin',
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    } else {
+      await db.collection('admin_invites').doc(email).set({
+        invitedBy: currentUser.email,
+        role: 'superadmin',
+        invitedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+
+    await api.post('/api/settings', { superadmin_email: email });
+    if (!appData.settings) appData.settings = {};
+    appData.settings.superadmin_email = email;
+    SUPERADMIN_EMAIL = email;
+
+    if (input) input.value = '';
+    toast(`👑 Đã thiết lập ${email} làm Super Admin thành công!`, 'success');
+    loadAdminList();
+  } catch (e) {
+    toast('Lỗi: ' + e.message, 'error');
+  }
+}
+
+async function demoteSuperAdmin(targetUid, targetEmail) {
+  if (currentUser && targetUid === currentUser.uid) {
+    toast('Bạn không thể tự hạ quyền Super Admin của chính mình!', 'error');
+    return;
+  }
+  const c = confirm(`Hạ quyền Super Admin của ${targetEmail} xuống Admin thông thường?`);
+  if (!c) return;
+  try {
+    await db.collection('admins').doc(targetUid).update({
+      role: 'admin',
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    toast(`Đã hạ quyền ${targetEmail} xuống Admin thông thường.`, 'info');
+    loadAdminList();
+  } catch (e) {
+    toast('Lỗi: ' + e.message, 'error');
+  }
 }
 
 /* ─── REMOVE ADMIN ─────────────────────────────────────── */
@@ -1536,6 +1661,9 @@ async function loadAdminData() {
     // Load settings from API
     const settings = await api.get('/api/settings');
     appData.settings = settings || {};
+    if (settings.superadmin_email) {
+      SUPERADMIN_EMAIL = settings.superadmin_email.toLowerCase();
+    }
     appData.endTime = settings.end_time ? new Date(settings.end_time) : null;
     if (settings.share_url) document.getElementById('setShareUrl').value = settings.share_url;
 
