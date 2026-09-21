@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Quản Trị – Bình Chọn Hoa Khôi 2026</title>
+  <link rel="icon" type="image/png" href="logo-muce.png" />
   <meta name="robots" content="noindex, nofollow" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
@@ -416,7 +417,7 @@
 <div id="loginScreen">
   <div class="login-box fade-up" style="max-width:420px">
     <div class="login-logo">
-      <svg viewBox="0 0 24 24"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z"/><path d="M12 8v4l3 3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <img src="logo-muce.png" alt="Logo MUCE" style="max-height: 70px; max-width: 100%; object-fit: contain; margin: 0 auto; display: block;" />
     </div>
     <h1 class="login-title font-display">Quản Trị Hệ Thống</h1>
     <p class="login-subtitle">👑 Hoa Khôi 2026 – Admin Panel</p>
@@ -523,7 +524,7 @@
     <!-- SIDEBAR -->
     <nav class="sidebar">
       <div class="sidebar-logo">
-        <svg viewBox="0 0 24 24"><path d="M2 20h20M4 20l2-10 6 4 4-8 4 8 2-10" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <img src="logo-muce.png" alt="Logo MUCE" style="height: 34px; width: 34px; object-fit: contain; background: #ffffff; padding: 2px; border-radius: 6px; flex-shrink: 0;" />
         <div>
           <div class="sidebar-logo-title">Hoa Khôi 2026</div>
           <div class="sidebar-logo-sub">Quản trị hệ thống</div>
@@ -1628,7 +1629,7 @@ function renderSettings() {
     if (appData.settings.event_title) document.getElementById('setEventTitle').value = appData.settings.event_title;
     if (appData.settings.event_sub) document.getElementById('setEventSub').value = appData.settings.event_sub;
     if (appData.settings.event_year) document.getElementById('setEventYear').value = appData.settings.event_year;
-    if (appData.settings.logo_url) document.getElementById('setLogoUrl').value = appData.settings.logo_url;
+    document.getElementById('setLogoUrl').value = (appData.settings && appData.settings.logo_url) ? appData.settings.logo_url : 'logo-muce.png';
   }
 }
 

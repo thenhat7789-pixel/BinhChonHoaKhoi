@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Bình Chọn Hoa Khôi 2026</title>
+  <link rel="icon" type="image/png" href="logo-muce.png" />
   <meta name="description" content="Bình chọn cho thí sinh Hoa Hậu yêu thích của bạn! Mỗi người chỉ được bình chọn một lần." />
   <meta property="og:title" content="Bình Chọn Hoa Khôi 2026" />
   <meta property="og:description" content="Hãy trao vương miện cho Hoa Khôi bạn yêu thích!" />
@@ -1064,10 +1065,8 @@ async function init() {
       const yearEl = document.getElementById('heroYear');
       if (yearEl) yearEl.textContent = settings.event_year;
     }
-    if (settings.logo_url) {
-      const logoEl = document.getElementById('headerLogoImg');
-      if (logoEl) logoEl.src = settings.logo_url;
-    }
+    const logoEl = document.getElementById('headerLogoImg');
+    if (logoEl) logoEl.src = (settings && settings.logo_url) ? settings.logo_url : 'logo-muce.png';
 
     // Load vote counts
     const voteData = await api.get('/api/votes');
