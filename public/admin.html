@@ -543,9 +543,13 @@
           <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <span>Thí sinh</span>
         </button>
-        <button class="nav-item" onclick="showTab('event')" id="nav-event" style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);margin:3px 0;">
+        <button class="nav-item" onclick="showTab('event')" id="nav-event" style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);margin:2px 0;">
           <svg viewBox="0 0 24 24" style="stroke:#f59e0b;stroke-width:2;"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>
           <span style="color:#fbbf24;font-weight:700;">Đổi sự kiện 🔑</span>
+        </button>
+        <button class="nav-item" onclick="showTab('event-archive')" id="nav-event-archive" style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);margin:2px 0;">
+          <svg viewBox="0 0 24 24" style="stroke:#60a5fa;stroke-width:2;"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          <span style="color:#93c5fd;font-weight:700;">Kho sự kiện cũ 📚</span>
         </button>
         <button class="nav-item" onclick="showTab('settings')" id="nav-settings">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -845,6 +849,40 @@
 
             <!-- List of Saved Events -->
             <div id="savedEventsList" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:1rem;">
+              <!-- Rendered by renderSavedEventsList() -->
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── TAB: EVENT ARCHIVE (KHO SỰ KIỆN CŨ 📚) ─── -->
+        <div class="tab-pane" id="tab-event-archive">
+          <div class="card" style="margin-bottom:1.5rem;background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%);border:1px solid #334155;color:#fff;padding:1.5rem;border-radius:12px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+              <div>
+                <h2 style="margin:0;font-size:1.4rem;color:#f8fafc;display:flex;align-items:center;gap:.5rem;">
+                  <span>📚</span> Kho Lưu Trữ Các Sự Kiện Cuộc Thi
+                </h2>
+                <p style="margin:.35rem 0 0 0;font-size:.85rem;color:#94a3b8;">
+                  Nơi lưu trữ tất cả các sự kiện cũ và mới. Khi muốn quay lại cuộc thi nào, chỉ cần nhấn <strong>"⚡ Kích hoạt ngay"</strong> để website tự động chuyển sang cuộc thi đó tức thì!
+                </p>
+              </div>
+              <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+                <button class="btn btn-gold" onclick="showTab('event')" style="font-weight:700;display:inline-flex;align-items:center;gap:.4rem;">
+                  <span>🔑</span> Tạo / Đổi Sự Kiện Mới
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="background:#fff;border-radius:12px;padding:1.5rem;box-shadow:0 4px 16px rgba(0,0,0,0.06);border:1px solid #e2e8f0;">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.25rem;border-bottom:1px solid #e2e8f0;padding-bottom:.85rem;">
+              <h3 style="margin:0;font-size:1.1rem;color:#0f172a;">
+                Danh Sách Cuộc Thi Đã Lưu Trong Hệ Thống
+              </h3>
+              <span style="font-size:.8rem;color:#64748b;">Nhấn nút ⚡ để chuyển sự kiện trực tiếp</span>
+            </div>
+
+            <div id="archiveEventsList" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:1rem;">
               <!-- Rendered by renderSavedEventsList() -->
             </div>
           </div>
@@ -1456,6 +1494,7 @@ function showTab(name) {
     timeline: 'Nhật ký bình chọn',
     contestants: 'Quản lý thí sinh',
     event: '🔑 Cấu hình & Đổi Sự Kiện',
+    'event-archive': '📚 Kho Sự Kiện Cũ (Lịch Sử Cuộc Thi)',
     settings: 'Cài đặt',
     admins: 'Quản lý Admin'
   };
@@ -1466,7 +1505,7 @@ function showTab(name) {
   if (targetPane) targetPane.classList.add('active');
   if (targetNav) targetNav.classList.add('active');
   document.getElementById('mainTitle').textContent = titles[name] || '';
-  if (name === 'event') {
+  if (name === 'event' || name === 'event-archive') {
     updateEventPreview();
     renderSavedEventsList();
   }
@@ -2009,18 +2048,21 @@ function loadSavedEvents() {
 }
 
 function renderSavedEventsList() {
-  const container = document.getElementById('savedEventsList');
-  if (!container) return;
+  const container1 = document.getElementById('savedEventsList');
+  const container2 = document.getElementById('archiveEventsList');
+  if (!container1 && !container2) return;
 
   const currentTitle = appData.settings?.event_title || document.getElementById('setEventTitle')?.value || '';
   const currentClean = currentTitle.replace(/<[^>]*>?/gm, '').trim();
 
   if (!appData.savedEvents || appData.savedEvents.length === 0) {
-    container.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2rem;color:#94a3b8">Chưa có sự kiện nào được lưu trong kho.</div>';
+    const emptyHtml = '<div style="grid-column:1/-1;text-align:center;padding:2rem;color:#94a3b8">Chưa có sự kiện nào được lưu trong kho.</div>';
+    if (container1) container1.innerHTML = emptyHtml;
+    if (container2) container2.innerHTML = emptyHtml;
     return;
   }
 
-  container.innerHTML = appData.savedEvents.map(evt => {
+  const html = appData.savedEvents.map(evt => {
     const evtClean = (evt.title || '').replace(/<[^>]*>?/gm, '').trim();
     const isActive = (currentClean && evtClean === currentClean) || evt.isActive;
     const borderStyle = isActive ? 'border:2px solid #22c55e;background:#f0fdf4;' : 'border:1.5px solid #e2e8f0;background:#ffffff;';
@@ -2056,6 +2098,9 @@ function renderSavedEventsList() {
       </div>
     </div>`;
   }).join('');
+
+  if (container1) container1.innerHTML = html;
+  if (container2) container2.innerHTML = html;
 }
 
 async function activateSavedEvent(id) {
