@@ -12,6 +12,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css?v=20260916" />
+  <!-- PWA Manifest & App Installer -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#0a1628" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Hoa Khôi MUCE" />
+  <link rel="apple-touch-icon" href="logo-muce.png" />
+  <link rel="stylesheet" href="pwa-install.css?v=1.0" />
   <style>
     /* ── PAGE ── */
     body { background: #f8fafc; color: #1a1a1a; }
@@ -874,6 +883,15 @@
         </svg>
         <span>Đăng nhập Admin</span>
       </a>
+      <!-- Topbar Install App Button -->
+      <button type="button" class="topbar-install-btn" data-open-pwa-modal title="Cài đặt App lên điện thoại hoặc máy tính">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+          <polyline points="7 10 12 15 17 10"></polyline>
+          <line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        <span>📲 Tải App</span>
+      </button>
       <span class="muce-topbar-divider">|</span>
       <span class="muce-topbar-title">HỖ TRỢ & HƯỚNG DẪN BÌNH CHỌN - HOTLINE (Zalo):</span>
       <a href="tel:0962244195" class="muce-phone-highlight" style="color:#ffffff;text-decoration:none;">096 22 44 195</a>
@@ -1544,5 +1562,6 @@ function formatTimeAgo(ts) {
 
 init();
 </script>
+<script src="pwa-install.js?v=1.0"></script>
 </body>
 </html>

@@ -1,0 +1,23 @@
+{
+  "name": "Bình Chọn Hoa Khôi MUCE 2026",
+  "short_name": "Hoa Khôi MUCE",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0a1628",
+  "theme_color": "#0057a8",
+  "description": "Ứng dụng Bình Chọn Hoa Khôi - Trường Đại học Xây dựng Miền Trung (MUCE)",
+  "icons": [
+    {
+      "src": "logo-muce.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "logo-muce.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

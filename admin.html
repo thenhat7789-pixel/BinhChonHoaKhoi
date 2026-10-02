@@ -9,6 +9,13 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;900&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css?v=20260916" />
+  <!-- PWA Manifest & App Installer -->
+  <link rel="manifest" href="manifest.json" />
+  <meta name="theme-color" content="#0a1628" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <link rel="apple-touch-icon" href="logo-muce.png" />
+  <link rel="stylesheet" href="pwa-install.css?v=1.0" />
   <style>
     /* ── PAGE ── */
     body { background: #f0f2f5; }
@@ -3089,5 +3096,6 @@ setInterval(() => {
   }
 }, 30000);
 </script>
+<script src="pwa-install.js?v=1.0"></script>
 </body>
 </html>
