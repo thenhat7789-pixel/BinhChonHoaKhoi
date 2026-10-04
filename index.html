@@ -1131,6 +1131,34 @@
 <script>
 "use strict";
 
+/* ─── VOTER FINGERPRINT ─────────────────────────────────── */
+// Tạo fingerprint đơn giản dựa trên browser để kết hợp với IP nhận diện voter
+function getVoterFingerprint() {
+  let fp = localStorage.getItem('hh:voter_fp');
+  if (fp) return fp;
+  // Tạo fingerprint mới từ các thuộc tính trình duyệt
+  const raw = [
+    navigator.userAgent,
+    navigator.language,
+    screen.width + 'x' + screen.height,
+    screen.colorDepth,
+    new Date().getTimezoneOffset(),
+    navigator.hardwareConcurrency || 'na',
+    navigator.platform || 'na'
+  ].join('|');
+  // Simple hash
+  let hash = 0;
+  for (let i = 0; i < raw.length; i++) {
+    const c = raw.charCodeAt(i);
+    hash = ((hash << 5) - hash) + c;
+    hash |= 0;
+  }
+  fp = 'fp_' + Math.abs(hash).toString(36);
+  localStorage.setItem('hh:voter_fp', fp);
+  return fp;
+}
+const VOTER_FP = getVoterFingerprint();
+
 /* ─── API HELPER ──────────────────────────────────────────── */
 const api = {
   async get(url) {
@@ -1143,7 +1171,13 @@ const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body)
     });
-    return res.json();
+    const data = await res.json();
+    // Đánh dấu nếu server trả về lỗi (status 4xx/5xx)
+    if (!res.ok) {
+      data._serverError = true;
+      data._status = res.status;
+    }
+    return data;
   }
 };
 
@@ -1161,7 +1195,10 @@ const DEFAULT_CONTESTANTS = [
 let state = {
   contestants: [],
   votes: {},
+  votedIds: [],
   votedId: null,
+  voteRatio: 80,
+  maxAllowed: 8,
   endTime: null,
   isClosed: false,
   loading: true,
@@ -1323,35 +1360,100 @@ document.getElementById('confirmVoteBtn').onclick = async () => {
   await submitVote(id, voterName, comment);
 };
 
-async function handleVote(id) { openVoteModal(id); }
+async function handleVote(id) {
+  if (state.isClosed) {
+    toast('Cuộc bình chọn đã kết thúc!', 'error');
+    return;
+  }
+  if (!state.votedIds) state.votedIds = [];
+  if (state.votedIds.includes(id)) {
+    toast('Bạn đã bình chọn cho thí sinh này rồi, không thể bình chọn lần 2!', 'info');
+    return;
+  }
+  const maxAllowed = state.maxAllowed || Math.max(1, Math.round(((state.contestants.length || 1) * (state.voteRatio || 80)) / 100));
+  if (state.votedIds.length >= maxAllowed) {
+    toast(`Bạn đã sử dụng hết ${maxAllowed} lượt bình chọn (${state.voteRatio || 80}%)!`, 'warning');
+    return;
+  }
+  openVoteModal(id);
+}
 
 async function submitVote(id, voterName, comment) {
-  if (state.votedId || state.isClosed) return;
+  if (state.isClosed) return;
+  if (!state.votedIds) state.votedIds = [];
+  if (state.votedIds.includes(id)) {
+    toast('Bạn đã bình chọn cho thí sinh này rồi, không thể bình chọn lần 2!', 'warning');
+    return;
+  }
+
+  const maxAllowed = state.maxAllowed || Math.max(1, Math.round(((state.contestants.length || 1) * (state.voteRatio || 80)) / 100));
+  if (state.votedIds.length >= maxAllowed) {
+    toast(`Bạn đã sử dụng hết ${maxAllowed} lượt bình chọn (${state.voteRatio || 80}%)!`, 'warning');
+    return;
+  }
+
   const contestant = state.contestants.find(c => c.id === id);
   if (!contestant) return;
 
   const prevVotes = { ...state.votes };
-  const newCount = (state.votes[id] || 0) + 1;
-  state.votes[id] = newCount;
+  const prevVotedIds = [...state.votedIds];
+
+  // Optimistic update
+  state.votes[id] = (state.votes[id] || 0) + 1;
+  state.votedIds.push(id);
   state.votedId = id;
   localStorage.setItem('hh:voter_name', voterName);
+  localStorage.setItem('hh:voted_ids', JSON.stringify(state.votedIds));
+  localStorage.setItem('hh:voted_by', id);
   renderCards();
 
   try {
     const result = await api.post('/api/vote', {
       contestant_id: id,
       voter_name: voterName,
-      comment: comment
+      comment: comment,
+      voter_fingerprint: VOTER_FP
     });
-    if (!result.success) throw new Error(result.error);
 
-    localStorage.setItem('hh:voted_by', id);
-    toast(`✓ Đã bình chọn cho ${contestant.name}!`, 'success');
+    // Server trả về lỗi (duplicate hoặc quota exceeded)
+    if (result._serverError || !result.success) {
+      // Rollback optimistic update
+      state.votes = prevVotes;
+      state.votedIds = prevVotedIds;
+      localStorage.setItem('hh:voted_ids', JSON.stringify(state.votedIds));
+      renderCards();
+
+      if (result.code === 'DUPLICATE_VOTE') {
+        toast('Bạn đã bình chọn cho thí sinh này rồi, không thể bình chọn lần 2!', 'warning');
+      } else if (result.code === 'QUOTA_EXCEEDED') {
+        // Cập nhật maxAllowed từ server
+        if (result.maxAllowed) state.maxAllowed = result.maxAllowed;
+        if (result.voteRatio) state.voteRatio = result.voteRatio;
+        toast(result.error || `Bạn đã hết lượt bình chọn!`, 'warning');
+      } else {
+        toast(result.error || 'Bình chọn thất bại.', 'error');
+      }
+      // Reload trạng thái vote từ server để đồng bộ
+      await syncMyVotes();
+      return;
+    }
+
+    // Cập nhật thông tin từ server response
+    if (result.maxAllowed) state.maxAllowed = result.maxAllowed;
+    if (result.voteRatio) state.voteRatio = result.voteRatio;
+
+    const remaining = result.remaining !== undefined ? result.remaining : (maxAllowed - state.votedIds.length);
+    if (remaining > 0) {
+      toast(`✓ Đã bình chọn cho ${contestant.name}! Bạn còn ${remaining} lượt bình chọn cho thí sinh khác.`, 'success');
+    } else {
+      toast(`✓ Đã bình chọn cho ${contestant.name}! Bạn đã dùng đủ ${state.maxAllowed} lượt bình chọn (${state.voteRatio}%).`, 'success');
+    }
     await loadComments();
 
   } catch (e) {
     state.votes = prevVotes;
-    state.votedId = null;
+    state.votedIds = prevVotedIds;
+    localStorage.setItem('hh:voted_ids', JSON.stringify(state.votedIds));
     renderCards();
     toast('Bình chọn thất bại, vui lòng thử lại.', 'error');
   }
@@ -1362,22 +1464,33 @@ function renderCards() {
   const grid = document.getElementById('contestantGrid');
   const totalVotes = Object.values(state.votes).reduce((a,b) => a+b, 0);
   const maxVotes   = Math.max(1, ...Object.values(state.votes));
+  const totalC     = state.contestants.length || 1;
+  const maxAllowed = state.maxAllowed || Math.max(1, Math.round((totalC * (state.voteRatio || 80)) / 100));
+  const myVotesCount = (state.votedIds || []).length;
+  const reachedQuota = myVotesCount >= maxAllowed;
 
   grid.innerHTML = state.contestants.map((c, i) => {
     const count   = state.votes[c.id] || 0;
     const pct     = totalVotes ? Math.round((count / totalVotes) * 100) : 0;
     const barPct  = Math.round((count / maxVotes) * 100);
-    const isMine  = state.votedId === c.id;
-    const disabled = !!state.votedId || state.isClosed;
+    const isMine  = (state.votedIds || []).includes(c.id);
 
     let btnClass = 'vote-btn btn btn-full';
     let btnText  = 'Bình chọn';
-    if (isMine) {
-      btnClass += ' state-mine'; btnText = '✓ Đã bình chọn';
-    } else if (state.isClosed) {
-      btnClass += ' state-closed'; btnText = '🔒 Đã kết thúc';
-    } else if (state.votedId) {
-      btnClass += ' state-other'; btnText = 'Đã dùng lượt bình chọn';
+    let disabled = false;
+
+    if (state.isClosed) {
+      btnClass += ' state-closed';
+      btnText = '🔒 Đã kết thúc';
+      disabled = true;
+    } else if (isMine) {
+      btnClass += ' state-mine';
+      btnText = '✓ Đã bình chọn';
+      disabled = true;
+    } else if (reachedQuota) {
+      btnClass += ' state-other';
+      btnText = `Hết lượt (${myVotesCount}/${maxAllowed})`;
+      disabled = true;
     } else {
       btnClass += ' state-default';
     }
@@ -1407,7 +1520,7 @@ function renderCards() {
           <div class="progress"><div class="progress-fill" style="width:${barPct}%"></div></div>
         </div>
         <div class="c-card-actions">
-          <button class="${btnClass}" ${disabled && !isMine ? 'disabled' : ''}
+          <button class="${btnClass}" ${disabled ? 'disabled' : ''}
             onclick="handleVote('${c.id}')">${btnText}</button>
           <button class="btn btn-full share-btn" onclick="shareOnFacebook('${c.id}')">
             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -1420,8 +1533,19 @@ function renderCards() {
     </div>`;
   }).join('');
 
-  document.getElementById('totalVotesBadge').textContent =
-    `${totalVotes.toLocaleString('vi-VN')} lượt bình chọn`;
+  const voteBadge = document.getElementById('totalVotesBadge');
+  if (voteBadge) {
+    let text = `${totalVotes.toLocaleString('vi-VN')} lượt bình chọn`;
+    if (myVotesCount > 0) {
+      text += ` · Đã chọn ${myVotesCount}/${maxAllowed}`;
+    }
+    voteBadge.textContent = text;
+  }
+
+  const noticeEl = document.getElementById('footerNotice');
+  if (noticeEl) {
+    noticeEl.textContent = `Tỉ lệ bình chọn: Mỗi người được bình chọn tối đa ${maxAllowed}/${totalC} thí sinh (${state.voteRatio || 80}%) · Mỗi thí sinh chỉ nhận tối đa 1 phiếu · Cập nhật theo thời gian thực`;
+  }
 }
 
 /* ─── HELPERS ──────────────────────────────────────────── */
@@ -1433,6 +1557,23 @@ function getDefaultEndTime() {
 }
 
 /* ─── INIT ─────────────────────────────────────────────── */
+/* ─── SYNC MY VOTES FROM SERVER ────────────────────────── */
+async function syncMyVotes() {
+  try {
+    const myVotesData = await api.get(`/api/my-votes?fp=${encodeURIComponent(VOTER_FP)}`);
+    if (myVotesData && myVotesData.votedIds) {
+      state.votedIds = myVotesData.votedIds;
+      state.maxAllowed = myVotesData.maxAllowed || state.maxAllowed;
+      state.voteRatio = myVotesData.voteRatio || state.voteRatio;
+      localStorage.setItem('hh:voted_ids', JSON.stringify(state.votedIds));
+      state.votedId = state.votedIds[0] || null;
+      renderCards();
+    }
+  } catch (e) {
+    console.warn('Không thể đồng bộ trạng thái vote từ server:', e);
+  }
+}
+
 async function init() {
   try {
     // Load contestants from API
@@ -1463,9 +1604,37 @@ async function init() {
     const voteData = await api.get('/api/votes');
     state.votes = voteData.votes || {};
 
-    // Check local voted status
-    const v = localStorage.getItem('hh:voted_by');
-    if (v) state.votedId = v;
+    // Load vote ratio from settings
+    state.voteRatio = (settings && settings.vote_ratio) ? parseInt(settings.vote_ratio) : 80;
+
+    // Tính maxAllowed ban đầu
+    const totalC = state.contestants.length || 1;
+    state.maxAllowed = Math.max(1, Math.round((totalC * state.voteRatio) / 100));
+
+    // Load trạng thái vote từ SERVER (ưu tiên hơn localStorage)
+    try {
+      const myVotesData = await api.get(`/api/my-votes?fp=${encodeURIComponent(VOTER_FP)}`);
+      if (myVotesData && myVotesData.votedIds) {
+        state.votedIds = myVotesData.votedIds;
+        state.maxAllowed = myVotesData.maxAllowed || state.maxAllowed;
+        state.voteRatio = myVotesData.voteRatio || state.voteRatio;
+        localStorage.setItem('hh:voted_ids', JSON.stringify(state.votedIds));
+        state.votedId = state.votedIds[0] || null;
+      }
+    } catch {
+      // Fallback: dùng localStorage nếu không gọi được server
+      let savedVoted = [];
+      try {
+        savedVoted = JSON.parse(localStorage.getItem('hh:voted_ids') || '[]');
+      } catch {}
+      if (!Array.isArray(savedVoted)) savedVoted = [];
+      const legacyVoted = localStorage.getItem('hh:voted_by');
+      if (legacyVoted && !savedVoted.includes(legacyVoted)) {
+        savedVoted.push(legacyVoted);
+      }
+      state.votedIds = savedVoted;
+      state.votedId = savedVoted[0] || null;
+    }
   } catch (e) {
     toast('Không tải được dữ liệu. Vui lòng thử lại.', 'error');
   }

@@ -1010,6 +1010,40 @@
                 </div>
               </div>
 
+              <!-- Thanh Tỉ Lệ Bình Chọn -->
+              <div class="form-group" style="margin-bottom:1.25rem;background:#f8fafc;padding:.9rem 1rem;border-radius:10px;border:1.5px solid #e2e8f0;">
+                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
+                  <label class="form-label" style="font-weight:700;color:#1e293b;margin-bottom:0;display:flex;align-items:center;gap:.35rem;">
+                    <span>📊 Tỉ Lệ Bình Chọn Mỗi Người</span>
+                  </label>
+                  <span id="voteRatioBadge" style="font-size:.82rem;font-weight:700;color:#2563eb;background:#eff6ff;padding:.2rem .6rem;border-radius:999px;border:1px solid #bfdbfe;">
+                    80% (Tỉ lệ 8/2)
+                  </span>
+                </div>
+                
+                <input type="range" id="setVoteRatio" min="10" max="100" step="10" value="80" 
+                  oninput="updateVoteRatioDisplay()" 
+                  style="width:100%;cursor:pointer;accent-color:#2563eb;" />
+                
+                <div style="display:flex;justify-content:space-between;font-size:.72rem;color:#94a3b8;margin-top:.2rem;">
+                  <span>10% (1/9)</span>
+                  <span>50% (5/5)</span>
+                  <span>80% (8/2)</span>
+                  <span>100% (Tất cả)</span>
+                </div>
+
+                <div style="margin-top:.6rem;display:flex;gap:.35rem;flex-wrap:wrap;">
+                  <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickRatio(50)" style="font-size:.72rem;padding:.2rem .5rem;">5/5 (50%)</button>
+                  <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickRatio(70)" style="font-size:.72rem;padding:.2rem .5rem;">7/3 (70%)</button>
+                  <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickRatio(80)" style="font-size:.72rem;padding:.2rem .5rem;border-color:#2563eb;color:#2563eb;font-weight:700;">8/2 (80%)</button>
+                  <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickRatio(100)" style="font-size:.72rem;padding:.2rem .5rem;">10/0 (100%)</button>
+                </div>
+
+                <div id="voteRatioDesc" style="font-size:.78rem;color:#475569;margin-top:.5rem;line-height:1.45;background:#fff;padding:.5rem .75rem;border-radius:6px;border:1px solid #e2e8f0;">
+                  💡 <strong>Quy tắc:</strong> Hiện có 10 thí sinh, 1 người sẽ được bình chọn tối đa <strong>8 thí sinh</strong> khác nhau (80%). Mỗi thí sinh chỉ được bầu <strong>1 phiếu duy nhất</strong> (không được bình chọn lặp lại 2 lần trở lên).
+                </div>
+              </div>
+
               <div style="display:flex;gap:.75rem;flex-wrap:wrap;padding-top:1rem;border-top:1px solid #e2e8f0;">
                 <button class="btn btn-gold btn-full" onclick="saveEventSettings()" style="font-weight:700;padding:.75rem 1rem;">
                   🔑 Lưu & Áp Dụng Sự Kiện Này
@@ -2436,7 +2470,12 @@ function renderSettings() {
     if (appData.settings.event_sub) document.getElementById('setEventSub').value = appData.settings.event_sub;
     if (appData.settings.event_year) document.getElementById('setEventYear').value = appData.settings.event_year;
     document.getElementById('setLogoUrl').value = (appData.settings && appData.settings.logo_url) ? appData.settings.logo_url : 'logo-muce.png';
+    if (appData.settings.vote_ratio) {
+      const ratioEl = document.getElementById('setVoteRatio');
+      if (ratioEl) ratioEl.value = appData.settings.vote_ratio;
+    }
   }
+  updateVoteRatioDisplay();
   updateEventPreview();
 }
 
@@ -2516,12 +2555,14 @@ async function saveEventSettings() {
   const event_year = document.getElementById('setEventYear').value.trim();
   const logo_url = document.getElementById('setLogoUrl').value.trim() || 'logo-muce.png';
   const end_time_val = document.getElementById('setEventEndTime')?.value || document.getElementById('setEndTime')?.value;
+  const vote_ratio = document.getElementById('setVoteRatio')?.value || '80';
 
   const payload = {
     event_title,
     event_sub,
     event_year,
-    logo_url
+    logo_url,
+    vote_ratio
   };
 
   if (end_time_val) {
@@ -2542,6 +2583,7 @@ async function saveEventSettings() {
     existing.year = event_year;
     existing.logo = logo_url;
     existing.endTime = end_time_val || existing.endTime;
+    existing.voteRatio = vote_ratio;
     existing.isActive = true;
     existing.updatedAt = new Date().toISOString();
   } else if (cleanTitle) {
@@ -2552,6 +2594,7 @@ async function saveEventSettings() {
       year: event_year,
       logo: logo_url,
       endTime: end_time_val || null,
+      voteRatio: vote_ratio,
       isActive: true,
       updatedAt: new Date().toISOString()
     });
@@ -2571,9 +2614,11 @@ async function saveEventSettings() {
   appData.settings.event_sub = event_sub;
   appData.settings.event_year = event_year;
   appData.settings.logo_url = logo_url;
+  appData.settings.vote_ratio = vote_ratio;
   appData.settings.saved_events = payload.saved_events;
 
   updateEventPreview();
+  updateVoteRatioDisplay();
   renderSavedEventsList();
   renderStatusPill();
   toast('🎉 Đã lưu và áp dụng sự kiện mới thành công!', 'success');
@@ -2596,6 +2641,38 @@ function updateEventPreview() {
   if (previewLogo) {
     previewLogo.src = logo;
     previewLogo.onerror = () => { previewLogo.src = 'logo-muce.png'; };
+  }
+}
+
+/* ─── VOTE RATIO CONTROLS ───────────────────────────────── */
+function updateVoteRatioDisplay() {
+  const slider = document.getElementById('setVoteRatio');
+  if (!slider) return;
+  const val = parseInt(slider.value) || 80;
+  const badge = document.getElementById('voteRatioBadge');
+  const desc = document.getElementById('voteRatioDesc');
+  
+  const allowed = Math.round(val / 10);
+  const remaining = 10 - allowed;
+  const ratioText = val === 100 ? '10/0 (Tất cả)' : `${allowed}/${remaining}`;
+
+  if (badge) {
+    badge.textContent = `${val}% (Tỉ lệ ${ratioText})`;
+  }
+
+  const sampleTotal = appData.contestants && appData.contestants.length ? appData.contestants.length : 10;
+  const maxVotesSample = Math.max(1, Math.round((sampleTotal * val) / 100));
+
+  if (desc) {
+    desc.innerHTML = `💡 <strong>Quy tắc:</strong> Hiện có <strong>${sampleTotal} thí sinh</strong>, 1 người sẽ được bình chọn tối đa <strong>${maxVotesSample} thí sinh</strong> khác nhau (${val}%). Mỗi thí sinh chỉ được bầu <strong>1 phiếu duy nhất</strong> (không được bình chọn lặp lại 2 lần trở lên).`;
+  }
+}
+
+function setQuickRatio(pct) {
+  const slider = document.getElementById('setVoteRatio');
+  if (slider) {
+    slider.value = pct;
+    updateVoteRatioDisplay();
   }
 }
 
@@ -2732,6 +2809,11 @@ async function activateSavedEvent(id) {
     if (el1) el1.value = formatted;
     if (el2) el2.value = formatted;
   }
+  if (evt.voteRatio) {
+    const r = document.getElementById('setVoteRatio');
+    if (r) r.value = evt.voteRatio;
+    updateVoteRatioDisplay();
+  }
 
   // Update active flags
   appData.savedEvents.forEach(e => { e.isActive = (e.id === id); });
@@ -2757,6 +2839,11 @@ function loadSavedEventToForm(id) {
     if (el1) el1.value = formatted;
     if (el2) el2.value = formatted;
   }
+  if (evt.voteRatio) {
+    const r = document.getElementById('setVoteRatio');
+    if (r) r.value = evt.voteRatio;
+    updateVoteRatioDisplay();
+  }
   updateEventPreview();
   // Scroll form into view
   document.getElementById('setEventTitle').scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -2779,6 +2866,7 @@ async function saveCurrentAsNewEvent() {
     year,
     logo,
     endTime,
+    voteRatio: document.getElementById('setVoteRatio')?.value || '80',
     isActive: true,
     updatedAt: new Date().toISOString()
   };

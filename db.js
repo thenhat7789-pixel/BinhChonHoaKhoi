@@ -42,6 +42,7 @@ async function initDB() {
         contestant_id VARCHAR(10) NOT NULL REFERENCES contestants(id) ON DELETE CASCADE,
         voter_name VARCHAR(255) DEFAULT 'Người ẩn danh',
         comment TEXT DEFAULT '',
+        voter_ip VARCHAR(255) DEFAULT '',
         created_at TIMESTAMP DEFAULT NOW()
       );
 
@@ -58,6 +59,20 @@ async function initDB() {
         value TEXT,
         updated_at TIMESTAMP DEFAULT NOW()
       );
+
+      -- Migration: thêm cột voter_ip nếu chưa có
+      DO $$ BEGIN
+        IF NOT EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name = 'votes' AND column_name = 'voter_ip'
+        ) THEN
+          ALTER TABLE votes ADD COLUMN voter_ip VARCHAR(255) DEFAULT '';
+        END IF;
+      END $$;
+
+      -- Index để kiểm tra duplicate vote và quota nhanh hơn
+      CREATE INDEX IF NOT EXISTS idx_votes_voter_ip ON votes (voter_ip);
+      CREATE INDEX IF NOT EXISTS idx_votes_voter_contestant ON votes (voter_ip, contestant_id);
     `);
 
     // Seed default contestants nếu bảng trống

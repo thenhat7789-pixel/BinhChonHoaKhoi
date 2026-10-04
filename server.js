@@ -101,22 +101,116 @@ app.get('/api/votes', async (req, res) => {
 
 // ─── POST /api/vote ───────────────────────────────
 app.post('/api/vote', async (req, res) => {
-  const { contestant_id, voter_name, comment } = req.body;
+  const { contestant_id, voter_name, comment, voter_fingerprint } = req.body;
   if (!contestant_id) return res.status(400).json({ error: 'Thiếu contestant_id' });
 
-  const vote_id = 'vote_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+  // Lấy IP người dùng (hỗ trợ proxy/Render)
+  const voterIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
+    || req.headers['x-real-ip']
+    || req.socket?.remoteAddress
+    || 'unknown';
+  // Dùng fingerprint (nếu có) kết hợp IP để nhận diện voter chính xác hơn
+  const voterId = voter_fingerprint ? `${voterIp}_${voter_fingerprint}` : voterIp;
+
   try {
-    await pool.query(
-      'INSERT INTO votes (vote_id, contestant_id, voter_name, comment) VALUES ($1, $2, $3, $4)',
-      [vote_id, contestant_id, voter_name || 'Người ẩn danh', comment || '']
+    // 1. Kiểm tra đã vote cho thí sinh này chưa (chống bình chọn lặp lại 2 lần trở lên)
+    const { rows: dupeCheck } = await pool.query(
+      'SELECT COUNT(*)::int as cnt FROM votes WHERE contestant_id = $1 AND voter_ip = $2',
+      [contestant_id, voterId]
     );
+    if (dupeCheck[0].cnt >= 1) {
+      return res.status(400).json({
+        error: 'Bạn đã bình chọn cho thí sinh này rồi, không thể bình chọn lần 2!',
+        code: 'DUPLICATE_VOTE'
+      });
+    }
+
+    // 2. Kiểm tra tỉ lệ bình chọn (vote_ratio)
+    const { rows: settingsRows } = await pool.query("SELECT value FROM settings WHERE key = 'vote_ratio'");
+    const voteRatio = settingsRows.length ? parseInt(settingsRows[0].value) || 80 : 80;
+
+    const { rows: contestantCount } = await pool.query('SELECT COUNT(*)::int as cnt FROM contestants');
+    const totalContestants = contestantCount[0].cnt || 1;
+    const maxAllowed = Math.max(1, Math.round((totalContestants * voteRatio) / 100));
+
+    // Đếm số thí sinh khác nhau mà voter này đã bình chọn
+    const { rows: voterVotes } = await pool.query(
+      'SELECT COUNT(DISTINCT contestant_id)::int as cnt FROM votes WHERE voter_ip = $1',
+      [voterId]
+    );
+    const currentVoteCount = voterVotes[0].cnt;
+
+    if (currentVoteCount >= maxAllowed) {
+      return res.status(400).json({
+        error: `Bạn đã sử dụng hết ${maxAllowed} lượt bình chọn (${voteRatio}%)! Không thể bình chọn thêm.`,
+        code: 'QUOTA_EXCEEDED',
+        maxAllowed,
+        currentVotes: currentVoteCount,
+        voteRatio
+      });
+    }
+
+    // 3. Ghi phiếu bầu
+    const vote_id = 'vote_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    await pool.query(
+      'INSERT INTO votes (vote_id, contestant_id, voter_name, comment, voter_ip) VALUES ($1, $2, $3, $4, $5)',
+      [vote_id, contestant_id, voter_name || 'Người ẩn danh', comment || '', voterId]
+    );
+
     // Get contestant name for response
     const { rows } = await pool.query('SELECT name FROM contestants WHERE id = $1', [contestant_id]);
     const name = rows.length ? rows[0].name : contestant_id;
-    res.json({ success: true, vote_id, contestant_name: name });
+
+    const remaining = maxAllowed - (currentVoteCount + 1);
+    res.json({
+      success: true,
+      vote_id,
+      contestant_name: name,
+      remaining,
+      maxAllowed,
+      voteRatio
+    });
   } catch (e) {
     console.error('POST /api/vote error:', e);
     res.status(500).json({ error: 'Lỗi ghi phiếu bầu' });
+  }
+});
+
+// ─── GET /api/my-votes ────────────────────────────
+// Trả về danh sách thí sinh mà voter hiện tại (theo IP) đã bình chọn
+app.get('/api/my-votes', async (req, res) => {
+  const voterIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
+    || req.headers['x-real-ip']
+    || req.socket?.remoteAddress
+    || 'unknown';
+  // Cũng check với fingerprint nếu có
+  const fp = req.query.fp || '';
+  const voterId = fp ? `${voterIp}_${fp}` : voterIp;
+
+  try {
+    const { rows } = await pool.query(
+      'SELECT DISTINCT contestant_id FROM votes WHERE voter_ip = $1',
+      [voterId]
+    );
+    const votedIds = rows.map(r => r.contestant_id);
+
+    // Lấy vote_ratio và tổng thí sinh
+    const { rows: settingsRows } = await pool.query("SELECT value FROM settings WHERE key = 'vote_ratio'");
+    const voteRatio = settingsRows.length ? parseInt(settingsRows[0].value) || 80 : 80;
+    const { rows: contestantCount } = await pool.query('SELECT COUNT(*)::int as cnt FROM contestants');
+    const totalContestants = contestantCount[0].cnt || 1;
+    const maxAllowed = Math.max(1, Math.round((totalContestants * voteRatio) / 100));
+
+    res.json({
+      votedIds,
+      currentVotes: votedIds.length,
+      maxAllowed,
+      voteRatio,
+      totalContestants
+    });
+  } catch (e) {
+    console.error('GET /api/my-votes error:', e);
+    res.status(500).json({ error: 'Lỗi server' });
   }
 });
 
