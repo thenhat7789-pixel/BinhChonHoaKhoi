@@ -907,22 +907,22 @@
     <div id="countdownBanner" class="countdown-banner hidden">
       <div class="countdown-banner-label">⏱ Thời gian còn lại</div>
       <div class="countdown" id="countdownDisplay">
-        <div class="countdown-unit">
+        <div class="countdown-unit" id="unitDays">
           <span class="countdown-num" id="cdDays">00</span>
           <span class="countdown-label">Ngày</span>
         </div>
-        <span class="countdown-sep">:</span>
-        <div class="countdown-unit">
+        <span class="countdown-sep" id="sepDays">:</span>
+        <div class="countdown-unit" id="unitHours">
           <span class="countdown-num" id="cdHours">00</span>
           <span class="countdown-label">Giờ</span>
         </div>
-        <span class="countdown-sep">:</span>
-        <div class="countdown-unit">
+        <span class="countdown-sep" id="sepHours">:</span>
+        <div class="countdown-unit" id="unitMins">
           <span class="countdown-num" id="cdMins">00</span>
           <span class="countdown-label">Phút</span>
         </div>
-        <span class="countdown-sep">:</span>
-        <div class="countdown-unit">
+        <span class="countdown-sep" id="sepMins">:</span>
+        <div class="countdown-unit" id="unitSecs">
           <span class="countdown-num" id="cdSecs">00</span>
           <span class="countdown-label">Giây</span>
         </div>
@@ -1195,8 +1195,51 @@ function updateCountdown() {
   const mins  = Math.floor((diff % 3600000)  / 60000);
   const secs  = Math.floor((diff % 60000)    / 1000);
 
+  const unitDays  = document.getElementById('unitDays');
+  const sepDays   = document.getElementById('sepDays');
+  const unitHours = document.getElementById('unitHours');
+  const sepHours  = document.getElementById('sepHours');
+  const unitMins  = document.getElementById('unitMins');
+  const sepMins   = document.getElementById('sepMins');
+  const cdSecsEl  = document.getElementById('cdSecs');
+
+  if (days === 0 && hours === 0 && mins === 0) {
+    if (unitDays) unitDays.style.display = 'none';
+    if (sepDays) sepDays.style.display = 'none';
+    if (unitHours) unitHours.style.display = 'none';
+    if (sepHours) sepHours.style.display = 'none';
+    if (unitMins) unitMins.style.display = 'none';
+    if (sepMins) sepMins.style.display = 'none';
+    if (cdSecsEl) { cdSecsEl.style.fontSize = '2.2rem'; cdSecsEl.style.color = '#ef4444'; }
+  } else if (days === 0 && hours === 0) {
+    if (unitDays) unitDays.style.display = 'none';
+    if (sepDays) sepDays.style.display = 'none';
+    if (unitHours) unitHours.style.display = 'none';
+    if (sepHours) sepHours.style.display = 'none';
+    if (unitMins) unitMins.style.display = '';
+    if (sepMins) sepMins.style.display = '';
+    if (cdSecsEl) { cdSecsEl.style.fontSize = ''; cdSecsEl.style.color = ''; }
+  } else if (days === 0) {
+    if (unitDays) unitDays.style.display = 'none';
+    if (sepDays) sepDays.style.display = 'none';
+    if (unitHours) unitHours.style.display = '';
+    if (sepHours) sepHours.style.display = '';
+    if (unitMins) unitMins.style.display = '';
+    if (sepMins) sepMins.style.display = '';
+    if (cdSecsEl) { cdSecsEl.style.fontSize = ''; cdSecsEl.style.color = ''; }
+  } else {
+    if (unitDays) unitDays.style.display = '';
+    if (sepDays) sepDays.style.display = '';
+    if (unitHours) unitHours.style.display = '';
+    if (sepHours) sepHours.style.display = '';
+    if (unitMins) unitMins.style.display = '';
+    if (sepMins) sepMins.style.display = '';
+    if (cdSecsEl) { cdSecsEl.style.fontSize = ''; cdSecsEl.style.color = ''; }
+  }
+
   const set = (id, val) => {
     const el = document.getElementById(id);
+    if (!el) return;
     const str = String(val).padStart(2, '0');
     if (el.textContent !== str) {
       el.textContent = str;
