@@ -1332,7 +1332,17 @@ function updateShareBadge() {
 let pendingVoteId = null;
 
 function openVoteModal(id) {
-  if (state.votedId || state.isClosed) return;
+  if (state.isClosed) return;
+  if (!state.votedIds) state.votedIds = [];
+  if (state.votedIds.includes(id)) {
+    toast('Bạn đã bình chọn cho thí sinh này rồi, không thể bình chọn lần 2!', 'info');
+    return;
+  }
+  const maxAllowed = state.maxAllowed || Math.max(1, Math.round(((state.contestants.length || 1) * (state.voteRatio || 80)) / 100));
+  if (state.votedIds.length >= maxAllowed) {
+    toast(`Bạn đã sử dụng hết ${maxAllowed} lượt bình chọn (${state.voteRatio || 80}%)!`, 'warning');
+    return;
+  }
   const contestant = state.contestants.find(c => c.id === id);
   if (!contestant) return;
   pendingVoteId = id;
