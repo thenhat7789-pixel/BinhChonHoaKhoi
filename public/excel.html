@@ -383,18 +383,21 @@
     let currentTab = 'contestants';
     let contestants = [];
     let votes = {};
+    let sharesMap = {};
     let voteLog = [];
 
     async function loadData() {
       try {
-        const [cRes, vRes, lRes] = await Promise.all([
+        const [cRes, vRes, lRes, sRes] = await Promise.all([
           fetch(`${API_BASE}/api/contestants`).then(r => r.json()),
           fetch(`${API_BASE}/api/votes`).then(r => r.json()),
-          fetch(`${API_BASE}/api/vote-log`).then(r => r.json())
+          fetch(`${API_BASE}/api/vote-log`).then(r => r.json()),
+          fetch(`${API_BASE}/api/shares`).then(r => r.json()).catch(() => ({ shares: {} }))
         ]);
 
         contestants = (cRes.contestants && cRes.contestants.length) ? cRes.contestants : DEFAULT_CONTESTANTS;
         votes = vRes.votes || {};
+        sharesMap = sRes.shares || {};
         voteLog = (lRes.log || []).map(v => ({
           voteId: v.vote_id,
           id: v.id,
@@ -440,8 +443,9 @@
         const pct = total ? ((count / total) * 100).toFixed(1) : '0.0';
         const rankClass = i === 0 ? 'rank-1' : (i === 1 ? 'rank-2' : (i === 2 ? 'rank-3' : 'rank-other'));
         
-        let shares = 0;
-        try { shares = parseInt(localStorage.getItem(`hh:shares:${c.id}`) || '0'); } catch {}
+        let shares = (sharesMap && sharesMap[c.id] !== undefined)
+          ? sharesMap[c.id]
+          : parseInt(localStorage.getItem(`hh:shares:${c.id}`) || '0');
 
         return `
           <tr>

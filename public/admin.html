@@ -2183,6 +2183,16 @@ async function loadAdminData() {
     const vData = await api.get('/api/votes');
     appData.votes = vData.votes || {};
 
+    // Load shares from API
+    try {
+      const sData = await api.get('/api/shares');
+      appData.shares = sData.shares || {};
+      appData.totalShares = sData.total || 0;
+    } catch {
+      appData.shares = {};
+      appData.totalShares = 0;
+    }
+
     // Load vote log from API
     const logData = await api.get('/api/vote-log');
     appData.voteLog = (logData.log || []).map(entry => ({
@@ -2299,11 +2309,13 @@ function renderKPI() {
     }
   }
 
-  // Lấy tổng lượt chia sẻ từ localStorage
-  const totalShares = parseInt(localStorage.getItem('hh:total_shares') || '0');
+  // Lấy tổng lượt chia sẻ từ SQL API hoặc localStorage
+  const totalShares = (appData.totalShares !== undefined) ? appData.totalShares : parseInt(localStorage.getItem('hh:total_shares') || '0');
   const sharesPerC = {};
   appData.contestants.forEach(c => {
-    sharesPerC[c.id] = parseInt(localStorage.getItem(`hh:shares:${c.id}`) || '0');
+    sharesPerC[c.id] = (appData.shares && appData.shares[c.id] !== undefined)
+      ? appData.shares[c.id]
+      : parseInt(localStorage.getItem(`hh:shares:${c.id}`) || '0');
   });
   const leaderShares = Object.entries(sharesPerC).sort((a,b) => b[1]-a[1])[0];
 
@@ -2494,7 +2506,9 @@ async function loadShareLogs() {
 /* ─── CONTESTANT LIST ───────────────────────────────────── */
 function renderContestantList() {
   document.getElementById('contestantList').innerHTML = appData.contestants.map(c => {
-    const shares = parseInt(localStorage.getItem(`hh:shares:${c.id}`) || '0');
+    const shares = (appData.shares && appData.shares[c.id] !== undefined)
+      ? appData.shares[c.id]
+      : parseInt(localStorage.getItem(`hh:shares:${c.id}`) || '0');
     return `
     <div class="c-item">
       <div style="width:48px;height:48px;border-radius:.5rem;overflow:hidden;flex-shrink:0;background:${c.color};display:flex;align-items:center;justify-content:center">
@@ -3053,40 +3067,63 @@ async function changePassword() {
 
 /* ─── RESET ACTIONS ─────────────────────────────────────── */
 async function resetVotes() {
-  if (!await customConfirm('Reset TẤT CẢ phiếu bầu? Dữ liệu vẫn được lưu lại trong SQL.', '🗑️')) return;
+  if (!await customConfirm('Reset TẤT CẢ phiếu bầu & LƯỢT CHIA SẺ? Dữ liệu vẫn được lưu lại trong SQL.', '🗑️')) return;
   try {
     await api.post('/api/reset-votes');
     appData.votes = {};
     appData.voteLog = [];
+    appData.shares = {};
+    appData.totalShares = 0;
     localStorage.removeItem('hh:voted_by');
+    localStorage.removeItem('hh:total_shares');
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith('hh:shares:') || k === 'hh:total_shares') {
+        localStorage.removeItem(k);
+      }
+    });
     renderAll();
-    toast('Đã reset tất cả phiếu bầu!', 'success');
+    toast('Đã reset tất cả phiếu bầu và lượt chia sẻ!', 'success');
   } catch (e) {
     toast('Lỗi reset: ' + e.message, 'error');
   }
 }
 
 async function resetLog() {
-  if (!await customConfirm('Xóa toàn bộ nhật ký bình chọn? Dữ liệu vẫn được lưu lại trong SQL.', '🗑️')) return;
+  if (!await customConfirm('Xóa toàn bộ nhật ký bình chọn & LƯỢT CHIA SẺ? Dữ liệu vẫn được lưu lại trong SQL.', '🗑️')) return;
   try {
     await api.post('/api/reset-votes');
     appData.voteLog = [];
     appData.votes = {};
+    appData.shares = {};
+    appData.totalShares = 0;
+    localStorage.removeItem('hh:voted_by');
+    localStorage.removeItem('hh:total_shares');
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith('hh:shares:') || k === 'hh:total_shares') {
+        localStorage.removeItem(k);
+      }
+    });
     renderAll();
-    toast('Đã xóa nhật ký bình chọn.', 'success');
+    toast('Đã xóa nhật ký bình chọn và lượt chia sẻ.', 'success');
   } catch (e) {
     toast('Lỗi: ' + e.message, 'error');
   }
 }
 
 async function resetAll() {
-  if (!await customConfirm('RESET TOÀN BỘ HỆ THỐNG? Tất cả dữ liệu sẽ bị xóa vĩnh viễn!', '⚠️')) return;
+  if (!await customConfirm('RESET TOÀN BỘ HỆ THỐNG? Tất cả dữ liệu và lượt chia sẻ sẽ bị xóa vĩnh viễn!', '⚠️')) return;
   try {
     await api.post('/api/reset-all', {});
     localStorage.removeItem('hh:voted_by');
-    appData = { contestants: DEFAULT_CONTESTANTS, votes: {}, voteLog: [], endTime: null };
+    localStorage.removeItem('hh:total_shares');
+    Object.keys(localStorage).forEach(k => {
+      if (k.startsWith('hh:shares:') || k === 'hh:total_shares') {
+        localStorage.removeItem(k);
+      }
+    });
+    appData = { contestants: DEFAULT_CONTESTANTS, votes: {}, voteLog: [], shares: {}, totalShares: 0, endTime: null };
     renderAll();
-    toast('Đã reset toàn bộ hệ thống.', 'error', 5000);
+    toast('Đã reset toàn bộ hệ thống và lượt chia sẻ.', 'error', 5000);
   } catch (e) {
     toast('Lỗi reset: ' + e.message, 'error');
   }

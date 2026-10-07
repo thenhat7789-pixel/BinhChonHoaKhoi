@@ -1670,6 +1670,19 @@ async function init() {
     const voteData = await api.get('/api/votes');
     state.votes = voteData.votes || {};
 
+    // Đồng bộ số lượt chia sẻ từ SQL Server
+    try {
+      const shareData = await api.get('/api/shares');
+      if (shareData && shareData.total !== undefined) {
+        localStorage.setItem('hh:total_shares', String(shareData.total));
+        if (shareData.total === 0) {
+          Object.keys(localStorage).forEach(k => {
+            if (k.startsWith('hh:shares:')) localStorage.removeItem(k);
+          });
+        }
+      }
+    } catch {}
+
     // Load vote ratio from settings
     state.voteRatio = (settings && settings.vote_ratio) ? parseInt(settings.vote_ratio) : 80;
 

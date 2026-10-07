@@ -320,6 +320,25 @@ app.get('/api/share-log', async (req, res) => {
   }
 });
 
+// ─── GET /api/shares ──────────────────────────────
+app.get('/api/shares', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT contestant_id as id, COUNT(*)::int as count 
+      FROM shares 
+      WHERE contestant_id IS NOT NULL 
+      GROUP BY contestant_id
+    `);
+    const { rows: totalRow } = await pool.query('SELECT COUNT(*)::int as total FROM shares');
+    const shares = {};
+    rows.forEach(r => { shares[r.id] = r.count; });
+    res.json({ shares, total: totalRow[0]?.total || 0 });
+  } catch (e) {
+    console.error('GET /api/shares error:', e);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
 // ─── PUT /api/vote/:voteId ────────────────────────
 app.put('/api/vote/:voteId', async (req, res) => {
   const { contestant_id, voter_name, student_id, student_class, faculty, comment } = req.body;
@@ -532,6 +551,7 @@ app.post('/api/reset-votes', async (req, res) => {
       }
     }
     await pool.query('DELETE FROM votes');
+    await pool.query('DELETE FROM shares');
     res.json({ success: true, archived: true });
   } catch (e) {
     console.error('POST /api/reset-votes error:', e);
@@ -545,6 +565,7 @@ app.post('/api/reset-all', async (req, res) => {
   try {
     await client.query('BEGIN');
     await client.query('DELETE FROM votes');
+    await client.query('DELETE FROM shares');
     await client.query('DELETE FROM settings');
     // Reset contestants to defaults
     await client.query('DELETE FROM contestants');
