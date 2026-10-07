@@ -628,7 +628,7 @@
 
 <!-- ═══════════════════ EDIT VOTE MODAL ═══════════════════ -->
 <div class="modal-overlay hidden" id="editVoteModal">
-  <div class="modal">
+  <div class="modal" style="max-width:440px;">
     <h2 class="modal-title" id="voteModalTitle">Chỉnh sửa phiếu bầu</h2>
     <input type="hidden" id="editVoteId" />
     <div class="c-form">
@@ -636,9 +636,23 @@
         <label class="form-label">Người bình chọn</label>
         <input class="input" id="editVoteVoterName" placeholder="Người ẩn danh" />
       </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">
+        <div class="form-group">
+          <label class="form-label">Mã sinh viên (MSSV)</label>
+          <input class="input" id="editVoteStudentId" placeholder="MSSV" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Lớp</label>
+          <input class="input" id="editVoteStudentClass" placeholder="Lớp" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Khoa</label>
+        <input class="input" id="editVoteFaculty" placeholder="Khoa" />
+      </div>
       <div class="form-group">
         <label class="form-label">Bình luận / Lời chúc</label>
-        <textarea class="input" id="editVoteComment" rows="3" placeholder="Lời bình luận..." style="resize:vertical; min-height:80px;"></textarea>
+        <textarea class="input" id="editVoteComment" rows="2" placeholder="Lời bình luận..." style="resize:vertical; min-height:60px;"></textarea>
       </div>
       <div class="form-group">
         <label class="form-label">Bình chọn cho thí sinh</label>
@@ -872,12 +886,15 @@
               <table class="log-table">
                 <thead>
                   <tr>
-                    <th style="width: 50px;">#</th>
-                    <th style="width: 150px;">Người bình chọn</th>
-                    <th style="width: 140px;">Bình chọn cho</th>
+                    <th style="width: 45px;">#</th>
+                    <th style="width: 140px;">Người bình chọn</th>
+                    <th style="width: 100px;">MSSV</th>
+                    <th style="width: 90px;">Lớp</th>
+                    <th style="width: 110px;">Khoa</th>
+                    <th style="width: 130px;">Bình chọn cho</th>
                     <th>Bình luận</th>
-                    <th style="width: 160px;">Thời điểm</th>
-                    <th style="width: 120px; text-align: right;">Hành động</th>
+                    <th style="width: 150px;">Thời điểm</th>
+                    <th style="width: 100px; text-align: right;">Hành động</th>
                   </tr>
                 </thead>
                 <tbody id="logTableBody"></tbody>
@@ -2173,6 +2190,9 @@ async function loadAdminData() {
       id: entry.id,
       name: entry.name,
       voterName: entry.voterName,
+      studentId: entry.studentId || '',
+      studentClass: entry.studentClass || '',
+      faculty: entry.faculty || '',
       comment: entry.comment,
       ts: new Date(entry.ts).getTime()
     }));
@@ -2406,12 +2426,18 @@ function renderLogTable() {
   empty.classList.add('hidden');
   body.innerHTML = log.slice(0, 500).map((entry, i) => {
     const voter = entry.voterName || 'Người ẩn danh';
+    const mssv = entry.studentId || '—';
+    const sClass = entry.studentClass || '—';
+    const faculty = entry.faculty || '—';
     const comment = entry.comment || '—';
     const voteId = entry.voteId || `old_${log.length - i}`;
     return `
     <tr>
       <td class="td-id">${log.length - i}</td>
       <td class="td-name fw-600" style="color:var(--text-0)">${esc(voter)}</td>
+      <td><code style="font-size:0.75rem;background:#f1f5f9;padding:2px 5px;border-radius:4px;color:#0f172a;font-weight:600;">${esc(mssv)}</code></td>
+      <td style="font-size:0.78rem;color:#334155;">${esc(sClass)}</td>
+      <td style="font-size:0.78rem;color:#475569;">${esc(faculty)}</td>
       <td>
         <span class="badge badge-rose" style="font-size: 0.72rem; padding: 0.15rem 0.5rem;">
           <span>SBD ${esc(entry.id)}</span>
@@ -3093,11 +3119,14 @@ function exportCSV() {
   
   // Add vote log
   if (appData.voteLog && appData.voteLog.length) {
-    csv += '\nNhật ký bình chọn chi tiết\nMã bình chọn,Số báo danh,Tên thí sinh,Người bình chọn,Lời chúc / Bình luận,Thời điểm\n';
+    csv += '\nNhật ký bình chọn chi tiết\nMã bình chọn,Số báo danh,Tên thí sinh,Người bình chọn,Mã sinh viên (MSSV),Lớp,Khoa,Lời chúc / Bình luận,Thời điểm\n';
     appData.voteLog.forEach(e => {
       const voter = e.voterName || 'Người ẩn danh';
+      const mssv = e.studentId || '';
+      const sClass = e.studentClass || '';
+      const faculty = e.faculty || '';
       const comment = e.comment || '';
-      csv += `"${e.voteId || ''}","${e.id}","${e.name}","${voter}","${comment.replace(/"/g, '""')}","${formatDateFull(new Date(e.ts))}"\n`;
+      csv += `"${e.voteId || ''}","${e.id}","${e.name}","${voter}","${mssv}","${sClass}","${faculty}","${comment.replace(/"/g, '""')}","${formatDateFull(new Date(e.ts))}"\n`;
     });
   }
   downloadFile('hoakhoi_vote_ket_qua.csv', '\uFEFF' + csv, 'text/csv;charset=utf-8');
@@ -3109,12 +3138,15 @@ function exportVotersCSV() {
     toast('Chưa có lượt bình chọn nào để xuất!', 'info');
     return;
   }
-  let csv = 'STT,Mã lượt bình chọn,Tên người bình chọn,Số báo danh,Thí sinh được chọn,Lời chúc / Bình luận,Thời gian bình chọn\n';
+  let csv = 'STT,Mã lượt bình chọn,Tên người bình chọn,Mã sinh viên (MSSV),Lớp,Khoa,Số báo danh,Thí sinh được chọn,Lời chúc / Bình luận,Thời gian bình chọn\n';
   appData.voteLog.forEach((e, idx) => {
     const voter = e.voterName || 'Người ẩn danh';
+    const mssv = e.studentId || '';
+    const sClass = e.studentClass || '';
+    const faculty = e.faculty || '';
     const comment = e.comment || '';
     const dateStr = formatDateFull(new Date(e.ts));
-    csv += `${idx + 1},"${e.voteId || ''}","${voter}","${e.id}","${e.name}","${comment.replace(/"/g, '""')}","${dateStr}"\n`;
+    csv += `${idx + 1},"${e.voteId || ''}","${voter}","${mssv}","${sClass}","${faculty}","${e.id}","${e.name}","${comment.replace(/"/g, '""')}","${dateStr}"\n`;
   });
   downloadFile('danh_sach_nguoi_binh_chon.csv', '\uFEFF' + csv, 'text/csv;charset=utf-8');
   toast('Đã tải danh sách người bình chọn (.csv)!', 'success');
@@ -3312,6 +3344,9 @@ function openEditVote(voteId) {
 
   document.getElementById('editVoteId').value = voteId;
   document.getElementById('editVoteVoterName').value = entry.voterName || 'Người ẩn danh';
+  document.getElementById('editVoteStudentId').value = entry.studentId || '';
+  document.getElementById('editVoteStudentClass').value = entry.studentClass || '';
+  document.getElementById('editVoteFaculty').value = entry.faculty || '';
   document.getElementById('editVoteComment').value = entry.comment || '';
 
   // Populate contestants dropdown
@@ -3330,6 +3365,9 @@ function closeVoteModal() {
 async function saveVoteEdit() {
   const voteId = document.getElementById('editVoteId').value;
   const voterName = document.getElementById('editVoteVoterName').value.trim() || 'Người ẩn danh';
+  const studentId = document.getElementById('editVoteStudentId').value.trim();
+  const studentClass = document.getElementById('editVoteStudentClass').value.trim();
+  const faculty = document.getElementById('editVoteFaculty').value.trim();
   const comment = document.getElementById('editVoteComment').value.trim();
   const targetId = document.getElementById('editVoteContestantSelect').value;
 
@@ -3337,6 +3375,9 @@ async function saveVoteEdit() {
     await api.put(`/api/vote/${voteId}`, {
       contestant_id: targetId,
       voter_name: voterName,
+      student_id: studentId,
+      student_class: studentClass,
+      faculty: faculty,
       comment: comment
     });
     closeVoteModal();

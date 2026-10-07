@@ -1106,17 +1106,31 @@
 
 <!-- ═══════════════════ VOTE COMMENT MODAL ═══════════════════ -->
 <div class="modal-overlay hidden" id="voteModal">
-  <div class="modal">
+  <div class="modal" style="max-width:440px;">
     <h2 class="modal-title font-display">Bình Chọn Thí Sinh</h2>
     <p class="modal-subtitle" id="voteModalContestantName" style="color:#555; font-weight:600; margin-bottom:1.25rem;"></p>
     <div class="c-form">
       <div class="form-group">
         <label class="form-label">Họ và tên của bạn</label>
-        <input class="input" id="voterNameInput" placeholder="Người ẩn danh" />
+        <input class="input" id="voterNameInput" placeholder="Ví dụ: Nguyễn Văn A" />
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
+        <div class="form-group">
+          <label class="form-label">Mã sinh viên (MSSV)</label>
+          <input class="input" id="voterStudentIdInput" placeholder="Ví dụ: 65KDD12345" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Lớp</label>
+          <input class="input" id="voterClassInput" placeholder="Ví dụ: 65KDD1" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Khoa</label>
+        <input class="input" id="voterFacultyInput" placeholder="Ví dụ: Khoa Xây dựng" />
       </div>
       <div class="form-group">
         <label class="form-label">Lời chúc / Bình luận</label>
-        <textarea class="input" id="voterCommentInput" rows="3" placeholder="Chúc thí sinh tỏa sáng!" style="resize:vertical; min-height:80px;"></textarea>
+        <textarea class="input" id="voterCommentInput" rows="2" placeholder="Chúc thí sinh tỏa sáng!" style="resize:vertical; min-height:60px;"></textarea>
       </div>
       <div style="display:flex;gap:.5rem;margin-top:.75rem">
         <button class="btn btn-gold btn-full" id="confirmVoteBtn">Xác nhận Bình chọn</button>
@@ -1347,7 +1361,10 @@ function openVoteModal(id) {
   if (!contestant) return;
   pendingVoteId = id;
   document.getElementById('voteModalContestantName').textContent = `${contestant.name} – SBD ${contestant.id}`;
-  document.getElementById('voterNameInput').value = '';
+  document.getElementById('voterNameInput').value = localStorage.getItem('hh:voter_name') || '';
+  document.getElementById('voterStudentIdInput').value = localStorage.getItem('hh:student_id') || '';
+  document.getElementById('voterClassInput').value = localStorage.getItem('hh:student_class') || '';
+  document.getElementById('voterFacultyInput').value = localStorage.getItem('hh:faculty') || '';
   document.getElementById('voterCommentInput').value = '';
   document.getElementById('voteModal').classList.remove('hidden');
 }
@@ -1365,9 +1382,18 @@ document.getElementById('confirmVoteBtn').onclick = async () => {
   if (!pendingVoteId) return;
   const id = pendingVoteId;
   const voterName = document.getElementById('voterNameInput').value.trim() || 'Người ẩn danh';
+  const studentId = document.getElementById('voterStudentIdInput').value.trim();
+  const studentClass = document.getElementById('voterClassInput').value.trim();
+  const faculty = document.getElementById('voterFacultyInput').value.trim();
   const comment = document.getElementById('voterCommentInput').value.trim() || 'Ủng hộ thí sinh!';
+  
+  if (voterName && voterName !== 'Người ẩn danh') localStorage.setItem('hh:voter_name', voterName);
+  if (studentId) localStorage.setItem('hh:student_id', studentId);
+  if (studentClass) localStorage.setItem('hh:student_class', studentClass);
+  if (faculty) localStorage.setItem('hh:faculty', faculty);
+  
   closeVoteModal();
-  await submitVote(id, voterName, comment);
+  await submitVote(id, voterName, studentId, studentClass, faculty, comment);
 };
 
 async function handleVote(id) {
@@ -1388,7 +1414,7 @@ async function handleVote(id) {
   openVoteModal(id);
 }
 
-async function submitVote(id, voterName, comment) {
+async function submitVote(id, voterName, studentId, studentClass, faculty, comment) {
   if (state.isClosed) return;
   if (!state.votedIds) state.votedIds = [];
   if (state.votedIds.includes(id)) {
@@ -1421,6 +1447,9 @@ async function submitVote(id, voterName, comment) {
     const result = await api.post('/api/vote', {
       contestant_id: id,
       voter_name: voterName,
+      student_id: studentId,
+      student_class: studentClass,
+      faculty: faculty,
       comment: comment,
       voter_fingerprint: VOTER_FP
     });
@@ -1570,7 +1599,8 @@ function getDefaultEndTime() {
 /* ─── SYNC MY VOTES FROM SERVER ────────────────────────── */
 async function syncMyVotes() {
   try {
-    const myVotesData = await api.get(`/api/my-votes?fp=${encodeURIComponent(VOTER_FP)}`);
+    const studentId = localStorage.getItem('hh:student_id') || '';
+    const myVotesData = await api.get(`/api/my-votes?fp=${encodeURIComponent(VOTER_FP)}&student_id=${encodeURIComponent(studentId)}`);
     if (myVotesData && myVotesData.votedIds) {
       state.votedIds = myVotesData.votedIds;
       state.maxAllowed = myVotesData.maxAllowed || state.maxAllowed;
@@ -1623,7 +1653,8 @@ async function init() {
 
     // Load trạng thái vote từ SERVER (ưu tiên hơn localStorage)
     try {
-      const myVotesData = await api.get(`/api/my-votes?fp=${encodeURIComponent(VOTER_FP)}`);
+      const studentId = localStorage.getItem('hh:student_id') || '';
+      const myVotesData = await api.get(`/api/my-votes?fp=${encodeURIComponent(VOTER_FP)}&student_id=${encodeURIComponent(studentId)}`);
       if (myVotesData && myVotesData.votedIds) {
         state.votedIds = myVotesData.votedIds;
         state.maxAllowed = myVotesData.maxAllowed || state.maxAllowed;

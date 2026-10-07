@@ -258,17 +258,20 @@
         <table>
           <thead>
             <tr>
-              <th style="width:50px;text-align:center">STT</th>
+              <th style="width:45px;text-align:center">STT</th>
               <th>Mã Lượt Vote</th>
               <th>Tên Người Bình Chọn</th>
-              <th>SBD Thí Sinh</th>
+              <th>MSSV</th>
+              <th>Lớp</th>
+              <th>Khoa</th>
+              <th>SBD</th>
               <th>Thí Sinh Được Chọn</th>
               <th>Lời Chúc / Bình Luận</th>
               <th>Thời Gian Bình Chọn</th>
             </tr>
           </thead>
           <tbody id="voterTableBody">
-            <tr><td colspan="7" style="text-align:center;padding:2rem;color:#94a3b8">Đang tải danh sách người bình chọn...</td></tr>
+            <tr><td colspan="10" style="text-align:center;padding:2rem;color:#94a3b8">Đang tải danh sách người bình chọn...</td></tr>
           </tbody>
         </table>
       </div>
@@ -310,6 +313,9 @@
           id: v.id,
           name: v.name,
           voterName: v.voterName,
+          studentId: v.studentId || '',
+          studentClass: v.studentClass || '',
+          faculty: v.faculty || '',
           comment: v.comment,
           ts: v.ts
         }));
@@ -369,13 +375,16 @@
       document.getElementById('voterCountText').textContent = voteLog.length + ' lượt bình chọn';
 
       if (!voteLog.length) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:#94a3b8">Chưa có dữ liệu bình chọn nào.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:2rem;color:#94a3b8">Chưa có dữ liệu bình chọn nào.</td></tr>';
         return;
       }
 
       const rev = [...voteLog].reverse();
       tbody.innerHTML = rev.map((e, idx) => {
         const voter = e.voterName || 'Người ẩn danh';
+        const mssv = e.studentId || '—';
+        const sClass = e.studentClass || '—';
+        const faculty = e.faculty || '—';
         const comment = e.comment || '—';
         const dateStr = new Date(e.ts).toLocaleString('vi-VN');
         return `
@@ -383,6 +392,9 @@
             <td style="text-align:center;color:#94a3b8">${idx + 1}</td>
             <td><code style="font-size:.78rem;background:#f1f5f9;padding:2px 6px;border-radius:4px">${e.voteId || 'N/A'}</code></td>
             <td><strong>${voter}</strong></td>
+            <td><code style="font-size:.78rem;background:#eff6ff;color:#1d4ed8;padding:2px 5px;border-radius:4px;font-weight:600">${mssv}</code></td>
+            <td>${sClass}</td>
+            <td>${faculty}</td>
             <td>SBD ${e.id}</td>
             <td><strong style="color:#2563eb">${e.name}</strong></td>
             <td style="color:#475569;font-style:italic">"${comment}"</td>
@@ -413,12 +425,15 @@
         });
         saveFile('ket_qua_hoakhoi_2026.csv', '\uFEFF' + csv);
       } else {
-        let csv = 'STT,Mã lượt bình chọn,Tên người bình chọn,Số báo danh,Thí sinh được chọn,Lời chúc / Bình luận,Thời gian bình chọn\n';
+        let csv = 'STT,Mã lượt bình chọn,Tên người bình chọn,Mã sinh viên (MSSV),Lớp,Khoa,Số báo danh,Thí sinh được chọn,Lời chúc / Bình luận,Thời gian bình chọn\n';
         voteLog.forEach((e, idx) => {
           const voter = e.voterName || 'Người ẩn danh';
+          const mssv = e.studentId || '';
+          const sClass = e.studentClass || '';
+          const faculty = e.faculty || '';
           const comment = e.comment || '';
           const dateStr = new Date(e.ts).toLocaleString('vi-VN');
-          csv += `${idx + 1},"${e.voteId || ''}","${voter}","${e.id}","${e.name}","${comment.replace(/"/g, '""')}","${dateStr}"\n`;
+          csv += `${idx + 1},"${e.voteId || ''}","${voter}","${mssv}","${sClass}","${faculty}","${e.id}","${e.name}","${comment.replace(/"/g, '""')}","${dateStr}"\n`;
         });
         saveFile('danh_sach_nguoi_binh_chon.csv', '\uFEFF' + csv);
       }

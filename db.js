@@ -60,19 +60,16 @@ async function initDB() {
         updated_at TIMESTAMP DEFAULT NOW()
       );
 
-      -- Migration: thêm cột voter_ip nếu chưa có
-      DO $$ BEGIN
-        IF NOT EXISTS (
-          SELECT 1 FROM information_schema.columns
-          WHERE table_name = 'votes' AND column_name = 'voter_ip'
-        ) THEN
-          ALTER TABLE votes ADD COLUMN voter_ip VARCHAR(255) DEFAULT '';
-        END IF;
-      END $$;
+      -- Migration: thêm các cột nếu chưa có
+      ALTER TABLE votes ADD COLUMN IF NOT EXISTS voter_ip VARCHAR(255) DEFAULT '';
+      ALTER TABLE votes ADD COLUMN IF NOT EXISTS student_id VARCHAR(50) DEFAULT '';
+      ALTER TABLE votes ADD COLUMN IF NOT EXISTS student_class VARCHAR(100) DEFAULT '';
+      ALTER TABLE votes ADD COLUMN IF NOT EXISTS faculty VARCHAR(100) DEFAULT '';
 
       -- Index để kiểm tra duplicate vote và quota nhanh hơn
       CREATE INDEX IF NOT EXISTS idx_votes_voter_ip ON votes (voter_ip);
       CREATE INDEX IF NOT EXISTS idx_votes_voter_contestant ON votes (voter_ip, contestant_id);
+      CREATE INDEX IF NOT EXISTS idx_votes_student_id ON votes (student_id);
     `);
 
     // Seed default contestants nếu bảng trống

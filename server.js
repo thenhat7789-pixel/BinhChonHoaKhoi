@@ -112,7 +112,7 @@ app.get('/api/votes', async (req, res) => {
 
 // ─── POST /api/vote ───────────────────────────────
 app.post('/api/vote', async (req, res) => {
-  const { contestant_id, voter_name, comment, voter_fingerprint } = req.body;
+  const { contestant_id, voter_name, student_id, student_class, faculty, comment, voter_fingerprint } = req.body;
   if (!contestant_id) return res.status(400).json({ error: 'Thiếu contestant_id' });
 
   // Lấy IP người dùng (hỗ trợ proxy/Render)
@@ -122,16 +122,23 @@ app.post('/api/vote', async (req, res) => {
     || 'unknown';
   // Dùng fingerprint (nếu có) kết hợp IP để nhận diện voter chính xác hơn
   const voterId = voter_fingerprint ? `${voterIp}_${voter_fingerprint}` : voterIp;
+  const cleanStudentId = (student_id || '').trim();
 
   try {
     // 1. Kiểm tra đã vote cho thí sinh này chưa (chống bình chọn lặp lại 2 lần trở lên)
-    const { rows: dupeCheck } = await pool.query(
-      'SELECT COUNT(*)::int as cnt FROM votes WHERE contestant_id = $1 AND voter_ip = $2',
-      [contestant_id, voterId]
-    );
+    let dupeQuery = 'SELECT COUNT(*)::int as cnt FROM votes WHERE contestant_id = $1 AND (voter_ip = $2';
+    const dupeParams = [contestant_id, voterId];
+    if (cleanStudentId) {
+      dupeQuery += ' OR (student_id = $3 AND student_id != \'\'))';
+      dupeParams.push(cleanStudentId);
+    } else {
+      dupeQuery += ')';
+    }
+
+    const { rows: dupeCheck } = await pool.query(dupeQuery, dupeParams);
     if (dupeCheck[0].cnt >= 1) {
       return res.status(400).json({
-        error: 'Bạn đã bình chọn cho thí sinh này rồi, không thể bình chọn lần 2!',
+        error: 'Bạn hoặc mã sinh viên này đã bình chọn cho thí sinh này rồi, không thể bình chọn lần 2!',
         code: 'DUPLICATE_VOTE'
       });
     }
@@ -145,10 +152,13 @@ app.post('/api/vote', async (req, res) => {
     const maxAllowed = Math.max(1, Math.round((totalContestants * voteRatio) / 100));
 
     // Đếm số thí sinh khác nhau mà voter này đã bình chọn
-    const { rows: voterVotes } = await pool.query(
-      'SELECT COUNT(DISTINCT contestant_id)::int as cnt FROM votes WHERE voter_ip = $1',
-      [voterId]
-    );
+    let quotaQuery = 'SELECT COUNT(DISTINCT contestant_id)::int as cnt FROM votes WHERE voter_ip = $1';
+    const quotaParams = [voterId];
+    if (cleanStudentId) {
+      quotaQuery += ' OR (student_id = $2 AND student_id != \'\')';
+      quotaParams.push(cleanStudentId);
+    }
+    const { rows: voterVotes } = await pool.query(quotaQuery, quotaParams);
     const currentVoteCount = voterVotes[0].cnt;
 
     if (currentVoteCount >= maxAllowed) {
@@ -164,8 +174,18 @@ app.post('/api/vote', async (req, res) => {
     // 3. Ghi phiếu bầu
     const vote_id = 'vote_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
     await pool.query(
-      'INSERT INTO votes (vote_id, contestant_id, voter_name, comment, voter_ip) VALUES ($1, $2, $3, $4, $5)',
-      [vote_id, contestant_id, voter_name || 'Người ẩn danh', comment || '', voterId]
+      `INSERT INTO votes (vote_id, contestant_id, voter_name, student_id, student_class, faculty, comment, voter_ip) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        vote_id,
+        contestant_id,
+        voter_name || 'Người ẩn danh',
+        cleanStudentId,
+        (student_class || '').trim(),
+        (faculty || '').trim(),
+        comment || '',
+        voterId
+      ]
     );
 
     // Get contestant name for response
@@ -188,21 +208,25 @@ app.post('/api/vote', async (req, res) => {
 });
 
 // ─── GET /api/my-votes ────────────────────────────
-// Trả về danh sách thí sinh mà voter hiện tại (theo IP) đã bình chọn
+// Trả về danh sách thí sinh mà voter hiện tại (theo IP/MSSV) đã bình chọn
 app.get('/api/my-votes', async (req, res) => {
   const voterIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
     || req.headers['x-real-ip']
     || req.socket?.remoteAddress
     || 'unknown';
-  // Cũng check với fingerprint nếu có
   const fp = req.query.fp || '';
   const voterId = fp ? `${voterIp}_${fp}` : voterIp;
+  const studentId = (req.query.student_id || '').trim();
 
   try {
-    const { rows } = await pool.query(
-      'SELECT DISTINCT contestant_id FROM votes WHERE voter_ip = $1',
-      [voterId]
-    );
+    let myVotesQuery = 'SELECT DISTINCT contestant_id FROM votes WHERE voter_ip = $1';
+    const myVotesParams = [voterId];
+    if (studentId) {
+      myVotesQuery += ' OR (student_id = $2 AND student_id != \'\')';
+      myVotesParams.push(studentId);
+    }
+
+    const { rows } = await pool.query(myVotesQuery, myVotesParams);
     const votedIds = rows.map(r => r.contestant_id);
 
     // Lấy vote_ratio và tổng thí sinh
@@ -230,6 +254,9 @@ app.get('/api/vote-log', async (req, res) => {
   try {
     const { rows } = await pool.query(`
       SELECT v.vote_id, v.contestant_id as id, c.name, v.voter_name as "voterName",
+             COALESCE(v.student_id, '') as "studentId",
+             COALESCE(v.student_class, '') as "studentClass",
+             COALESCE(v.faculty, '') as "faculty",
              v.comment, v.created_at as ts
       FROM votes v
       JOIN contestants c ON c.id = v.contestant_id
@@ -278,13 +305,16 @@ app.get('/api/share-log', async (req, res) => {
 
 // ─── PUT /api/vote/:voteId ────────────────────────
 app.put('/api/vote/:voteId', async (req, res) => {
-  const { contestant_id, voter_name, comment } = req.body;
+  const { contestant_id, voter_name, student_id, student_class, faculty, comment } = req.body;
   try {
     const fields = [];
     const values = [];
     let idx = 1;
     if (contestant_id) { fields.push(`contestant_id = $${idx++}`); values.push(contestant_id); }
     if (voter_name !== undefined) { fields.push(`voter_name = $${idx++}`); values.push(voter_name); }
+    if (student_id !== undefined) { fields.push(`student_id = $${idx++}`); values.push(student_id); }
+    if (student_class !== undefined) { fields.push(`student_class = $${idx++}`); values.push(student_class); }
+    if (faculty !== undefined) { fields.push(`faculty = $${idx++}`); values.push(faculty); }
     if (comment !== undefined) { fields.push(`comment = $${idx++}`); values.push(comment); }
     values.push(req.params.voteId);
 
