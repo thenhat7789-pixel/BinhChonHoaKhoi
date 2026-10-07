@@ -369,11 +369,153 @@ app.post('/api/settings', async (req, res) => {
   }
 });
 
+// ─── POST /api/archives ───────────────────────────
+// Lưu trữ đợt bình chọn hiện tại vào kho lịch sử
+app.post('/api/archives', async (req, res) => {
+  const { title, notes } = req.body;
+  try {
+    const archive_id = 'arc_' + Date.now();
+    const finalTitle = (title || '').trim() || ('Đợt bình chọn ' + new Date().toLocaleString('vi-VN'));
+
+    const { rows: contestants } = await pool.query('SELECT * FROM contestants ORDER BY sort_order, id');
+    const { rows: votesData } = await pool.query(`
+      SELECT contestant_id as id, COUNT(*)::int as count 
+      FROM votes GROUP BY contestant_id
+    `);
+    const votes = {};
+    let totalVotes = 0;
+    votesData.forEach(r => {
+      votes[r.id] = r.count;
+      totalVotes += r.count;
+    });
+
+    const { rows: voteLog } = await pool.query(`
+      SELECT v.vote_id, v.contestant_id as id, c.name, v.voter_name as "voterName",
+             COALESCE(v.student_id, '') as "studentId",
+             COALESCE(v.student_class, '') as "studentClass",
+             COALESCE(v.faculty, '') as "faculty",
+             v.comment, v.created_at as ts
+      FROM votes v
+      LEFT JOIN contestants c ON c.id = v.contestant_id
+      ORDER BY v.created_at ASC
+    `);
+
+    await pool.query(`
+      INSERT INTO vote_archives (archive_id, title, notes, total_votes, contestants_data, votes_data, vote_log_data)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `, [
+      archive_id,
+      finalTitle,
+      notes || '',
+      totalVotes,
+      JSON.stringify(contestants),
+      JSON.stringify(votes),
+      JSON.stringify(voteLog)
+    ]);
+
+    res.json({ success: true, archive_id, totalVotes, title: finalTitle });
+  } catch (e) {
+    console.error('POST /api/archives error:', e);
+    res.status(500).json({ error: 'Lỗi lưu trữ đợt bình chọn' });
+  }
+});
+
+// ─── GET /api/archives ────────────────────────────
+// Danh sách các đợt đã lưu trữ
+app.get('/api/archives', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT archive_id, title, notes, total_votes, created_at
+      FROM vote_archives
+      ORDER BY created_at DESC
+    `);
+    res.json({ archives: rows });
+  } catch (e) {
+    console.error('GET /api/archives error:', e);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// ─── GET /api/archives/:id ────────────────────────
+// Chi tiết 1 đợt lưu trữ (bảng xếp hạng & danh sách người bình chọn)
+app.get('/api/archives/:id', async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      'SELECT * FROM vote_archives WHERE archive_id = $1',
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy bản lưu' });
+    const arc = rows[0];
+    res.json({
+      archive_id: arc.archive_id,
+      title: arc.title,
+      notes: arc.notes,
+      total_votes: arc.total_votes,
+      contestants: JSON.parse(arc.contestants_data || '[]'),
+      votes: JSON.parse(arc.votes_data || '{}'),
+      voteLog: JSON.parse(arc.vote_log_data || '[]'),
+      created_at: arc.created_at
+    });
+  } catch (e) {
+    console.error('GET /api/archives/:id error:', e);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// ─── DELETE /api/archives/:id ─────────────────────
+app.delete('/api/archives/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM vote_archives WHERE archive_id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('DELETE /api/archives/:id error:', e);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
 // ─── POST /api/reset-votes ───────────────────────
 app.post('/api/reset-votes', async (req, res) => {
+  const { auto_archive, title, notes } = req.body || {};
   try {
+    // Tự động lưu trữ vào kho trước khi xóa phiếu
+    if (auto_archive !== false) {
+      const { rows: cnt } = await pool.query('SELECT COUNT(*)::int as c FROM votes');
+      if (cnt[0].c > 0) {
+        const archive_id = 'arc_' + Date.now();
+        const finalTitle = title || ('Đợt trước khi Reset (' + new Date().toLocaleString('vi-VN') + ')');
+        const { rows: contestants } = await pool.query('SELECT * FROM contestants ORDER BY sort_order, id');
+        const { rows: votesData } = await pool.query(`
+          SELECT contestant_id as id, COUNT(*)::int as count 
+          FROM votes GROUP BY contestant_id
+        `);
+        const votes = {};
+        votesData.forEach(r => { votes[r.id] = r.count; });
+        const { rows: voteLog } = await pool.query(`
+          SELECT v.vote_id, v.contestant_id as id, c.name, v.voter_name as "voterName",
+                 COALESCE(v.student_id, '') as "studentId",
+                 COALESCE(v.student_class, '') as "studentClass",
+                 COALESCE(v.faculty, '') as "faculty",
+                 v.comment, v.created_at as ts
+          FROM votes v
+          LEFT JOIN contestants c ON c.id = v.contestant_id
+          ORDER BY v.created_at ASC
+        `);
+        await pool.query(`
+          INSERT INTO vote_archives (archive_id, title, notes, total_votes, contestants_data, votes_data, vote_log_data)
+          VALUES ($1, $2, $3, $4, $5, $6, $7)
+        `, [
+          archive_id,
+          finalTitle,
+          notes || 'Tự động lưu trữ trước khi đặt lại số phiếu',
+          cnt[0].c,
+          JSON.stringify(contestants),
+          JSON.stringify(votes),
+          JSON.stringify(voteLog)
+        ]);
+      }
+    }
     await pool.query('DELETE FROM votes');
-    res.json({ success: true });
+    res.json({ success: true, archived: true });
   } catch (e) {
     console.error('POST /api/reset-votes error:', e);
     res.status(500).json({ error: 'Lỗi server' });

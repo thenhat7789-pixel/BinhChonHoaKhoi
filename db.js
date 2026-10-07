@@ -60,6 +60,18 @@ async function initDB() {
         updated_at TIMESTAMP DEFAULT NOW()
       );
 
+      CREATE TABLE IF NOT EXISTS vote_archives (
+        id SERIAL PRIMARY KEY,
+        archive_id VARCHAR(100) UNIQUE NOT NULL,
+        title VARCHAR(255) NOT NULL,
+        notes TEXT DEFAULT '',
+        total_votes INT DEFAULT 0,
+        contestants_data TEXT,
+        votes_data TEXT,
+        vote_log_data TEXT,
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+
       -- Migration: thêm các cột nếu chưa có
       ALTER TABLE votes ADD COLUMN IF NOT EXISTS voter_ip VARCHAR(255) DEFAULT '';
       ALTER TABLE votes ADD COLUMN IF NOT EXISTS student_id VARCHAR(50) DEFAULT '';

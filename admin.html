@@ -666,6 +666,52 @@
   </div>
 </div>
 
+<!-- ═══════════════════ ARCHIVE DETAIL MODAL ═══════════════════ -->
+<div class="modal-overlay hidden" id="archiveDetailModal">
+  <div class="modal" style="max-width:900px;width:95%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;padding:1.5rem;">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:1rem;border-bottom:1px solid #e2e8f0;padding-bottom:.75rem;gap:1rem;">
+      <div>
+        <h2 class="modal-title" id="arcDetailTitle" style="margin:0 0 .25rem 0;font-size:1.2rem;color:#1e3a8a;">Chi tiết đợt bình chọn</h2>
+        <span id="arcDetailSub" style="font-size:.8rem;color:#64748b;"></span>
+      </div>
+      <div style="display:flex;gap:.5rem;flex-shrink:0;">
+        <button class="btn btn-ghost btn-sm" id="arcExportBtn" style="color:#2563eb;border:1px solid #bfdbfe;background:#eff6ff;font-weight:600;">📊 Tải Excel đợt này</button>
+        <button class="btn btn-ghost btn-sm" onclick="closeArchiveDetailModal()" style="font-weight:700;">✕ Đóng</button>
+      </div>
+    </div>
+    
+    <div style="overflow-y:auto;flex:1;padding-right:4px;">
+      <!-- Top Contestants Leaderboard in this archive -->
+      <h4 style="margin:0 0 .6rem 0;font-size:.9rem;color:#1e3a8a;display:flex;align-items:center;gap:.4rem;">
+        <span>🏆</span> Bảng Xếp Hạng Kết Quả Đợt Này
+      </h4>
+      <div id="arcLeaderboard" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(260px, 1fr));gap:.6rem;margin-bottom:1.5rem;"></div>
+
+      <!-- Voter log table in this archive -->
+      <h4 style="margin:0 0 .6rem 0;font-size:.9rem;color:#1e3a8a;display:flex;align-items:center;gap:.4rem;">
+        <span>👥</span> Danh Sách Chi Tiết Phiếu Bầu (<span id="arcVoterCount">0</span> phiếu)
+      </h4>
+      <div class="log-wrap" style="max-height:360px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;">
+        <table class="log-table">
+          <thead>
+            <tr>
+              <th style="width:45px;">#</th>
+              <th>Người bình chọn</th>
+              <th>MSSV</th>
+              <th>Lớp</th>
+              <th>Khoa</th>
+              <th>Thí sinh</th>
+              <th>Bình luận</th>
+              <th style="width:140px;">Thời điểm</th>
+            </tr>
+          </thead>
+          <tbody id="arcLogTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════════ EDIT ADMIN & PASSWORD MODAL ═══════════════════ -->
 <div class="modal-overlay hidden" id="editAdminModal">
   <div class="modal" style="max-width:440px;">
@@ -788,6 +834,10 @@
         <button class="nav-item" onclick="showTab('event-archive')" id="nav-event-archive" style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);margin:2px 0;">
           <svg viewBox="0 0 24 24" style="stroke:#60a5fa;stroke-width:2;"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
           <span style="color:#93c5fd;font-weight:700;">Kho sự kiện cũ 📚</span>
+        </button>
+        <button class="nav-item" onclick="showTab('vote-archives')" id="nav-vote-archives" style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.25);margin:2px 0;">
+          <svg viewBox="0 0 24 24" style="stroke:#c084fc;stroke-width:2;"><path d="M21 8v13H3V8"/><path d="M1 3h22v5H1z"/><path d="M10 12h4"/></svg>
+          <span style="color:#d8b4fe;font-weight:700;">Lịch sử đợt vote 📦</span>
         </button>
         <button class="nav-item" onclick="showTab('settings')" id="nav-settings">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
@@ -1169,6 +1219,50 @@
 
             <div id="archiveEventsList" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:1rem;">
               <!-- Rendered by renderSavedEventsList() -->
+            </div>
+          </div>
+        </div>
+
+        <!-- ─── TAB: VOTE ARCHIVES (LỊCH SỬ CÁC ĐỢT BÌNH CHỌN 📦) ─── -->
+        <div class="tab-pane" id="tab-vote-archives">
+          <div class="card" style="margin-bottom:1.5rem;background:linear-gradient(135deg, #2e1065 0%, #1e1b4b 100%);border:1px solid #6b21a8;color:#fff;padding:1.5rem;border-radius:12px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+              <div>
+                <h2 style="margin:0;font-size:1.35rem;color:#f8fafc;display:flex;align-items:center;gap:.5rem;">
+                  <span>📦</span> Kho Lưu Trữ Các Đợt Bình Chọn
+                </h2>
+                <p style="margin:.35rem 0 0 0;font-size:.85rem;color:#d8b4fe;">
+                  Tất cả các đợt bình chọn trước đó được lưu trữ an toàn tại đây. Khi Reset phiếu hoặc chuyển đợt mới, hệ thống tự động sao lưu toàn bộ danh sách người vote, điểm số và thí sinh để bạn kiểm tra lại bất cứ lúc nào!
+                </p>
+              </div>
+              <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+                <button class="btn btn-gold" onclick="manualArchiveCurrent()" style="font-weight:700;display:inline-flex;align-items:center;gap:.4rem;">
+                  <span>💾</span> Lưu Trữ Đợt Hiện Tại Ngay
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="card" style="background:#fff;border-radius:12px;padding:1.5rem;box-shadow:0 4px 16px rgba(0,0,0,0.06);border:1px solid #e2e8f0;">
+            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.25rem;border-bottom:1px solid #e2e8f0;padding-bottom:.85rem;">
+              <div>
+                <h3 style="margin:0;font-size:1.1rem;color:#0f172a;">
+                  Danh Sách Đợt Bình Chọn Đã Lưu Trữ
+                </h3>
+                <span style="font-size:.78rem;color:#64748b;">Xem lại kết quả, danh sách người bầu, hoặc tải file Excel của từng đợt</span>
+              </div>
+              <span id="archivesCountBadge" style="font-size:.8rem;color:#6b21a8;background:#f3e8ff;padding:4px 12px;border-radius:99px;font-weight:700;">
+                0 bản lưu
+              </span>
+            </div>
+
+            <div id="archivesListContainer" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(340px, 1fr));gap:1rem;">
+              <!-- Rendered by renderArchivesList() -->
+            </div>
+            <div id="archivesEmpty" class="hidden" style="text-align:center;padding:3rem 1rem;color:#94a3b8;">
+              <div style="font-size:2.5rem;margin-bottom:.5rem;">📦</div>
+              <div style="font-size:.95rem;font-weight:600;color:#64748b;">Chưa có đợt bình chọn nào được lưu trữ</div>
+              <p style="font-size:.8rem;color:#94a3b8;margin:.25rem 0 0 0;">Khi bạn bấm Reset phiếu hoặc bấm "Lưu Trữ Đợt Hiện Tại", bản ghi sẽ xuất hiện tại đây.</p>
             </div>
           </div>
         </div>
@@ -2156,6 +2250,7 @@ function showTab(name) {
     contestants: 'Quản lý thí sinh',
     event: '🔑 Cấu hình & Đổi Sự Kiện',
     'event-archive': '📚 Kho Sự Kiện Cũ (Lịch Sử Cuộc Thi)',
+    'vote-archives': '📦 Kho Lưu Trữ Các Đợt Bình Chọn',
     settings: 'Cài đặt',
     admins: 'Quản lý Admin'
   };
@@ -2169,6 +2264,9 @@ function showTab(name) {
   if (name === 'event' || name === 'event-archive') {
     updateEventPreview();
     renderSavedEventsList();
+  }
+  if (name === 'vote-archives') {
+    loadVoteArchives();
   }
 }
 
@@ -2223,6 +2321,7 @@ function renderAll() {
   renderContestantList();
   renderSettings();
   loadSavedEvents();
+  loadVoteArchives();
   renderStatusPill();
   renderDebug();
 }
@@ -3027,18 +3126,206 @@ function applyEventPreset(type) {
   toast(`Đã chọn mẫu "${p.title.replace(/<[^>]*>?/gm, '')}"! Nhấn "Lưu & Áp Dụng" để hoàn tất.`, 'info');
 }
 
+/* ─── VOTE ARCHIVES (KHO LƯU TRỮ ĐỢT BÌNH CHỌN) ────────── */
+async function loadVoteArchives() {
+  try {
+    const data = await api.get('/api/archives');
+    appData.archives = data.archives || [];
+    renderArchivesList();
+  } catch (e) {
+    console.warn('Lỗi tải danh sách đợt lưu:', e);
+  }
+}
+
+function renderArchivesList() {
+  const container = document.getElementById('archivesListContainer');
+  const empty = document.getElementById('archivesEmpty');
+  const badge = document.getElementById('archivesCountBadge');
+  if (!container) return;
+
+  const list = appData.archives || [];
+  if (badge) badge.textContent = `${list.length} bản lưu`;
+
+  if (list.length === 0) {
+    container.innerHTML = '';
+    if (empty) empty.classList.remove('hidden');
+    return;
+  }
+  if (empty) empty.classList.add('hidden');
+
+  container.innerHTML = list.map(a => {
+    const timeStr = formatDateFull(new Date(a.created_at));
+    return `
+      <div class="card" style="border:1.5px solid #e9d5ff;border-radius:12px;padding:1.25rem;background:#faf5ff;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 4px 12px rgba(168,85,247,0.06);">
+        <div>
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:.5rem;margin-bottom:.5rem;">
+            <div style="font-weight:800;font-size:1rem;color:#581c87;line-height:1.3;">
+              📦 ${esc(a.title)}
+            </div>
+            <span style="font-size:.75rem;font-weight:700;color:#7e22ce;background:#f3e8ff;padding:3px 9px;border-radius:99px;border:1px solid #d8b4fe;flex-shrink:0;">
+              ${(a.total_votes || 0).toLocaleString('vi-VN')} phiếu
+            </span>
+          </div>
+          <div style="font-size:.78rem;color:#6b21a8;margin-bottom:.6rem;display:flex;align-items:center;gap:.35rem;">
+            <span>⏱ Đã lưu:</span> <strong>${timeStr}</strong>
+          </div>
+          ${a.notes ? `<div style="font-size:.78rem;color:#64748b;margin-bottom:.75rem;background:#fff;padding:.4rem .6rem;border-radius:6px;border:1px solid #f3e8ff;">${esc(a.notes)}</div>` : ''}
+        </div>
+        <div style="display:flex;gap:.4rem;margin-top:.75rem;border-top:1px dashed #e9d5ff;padding-top:.75rem;">
+          <button class="btn btn-gold btn-sm" onclick="openArchiveDetail('${esc(a.archive_id)}')" style="flex:1;font-weight:700;font-size:.8rem;padding:.4rem .6rem;">
+            👁️ Xem Chi Tiết
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="downloadArchiveCSV('${esc(a.archive_id)}')" style="background:#fff;border:1px solid #d8b4fe;color:#7e22ce;font-weight:600;font-size:.8rem;padding:.4rem .6rem;" title="Tải file Excel đợt này">
+            📊 Excel
+          </button>
+          <button class="btn btn-danger btn-sm" onclick="deleteArchive('${esc(a.archive_id)}')" style="padding:.4rem .6rem;" title="Xóa bản lưu này">
+            ✕
+          </button>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function manualArchiveCurrent() {
+  const currentVotesCount = Object.values(appData.votes || {}).reduce((a,b)=>a+b, 0);
+  const defaultTitle = 'Đợt bình chọn ngày ' + new Date().toLocaleDateString('vi-VN');
+  const title = prompt(`Nhập tên cho đợt bình chọn muốn lưu trữ (Hiện có ${currentVotesCount} phiếu):`, defaultTitle);
+  if (title === null) return;
+  const notes = prompt('Ghi chú thêm (không bắt buộc):', '');
+
+  try {
+    const res = await api.post('/api/archives', { title, notes });
+    if (res.success) {
+      toast(`✓ Đã lưu trữ thành công "${res.title}" (${res.totalVotes} phiếu)!`, 'success');
+      await loadVoteArchives();
+      showTab('vote-archives');
+    }
+  } catch (e) {
+    toast('Lỗi lưu trữ: ' + e.message, 'error');
+  }
+}
+
+let currentViewedArchive = null;
+
+async function openArchiveDetail(archiveId) {
+  try {
+    const arc = await api.get(`/api/archives/${archiveId}`);
+    if (!arc || arc.error) throw new Error(arc?.error || 'Không tải được bản lưu');
+    currentViewedArchive = arc;
+
+    document.getElementById('arcDetailTitle').textContent = `📦 ${arc.title}`;
+    document.getElementById('arcDetailSub').textContent = `Lưu lúc: ${formatDateFull(new Date(arc.created_at))} · Tổng: ${arc.total_votes} phiếu`;
+    document.getElementById('arcVoterCount').textContent = (arc.voteLog || []).length;
+    document.getElementById('arcExportBtn').onclick = () => downloadArchiveCSV(archiveId);
+
+    // Leaderboard
+    const lbContainer = document.getElementById('arcLeaderboard');
+    const total = arc.total_votes || 1;
+    const ranked = [...(arc.contestants || [])].sort((a,b) => (arc.votes[b.id]||0) - (arc.votes[a.id]||0));
+    lbContainer.innerHTML = ranked.map((c, i) => {
+      const count = arc.votes[c.id] || 0;
+      const pct = Math.round((count / total) * 100);
+      const medal = i === 0 ? '🥇' : (i === 1 ? '🥈' : (i === 2 ? '🥉' : `#${i+1}`));
+      return `
+        <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:.5rem .75rem;display:flex;align-items:center;gap:.6rem;">
+          <span style="font-size:1.1rem;font-weight:700;">${medal}</span>
+          <div style="flex:1;">
+            <div style="font-weight:700;font-size:.85rem;color:#0f172a;">${esc(c.name)} (SBD ${c.id})</div>
+            <div style="font-size:.72rem;color:#64748b;">${count} phiếu · ${pct}%</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Log table
+    const tbody = document.getElementById('arcLogTableBody');
+    const log = arc.voteLog || [];
+    if (!log.length) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:1.5rem;color:#94a3b8">Không có danh sách chi tiết phiếu bầu trong đợt này.</td></tr>';
+    } else {
+      tbody.innerHTML = log.map((e, idx) => `
+        <tr>
+          <td class="td-id">${idx + 1}</td>
+          <td class="td-name fw-600" style="color:var(--text-0)">${esc(e.voterName || 'Người ẩn danh')}</td>
+          <td><code style="font-size:0.75rem;background:#f1f5f9;padding:2px 5px;border-radius:4px;color:#0f172a;font-weight:600;">${esc(e.studentId || '—')}</code></td>
+          <td style="font-size:0.78rem;color:#334155;">${esc(e.studentClass || '—')}</td>
+          <td style="font-size:0.78rem;color:#475569;">${esc(e.faculty || '—')}</td>
+          <td><span class="badge badge-rose" style="font-size:0.72rem;padding:2px 6px;">SBD ${esc(e.id)}</span> ${esc(e.name || '')}</td>
+          <td style="color:var(--text-1);font-style:italic;">"${esc(e.comment || '—')}"</td>
+          <td class="td-ts">${formatDateFull(new Date(e.ts))}</td>
+        </tr>
+      `).join('');
+    }
+
+    document.getElementById('archiveDetailModal').classList.remove('hidden');
+  } catch (e) {
+    toast('Lỗi mở chi tiết: ' + e.message, 'error');
+  }
+}
+
+function closeArchiveDetailModal() {
+  document.getElementById('archiveDetailModal').classList.add('hidden');
+  currentViewedArchive = null;
+}
+
+async function downloadArchiveCSV(archiveId) {
+  try {
+    let arc = currentViewedArchive && currentViewedArchive.archive_id === archiveId ? currentViewedArchive : null;
+    if (!arc) {
+      arc = await api.get(`/api/archives/${archiveId}`);
+    }
+    if (!arc) return;
+
+    let csv = `BẢNG XẾP HẠNG - ${arc.title}\n`;
+    csv += 'Hạng,Số báo danh,Tên thí sinh,Số phiếu bầu,Tỷ lệ phần trăm\n';
+    const total = arc.total_votes || 1;
+    const ranked = [...(arc.contestants || [])].sort((a,b) => (arc.votes[b.id]||0) - (arc.votes[a.id]||0));
+    ranked.forEach((c, idx) => {
+      const count = arc.votes[c.id] || 0;
+      const pct = ((count / total) * 100).toFixed(1);
+      csv += `${idx + 1},"${c.id}","${c.name}",${count},${pct}%\n`;
+    });
+
+    csv += '\nCHI TIẾT DANH SÁCH PHIẾU BẦU\n';
+    csv += 'STT,Mã phiếu,Người bình chọn,Mã sinh viên (MSSV),Lớp,Khoa,SBD,Thí sinh được chọn,Lời chúc / Bình luận,Thời điểm\n';
+    (arc.voteLog || []).forEach((e, idx) => {
+      const dateStr = formatDateFull(new Date(e.ts));
+      csv += `${idx + 1},"${e.voteId || ''}","${e.voterName || 'Người ẩn danh'}","${e.studentId || ''}","${e.studentClass || ''}","${e.faculty || ''}","${e.id}","${e.name || ''}","${(e.comment || '').replace(/"/g, '""')}","${dateStr}"\n`;
+    });
+
+    const safeName = (arc.title || 'dot_binh_chon').replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1EA0-\u1EF9]/g, '_');
+    downloadFile(`${safeName}.csv`, '\uFEFF' + csv, 'text/csv;charset=utf-8');
+    toast(`✓ Đã tải file Excel đợt "${arc.title}"!`, 'success');
+  } catch (e) {
+    toast('Lỗi tải file: ' + e.message, 'error');
+  }
+}
+
+async function deleteArchive(archiveId) {
+  if (!confirm('Bạn có chắc muốn xóa bản lưu trữ đợt bình chọn này?')) return;
+  try {
+    await api.del(`/api/archives/${archiveId}`);
+    toast('Đã xóa bản lưu.', 'success');
+    await loadVoteArchives();
+  } catch (e) {
+    toast('Lỗi xóa: ' + e.message, 'error');
+  }
+}
+
 async function resetVotesForNewEvent() {
-  const c = confirm('⚠ BẠN CÓ CHẮC CHẮN MUỐN ĐƯA TOÀN BỘ PHIẾU BẦU VỀ 0?\\n\\nHành động này dùng khi bạn bắt đầu cuộc thi mới (ví dụ: chuyển từ Hoa Khôi sang Nam Vương).');
+  const c = confirm('⚠ BẠN CÓ CHẮC CHẮN MUỐN ĐƯA TOÀN BỘ PHIẾU BẦU VỀ 0?\n\nHệ thống sẽ TỰ ĐỘNG LƯU TRỮ toàn bộ dữ liệu đợt cũ vào "Kho Lưu Trữ Đợt Vote 📦" trước khi xóa để bạn có thể xem lại bất cứ lúc nào!');
   if (!c) return;
-  const c2 = confirm('XÁC NHẬN LẦN 2: Thao tác này sẽ xóa vĩnh viễn toàn bộ phiếu đã bầu hiện tại. Tiếp tục?');
-  if (!c2) return;
-  await api.post('/api/reset-votes');
+  const title = prompt('Nhập tên cho đợt bình chọn cũ này (để lưu trữ):', 'Đợt cũ trước khi đổi sự kiện (' + new Date().toLocaleDateString('vi-VN') + ')');
+  if (title === null) return;
+
+  await api.post('/api/reset-votes', { auto_archive: true, title });
   appData.votes = {};
   appData.voteLog = [];
   renderAll();
-  toast('Đã đặt lại toàn bộ phiếu bầu về 0 thành công! Sẵn sàng cho cuộc thi mới.', 'success');
+  await loadVoteArchives();
+  toast('🎉 Đã tự động lưu trữ đợt cũ vào kho và đặt lại số phiếu về 0 thành công!', 'success', 5000);
 }
-
 
 async function changePassword() {
   const np = document.getElementById('newPass').value;
@@ -3054,27 +3341,31 @@ async function changePassword() {
 
 /* ─── RESET ACTIONS ─────────────────────────────────────── */
 async function resetVotes() {
-  if (!await customConfirm('Reset TẤT CẢ phiếu bầu? Hành động này không thể hoàn tác!', '🗑️')) return;
+  if (!await customConfirm('Reset TẤT CẢ phiếu bầu? Hệ thống sẽ TỰ ĐỘNG LƯU TRỮ đợt này vào kho lịch sử để bạn xem lại bất cứ lúc nào.', '📦')) return;
   try {
-    await api.post('/api/reset-votes', {});
+    const title = 'Đợt trước khi Reset (' + new Date().toLocaleString('vi-VN') + ')';
+    await api.post('/api/reset-votes', { auto_archive: true, title });
     appData.votes = {};
     appData.voteLog = [];
     localStorage.removeItem('hh:voted_by');
     renderAll();
-    toast('Đã reset tất cả phiếu bầu!', 'success');
+    await loadVoteArchives();
+    toast('✓ Đã lưu trữ đợt vừa rồi vào kho và reset phiếu bầu thành công!', 'success');
   } catch (e) {
     toast('Lỗi reset: ' + e.message, 'error');
   }
 }
 
 async function resetLog() {
-  if (!await customConfirm('Xóa toàn bộ nhật ký bình chọn? Hành động này không thể hoàn tác!', '🗑️')) return;
+  if (!await customConfirm('Xóa toàn bộ nhật ký bình chọn? Hệ thống sẽ TỰ ĐỘNG LƯU TRỮ trước khi xóa.', '📦')) return;
   try {
-    await api.post('/api/reset-votes', {});
+    const title = 'Đợt trước khi xóa nhật ký (' + new Date().toLocaleString('vi-VN') + ')';
+    await api.post('/api/reset-votes', { auto_archive: true, title });
     appData.voteLog = [];
     appData.votes = {};
     renderAll();
-    toast('Đã xóa nhật ký bình chọn.', 'success');
+    await loadVoteArchives();
+    toast('Đã lưu trữ và xóa nhật ký bình chọn.', 'success');
   } catch (e) {
     toast('Lỗi: ' + e.message, 'error');
   }
