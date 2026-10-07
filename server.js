@@ -115,6 +115,24 @@ app.post('/api/vote', async (req, res) => {
   const { contestant_id, voter_name, student_id, student_class, faculty, comment, voter_fingerprint } = req.body;
   if (!contestant_id) return res.status(400).json({ error: 'Thiếu contestant_id' });
 
+  const cleanVoterName = (voter_name || '').trim();
+  const cleanStudentId = (student_id || '').trim();
+  const cleanStudentClass = (student_class || '').trim();
+  const cleanFaculty = (faculty || '').trim();
+
+  if (!cleanVoterName) {
+    return res.status(400).json({ error: 'Vui lòng nhập Họ và tên của bạn!' });
+  }
+  if (!cleanStudentId) {
+    return res.status(400).json({ error: 'Vui lòng nhập Mã sinh viên (MSSV)!' });
+  }
+  if (!cleanStudentClass) {
+    return res.status(400).json({ error: 'Vui lòng nhập Lớp của bạn!' });
+  }
+  if (!cleanFaculty) {
+    return res.status(400).json({ error: 'Vui lòng nhập Khoa của bạn!' });
+  }
+
   // Lấy IP người dùng (hỗ trợ proxy/Render)
   const voterIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
     || req.headers['x-real-ip']
@@ -122,7 +140,6 @@ app.post('/api/vote', async (req, res) => {
     || 'unknown';
   // Dùng fingerprint (nếu có) kết hợp IP để nhận diện voter chính xác hơn
   const voterId = voter_fingerprint ? `${voterIp}_${voter_fingerprint}` : voterIp;
-  const cleanStudentId = (student_id || '').trim();
 
   try {
     // 1. Kiểm tra đã vote cho thí sinh này chưa (chống bình chọn lặp lại 2 lần trở lên)
@@ -179,10 +196,10 @@ app.post('/api/vote', async (req, res) => {
       [
         vote_id,
         contestant_id,
-        voter_name || 'Người ẩn danh',
+        cleanVoterName,
         cleanStudentId,
-        (student_class || '').trim(),
-        (faculty || '').trim(),
+        cleanStudentClass,
+        cleanFaculty,
         comment || '',
         voterId
       ]

@@ -1110,26 +1110,30 @@
     <h2 class="modal-title font-display">Bình Chọn Thí Sinh</h2>
     <p class="modal-subtitle" id="voteModalContestantName" style="color:#555; font-weight:600; margin-bottom:1.25rem;"></p>
     <div class="c-form">
+      <div style="font-size:0.8rem;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;padding:6px 10px;border-radius:6px;margin-bottom:0.75rem;display:flex;align-items:center;gap:6px;">
+        <span>⚠️</span>
+        <span>Vui lòng điền <strong>đầy đủ thông tin</strong> bên dưới để hoàn tất bình chọn!</span>
+      </div>
       <div class="form-group">
-        <label class="form-label">Họ và tên của bạn</label>
-        <input class="input" id="voterNameInput" placeholder="Ví dụ: Nguyễn Văn A" />
+        <label class="form-label">Họ và tên của bạn <span style="color:#dc2626;font-weight:700">*</span></label>
+        <input class="input" id="voterNameInput" placeholder="Ví dụ: Nguyễn Văn A" required />
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
         <div class="form-group">
-          <label class="form-label">Mã sinh viên (MSSV)</label>
-          <input class="input" id="voterStudentIdInput" placeholder="Ví dụ: 65KDD12345" />
+          <label class="form-label">Mã sinh viên (MSSV) <span style="color:#dc2626;font-weight:700">*</span></label>
+          <input class="input" id="voterStudentIdInput" placeholder="Ví dụ: 65KDD12345" required />
         </div>
         <div class="form-group">
-          <label class="form-label">Lớp</label>
-          <input class="input" id="voterClassInput" placeholder="Ví dụ: 65KDD1" />
+          <label class="form-label">Lớp <span style="color:#dc2626;font-weight:700">*</span></label>
+          <input class="input" id="voterClassInput" placeholder="Ví dụ: 65KDD1" required />
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Khoa</label>
-        <input class="input" id="voterFacultyInput" placeholder="Ví dụ: Khoa Xây dựng" />
+        <label class="form-label">Khoa <span style="color:#dc2626;font-weight:700">*</span></label>
+        <input class="input" id="voterFacultyInput" placeholder="Ví dụ: Khoa Xây dựng" required />
       </div>
       <div class="form-group">
-        <label class="form-label">Lời chúc / Bình luận</label>
+        <label class="form-label">Lời chúc / Bình luận <span style="color:#94a3b8;font-size:0.75rem">(tùy chọn)</span></label>
         <textarea class="input" id="voterCommentInput" rows="2" placeholder="Chúc thí sinh tỏa sáng!" style="resize:vertical; min-height:60px;"></textarea>
       </div>
       <div style="display:flex;gap:.5rem;margin-top:.75rem">
@@ -1381,16 +1385,38 @@ document.getElementById('voteModal').addEventListener('click', function(e) {
 document.getElementById('confirmVoteBtn').onclick = async () => {
   if (!pendingVoteId) return;
   const id = pendingVoteId;
-  const voterName = document.getElementById('voterNameInput').value.trim() || 'Người ẩn danh';
+  const voterName = document.getElementById('voterNameInput').value.trim();
   const studentId = document.getElementById('voterStudentIdInput').value.trim();
   const studentClass = document.getElementById('voterClassInput').value.trim();
   const faculty = document.getElementById('voterFacultyInput').value.trim();
   const comment = document.getElementById('voterCommentInput').value.trim() || 'Ủng hộ thí sinh!';
   
-  if (voterName && voterName !== 'Người ẩn danh') localStorage.setItem('hh:voter_name', voterName);
-  if (studentId) localStorage.setItem('hh:student_id', studentId);
-  if (studentClass) localStorage.setItem('hh:student_class', studentClass);
-  if (faculty) localStorage.setItem('hh:faculty', faculty);
+  // BẮT BUỘC ĐIỀN ĐẦY ĐỦ THÔNG TIN
+  if (!voterName) {
+    toast('⚠️ Vui lòng nhập Họ và tên của bạn!', 'warning');
+    document.getElementById('voterNameInput').focus();
+    return;
+  }
+  if (!studentId) {
+    toast('⚠️ Vui lòng nhập Mã sinh viên (MSSV)!', 'warning');
+    document.getElementById('voterStudentIdInput').focus();
+    return;
+  }
+  if (!studentClass) {
+    toast('⚠️ Vui lòng nhập Lớp của bạn!', 'warning');
+    document.getElementById('voterClassInput').focus();
+    return;
+  }
+  if (!faculty) {
+    toast('⚠️ Vui lòng nhập Khoa của bạn!', 'warning');
+    document.getElementById('voterFacultyInput').focus();
+    return;
+  }
+
+  localStorage.setItem('hh:voter_name', voterName);
+  localStorage.setItem('hh:student_id', studentId);
+  localStorage.setItem('hh:student_class', studentClass);
+  localStorage.setItem('hh:faculty', faculty);
   
   closeVoteModal();
   await submitVote(id, voterName, studentId, studentClass, faculty, comment);
