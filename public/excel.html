@@ -214,6 +214,9 @@
       <button class="tab-btn" id="tabBtnVoters" onclick="switchTab('voters')">
         👥 Danh Sách Người Bình Chọn Chi Tiết
       </button>
+      <button class="tab-btn" id="tabBtnArchives" onclick="switchTab('archives')">
+        📦 Lịch Sử Các Đợt Bình Chọn (Kho SQL)
+      </button>
     </div>
 
     <!-- TAB 1: CONTESTANTS -->
@@ -274,6 +277,90 @@
             <tr><td colspan="10" style="text-align:center;padding:2rem;color:#94a3b8">Đang tải danh sách người bình chọn...</td></tr>
           </tbody>
         </table>
+      </div>
+    </div>
+
+    <!-- TAB 3: ARCHIVES (LỊCH SỬ KHO SQL) -->
+    <div class="sheet-card" id="paneArchives" style="display:none">
+      <div class="sheet-header">
+        <div class="sheet-title">📦 Kho Lưu Trữ Các Đợt Bình Chọn Đã Lưu (Neon SQL Database)</div>
+        <div style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap">
+          <button class="btn btn-blue" onclick="promptSaveCurrentArchive()" style="font-size:0.82rem;padding:0.45rem 0.85rem">💾 Lưu Trữ Đợt Hiện Tại</button>
+          <button class="btn btn-light" onclick="loadArchives()" style="font-size:0.82rem;padding:0.45rem 0.85rem;background:#e2e8f0;color:#1e293b">🔄 Làm Mới Danh Sách</button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:45px;text-align:center">STT</th>
+              <th>Mã Đợt Lưu</th>
+              <th>Tên Đợt Bình Chọn</th>
+              <th>Thời Gian Lưu</th>
+              <th style="text-align:right">Tổng Phiếu</th>
+              <th>Ghi Chú</th>
+              <th style="text-align:center;min-width:240px">Thao Tác</th>
+            </tr>
+          </thead>
+          <tbody id="archivesTableBody">
+            <tr><td colspan="7" style="text-align:center;padding:2rem;color:#94a3b8">Đang tải lịch sử các đợt lưu...</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Khung Chi Tiết Đợt Lưu -->
+      <div id="archiveDetailCard" style="display:none;border-top:2px solid #cbd5e1;background:#f8fafc;padding:1.25rem;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:0.5rem">
+          <div>
+            <div id="arcDetailTitle" style="font-size:1.05rem;font-weight:700;color:#0f172a">Đang xem: Đợt bình chọn</div>
+            <div id="arcDetailMeta" style="font-size:0.8rem;color:#64748b;margin-top:2px"></div>
+          </div>
+          <div style="display:flex;gap:0.5rem">
+            <button class="btn btn-light" id="btnExportArcCsv" onclick="exportLoadedArchiveCSV()" style="background:#16a34a;color:#fff;font-size:0.8rem;padding:0.4rem 0.75rem">📊 Tải File Excel Đợt Này (.csv)</button>
+            <button class="btn btn-light" onclick="closeArchiveDetail()" style="background:#e2e8f0;color:#334155;font-size:0.8rem;padding:0.4rem 0.75rem">✕ Đóng Xem Chi Tiết</button>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:0.5rem;margin-bottom:0.75rem">
+          <button id="arcSubTabRank" onclick="switchArcSubTab('rank')" class="tab-btn active" style="padding:0.4rem 0.85rem;font-size:0.82rem">🏆 Xếp Hạng Thí Sinh</button>
+          <button id="arcSubTabVoters" onclick="switchArcSubTab('voters')" class="tab-btn" style="padding:0.4rem 0.85rem;font-size:0.82rem">👥 Danh Sách Người Bình Chọn</button>
+        </div>
+
+        <div id="arcSubPaneRank" class="table-wrap" style="background:#fff;border-radius:6px;border:1px solid #cbd5e1">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:60px;text-align:center">Hạng</th>
+                <th>SBD</th>
+                <th>Họ và Tên Thí Sinh</th>
+                <th>Quê Quán / Đơn Vị</th>
+                <th style="text-align:right">Số Phiếu Bầu</th>
+                <th style="text-align:right">Tỷ Lệ (%)</th>
+              </tr>
+            </thead>
+            <tbody id="arcContestantTbody"></tbody>
+          </table>
+        </div>
+
+        <div id="arcSubPaneVoters" class="table-wrap" style="display:none;background:#fff;border-radius:6px;border:1px solid #cbd5e1">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:45px;text-align:center">STT</th>
+                <th>Mã Vote</th>
+                <th>Tên Người Bình Chọn</th>
+                <th>MSSV</th>
+                <th>Lớp</th>
+                <th>Khoa</th>
+                <th>SBD</th>
+                <th>Thí Sinh Được Chọn</th>
+                <th>Lời Chúc / Bình Luận</th>
+                <th>Thời Gian Bình Chọn</th>
+              </tr>
+            </thead>
+            <tbody id="arcVoterTbody"></tbody>
+          </table>
+        </div>
       </div>
     </div>
 
@@ -404,13 +491,251 @@
       }).join('');
     }
 
+    let archivesList = [];
+    let currentArchiveData = null;
+
     function switchTab(tab) {
       currentTab = tab;
       document.getElementById('tabBtnContestants').classList.toggle('active', tab === 'contestants');
       document.getElementById('tabBtnVoters').classList.toggle('active', tab === 'voters');
+      document.getElementById('tabBtnArchives').classList.toggle('active', tab === 'archives');
 
       document.getElementById('paneContestants').style.display = tab === 'contestants' ? 'block' : 'none';
       document.getElementById('paneVoters').style.display = tab === 'voters' ? 'block' : 'none';
+      document.getElementById('paneArchives').style.display = tab === 'archives' ? 'block' : 'none';
+
+      if (tab === 'archives') {
+        loadArchives();
+      }
+    }
+
+    async function loadArchives() {
+      const tbody = document.getElementById('archivesTableBody');
+      try {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:#94a3b8">⏳ Đang tải danh sách lịch sử từ SQL...</td></tr>';
+        const res = await fetch(`${API_BASE}/api/archives`);
+        const data = await res.json();
+        archivesList = data.archives || [];
+        renderArchives();
+      } catch (e) {
+        console.error('Error loadArchives:', e);
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2rem;color:#ef4444">❌ Lỗi tải danh sách lịch sử. Vui lòng thử lại!</td></tr>';
+      }
+    }
+
+    function renderArchives() {
+      const tbody = document.getElementById('archivesTableBody');
+      if (!archivesList.length) {
+        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:2.5rem;color:#94a3b8">Chưa có đợt bình chọn nào được lưu trữ trong SQL.<br><small style="color:#64748b">Khi bạn Reset bình chọn (hoặc bấm "Lưu Trữ Đợt Hiện Tại"), hệ thống sẽ tự động lưu vào đây!</small></td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = archivesList.map((arc, idx) => {
+        const timeStr = new Date(arc.created_at).toLocaleString('vi-VN');
+        const votesCount = Number(arc.total_votes || 0);
+        return `
+          <tr>
+            <td style="text-align:center;color:#94a3b8">${idx + 1}</td>
+            <td><code style="font-size:.78rem;background:#f1f5f9;padding:2px 6px;border-radius:4px">${arc.archive_id}</code></td>
+            <td><strong style="color:#0f172a">${arc.title}</strong></td>
+            <td style="color:#64748b">${timeStr}</td>
+            <td style="text-align:right;font-weight:700;color:#2563eb">${votesCount.toLocaleString('vi-VN')} phiếu</td>
+            <td style="color:#64748b;font-style:italic">${arc.notes || '—'}</td>
+            <td style="text-align:center">
+              <button class="btn btn-light" onclick="viewArchiveDetail('${arc.archive_id}')" style="font-size:.75rem;padding:3px 8px;background:#e0f2fe;color:#0369a1;margin-right:4px">👁️ Xem</button>
+              <button class="btn btn-light" onclick="downloadDirectArchiveCSV('${arc.archive_id}')" style="font-size:.75rem;padding:3px 8px;background:#dcfce7;color:#15803d;margin-right:4px">📊 Tải Excel</button>
+              <button class="btn btn-light" onclick="deleteArchive('${arc.archive_id}')" style="font-size:.75rem;padding:3px 8px;background:#fee2e2;color:#b91c1c">🗑️ Xóa</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    async function viewArchiveDetail(id) {
+      try {
+        const card = document.getElementById('archiveDetailCard');
+        card.style.display = 'block';
+        document.getElementById('arcDetailTitle').textContent = '⏳ Đang tải chi tiết đợt: ' + id;
+        document.getElementById('arcDetailMeta').textContent = '';
+
+        const res = await fetch(`${API_BASE}/api/archives/${id}`);
+        const data = await res.json();
+        if (data.error) {
+          alert(data.error);
+          return;
+        }
+
+        currentArchiveData = data;
+        const timeStr = new Date(data.created_at).toLocaleString('vi-VN');
+        document.getElementById('arcDetailTitle').innerHTML = `Đang xem: <span style="color:#15803d">${data.title}</span>`;
+        document.getElementById('arcDetailMeta').innerHTML = `Mã: <code>${data.archive_id}</code> | Lưu lúc: <strong>${timeStr}</strong> | Tổng: <strong>${data.total_votes} phiếu</strong> ${data.notes ? `| Ghi chú: ${data.notes}` : ''}`;
+
+        renderArchiveRankAndVoters(data);
+        switchArcSubTab('rank');
+        card.scrollIntoView({ behavior: 'smooth' });
+      } catch (e) {
+        console.error(e);
+        alert('Lỗi khi tải chi tiết đợt lưu');
+      }
+    }
+
+    function renderArchiveRankAndVoters(data) {
+      const contestantsList = data.contestants || [];
+      const votesMap = data.votes || {};
+      const total = Number(data.total_votes || 0);
+
+      const ranked = [...contestantsList].sort((a,b) => (votesMap[b.id]||0) - (votesMap[a.id]||0));
+      const rBody = document.getElementById('arcContestantTbody');
+      rBody.innerHTML = ranked.map((c, i) => {
+        const count = votesMap[c.id] || 0;
+        const pct = total ? ((count / total) * 100).toFixed(1) : '0.0';
+        const rankClass = i === 0 ? 'rank-1' : (i === 1 ? 'rank-2' : (i === 2 ? 'rank-3' : 'rank-other'));
+        return `
+          <tr>
+            <td style="text-align:center"><span class="badge-rank ${rankClass}">${i + 1}</span></td>
+            <td><strong>SBD ${c.id}</strong></td>
+            <td><strong style="color:#0f172a">${c.name}</strong></td>
+            <td>${c.subtitle || ''}</td>
+            <td style="text-align:right;font-weight:700;color:#2563eb">${count.toLocaleString('vi-VN')} phiếu</td>
+            <td style="text-align:right;font-weight:600">${pct}%</td>
+          </tr>
+        `;
+      }).join('');
+
+      const vBody = document.getElementById('arcVoterTbody');
+      const log = data.voteLog || [];
+      if (!log.length) {
+        vBody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:2rem;color:#94a3b8">Không có danh sách chi tiết phiếu bầu cho đợt này.</td></tr>';
+      } else {
+        const rev = [...log].reverse();
+        vBody.innerHTML = rev.map((e, idx) => {
+          const voter = e.voterName || 'Người ẩn danh';
+          const mssv = e.studentId || '—';
+          const sClass = e.studentClass || '—';
+          const faculty = e.faculty || '—';
+          const comment = e.comment || '—';
+          const dateStr = new Date(e.ts).toLocaleString('vi-VN');
+          return `
+            <tr>
+              <td style="text-align:center;color:#94a3b8">${idx + 1}</td>
+              <td><code style="font-size:.78rem;background:#f1f5f9;padding:2px 6px;border-radius:4px">${e.vote_id || e.voteId || 'N/A'}</code></td>
+              <td><strong>${voter}</strong></td>
+              <td><code style="font-size:.78rem;background:#eff6ff;color:#1d4ed8;padding:2px 5px;border-radius:4px;font-weight:600">${mssv}</code></td>
+              <td>${sClass}</td>
+              <td>${faculty}</td>
+              <td>SBD ${e.id}</td>
+              <td><strong style="color:#2563eb">${e.name}</strong></td>
+              <td style="color:#475569;font-style:italic">"${comment}"</td>
+              <td style="color:#64748b">${dateStr}</td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+
+    function switchArcSubTab(type) {
+      document.getElementById('arcSubTabRank').classList.toggle('active', type === 'rank');
+      document.getElementById('arcSubTabVoters').classList.toggle('active', type === 'voters');
+      document.getElementById('arcSubPaneRank').style.display = type === 'rank' ? 'block' : 'none';
+      document.getElementById('arcSubPaneVoters').style.display = type === 'voters' ? 'block' : 'none';
+    }
+
+    function closeArchiveDetail() {
+      document.getElementById('archiveDetailCard').style.display = 'none';
+      currentArchiveData = null;
+    }
+
+    async function downloadDirectArchiveCSV(id) {
+      try {
+        const res = await fetch(`${API_BASE}/api/archives/${id}`);
+        const arc = await res.json();
+        if (arc.error) return alert(arc.error);
+        exportSpecificArchiveCSV(arc);
+      } catch (e) {
+        alert('Lỗi tải dữ liệu xuất Excel đợt này');
+      }
+    }
+
+    function exportLoadedArchiveCSV() {
+      if (!currentArchiveData) return;
+      exportSpecificArchiveCSV(currentArchiveData);
+    }
+
+    function exportSpecificArchiveCSV(arc) {
+      let csv = `BÁO CÁO LỊCH SỬ BÌNH CHỌN: "${arc.title.replace(/"/g, '""')}"\n`;
+      csv += `Mã đợt lưu: ${arc.archive_id}\n`;
+      csv += `Thời gian lưu: ${new Date(arc.created_at).toLocaleString('vi-VN')}\n`;
+      csv += `Tổng số phiếu: ${arc.total_votes}\n\n`;
+
+      csv += '--- BẢNG XẾP HẠNG THÍ SINH ---\n';
+      csv += 'Hạng,Số báo danh,Tên thí sinh,Quê quán / Đơn vị,Số phiếu bầu,Tỷ lệ phần trăm\n';
+      const cList = arc.contestants || [];
+      const votesMap = arc.votes || {};
+      const total = Number(arc.total_votes || 0);
+      const ranked = [...cList].sort((a,b) => (votesMap[b.id]||0) - (votesMap[a.id]||0));
+      ranked.forEach((c, idx) => {
+        const count = votesMap[c.id] || 0;
+        const pct = total ? ((count / total) * 100).toFixed(1) : '0.0';
+        csv += `${idx + 1},"${c.id}","${c.name}","${c.subtitle || ''}",${count},${pct}%\n`;
+      });
+
+      csv += '\n--- DANH SÁCH CHI TIẾT NGƯỜI BÌNH CHỌN ---\n';
+      csv += 'STT,Mã lượt vote,Tên người bình chọn,MSSV,Lớp,Khoa,SBD chọn,Thí sinh được chọn,Lời chúc / Bình luận,Thời gian\n';
+      const log = arc.voteLog || [];
+      log.forEach((e, idx) => {
+        const voter = e.voterName || 'Người ẩn danh';
+        const mssv = e.studentId || '';
+        const sClass = e.studentClass || '';
+        const faculty = e.faculty || '';
+        const comment = e.comment || '';
+        const dateStr = new Date(e.ts).toLocaleString('vi-VN');
+        csv += `${idx + 1},"${e.vote_id || e.voteId || ''}","${voter}","${mssv}","${sClass}","${faculty}","${e.id}","${e.name}","${comment.replace(/"/g, '""')}","${dateStr}"\n`;
+      });
+
+      const safeTitle = (arc.title || 'dot_binh_chon').replace(/[^a-zA-Z0-9_\u00C0-\u024F\u1EA0-\u1EF9]/g, '_');
+      saveFile(`lich_su_${safeTitle}_${arc.archive_id}.csv`, '\uFEFF' + csv);
+    }
+
+    async function promptSaveCurrentArchive() {
+      const name = prompt('Nhập tên cho đợt lưu trữ này (Ví dụ: "Đợt 1 - Vòng sơ loại"):', 'Đợt bình chọn ' + new Date().toLocaleDateString('vi-VN'));
+      if (name === null) return;
+      const notes = prompt('Ghi chú thêm (tùy chọn):', '');
+      
+      try {
+        const res = await fetch(`${API_BASE}/api/archives`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: name, notes: notes || '' })
+        });
+        const data = await res.json();
+        if (data.success) {
+          alert(`✅ Đã lưu trữ thành công vào Neon SQL!\n- Đợt: "${data.title}"\n- Tổng phiếu: ${data.totalVotes}`);
+          loadArchives();
+        } else {
+          alert('Lỗi lưu trữ: ' + (data.error || 'Thử lại'));
+        }
+      } catch (e) {
+        alert('Lỗi kết nối khi lưu trữ: ' + e.message);
+      }
+    }
+
+    async function deleteArchive(id) {
+      if (!confirm(`Bạn có chắc chắn muốn xóa vĩnh viễn đợt lưu "${id}" khỏi Neon SQL không?`)) return;
+      try {
+        const res = await fetch(`${API_BASE}/api/archives/${id}`, { method: 'DELETE' });
+        const data = await res.json();
+        if (data.success) {
+          alert('Đã xóa đợt lưu thành công!');
+          if (currentArchiveData && currentArchiveData.archive_id === id) {
+            closeArchiveDetail();
+          }
+          loadArchives();
+        } else {
+          alert('Lỗi: ' + (data.error || 'Không thể xóa'));
+        }
+      } catch (e) {
+        alert('Lỗi khi xóa: ' + e.message);
+      }
     }
 
     function downloadExcel() {
@@ -424,7 +749,7 @@
           csv += `"${c.id}","${c.name}","${c.subtitle}",${count},${pct}%\n`;
         });
         saveFile('ket_qua_hoakhoi_2026.csv', '\uFEFF' + csv);
-      } else {
+      } else if (currentTab === 'voters') {
         let csv = 'STT,Mã lượt bình chọn,Tên người bình chọn,Mã sinh viên (MSSV),Lớp,Khoa,Số báo danh,Thí sinh được chọn,Lời chúc / Bình luận,Thời gian bình chọn\n';
         voteLog.forEach((e, idx) => {
           const voter = e.voterName || 'Người ẩn danh';
@@ -436,6 +761,18 @@
           csv += `${idx + 1},"${e.voteId || ''}","${voter}","${mssv}","${sClass}","${faculty}","${e.id}","${e.name}","${comment.replace(/"/g, '""')}","${dateStr}"\n`;
         });
         saveFile('danh_sach_nguoi_binh_chon.csv', '\uFEFF' + csv);
+      } else if (currentTab === 'archives') {
+        if (currentArchiveData) {
+          exportLoadedArchiveCSV();
+        } else if (archivesList.length) {
+          let csv = 'STT,Mã đợt lưu,Tên đợt bình chọn,Thời gian lưu,Tổng số phiếu,Ghi chú\n';
+          archivesList.forEach((arc, idx) => {
+            csv += `${idx+1},"${arc.archive_id}","${arc.title.replace(/"/g, '""')}","${new Date(arc.created_at).toLocaleString('vi-VN')}",${arc.total_votes},"${(arc.notes||'').replace(/"/g, '""')}"\n`;
+          });
+          saveFile('danh_sach_cac_dot_luu_sql.csv', '\uFEFF' + csv);
+        } else {
+          alert('Chưa có dữ liệu lịch sử để xuất file.');
+        }
       }
     }
 
@@ -458,12 +795,17 @@
           const pct = total ? ((count/total)*100).toFixed(1) : '0.0';
           tsv += `${i+1}\t${c.id}\t${c.name}\t${c.subtitle}\t${count}\t${pct}%\n`;
         });
-      } else {
-        tsv = 'STT\tMã Vote\tNgười Bình Chọn\tSBD\tThí Sinh\tBình Luận\tThời Gian\n';
+      } else if (currentTab === 'voters') {
+        tsv = 'STT\tMã Vote\tNgười Bình Chọn\tMSSV\tLớp\tKhoa\tSBD\tThí Sinh\tBình Luận\tThời Gian\n';
         voteLog.forEach((e, idx) => {
           const voter = e.voterName || 'Người ẩn danh';
           const comment = e.comment || '';
-          tsv += `${idx+1}\t${e.voteId||''}\t${voter}\t${e.id}\t${e.name}\t${comment}\t${new Date(e.ts).toLocaleString('vi-VN')}\n`;
+          tsv += `${idx+1}\t${e.voteId||''}\t${voter}\t${e.studentId||''}\t${e.studentClass||''}\t${e.faculty||''}\t${e.id}\t${e.name}\t${comment}\t${new Date(e.ts).toLocaleString('vi-VN')}\n`;
+        });
+      } else if (currentTab === 'archives') {
+        tsv = 'STT\tMã Đợt Lưu\tTên Đợt\tThời Gian Lưu\tTổng Phiếu\tGhi Chú\n';
+        archivesList.forEach((arc, idx) => {
+          tsv += `${idx+1}\t${arc.archive_id}\t${arc.title}\t${new Date(arc.created_at).toLocaleString('vi-VN')}\t${arc.total_votes}\t${arc.notes||''}\n`;
         });
       }
 
