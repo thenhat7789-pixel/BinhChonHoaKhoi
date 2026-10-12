@@ -816,7 +816,7 @@
       <button class="btn-back-portal" onclick="backToPortal()">
         ← Danh Sách Cuộc Thi
       </button>
-      <button type="button" class="btn-back-portal" onclick="openPublicQrModal(state.currentEventId)" style="background:#eff6ff;color:#0284c7;border-color:#bfdbfe;font-weight:700;">
+      <button type="button" class="btn-back-portal" onclick="openPublicQrModal(state.activeEventId)" style="background:#eff6ff;color:#0284c7;border-color:#bfdbfe;font-weight:700;">
         📱 Mã QR
       </button>
     </div>
@@ -1720,15 +1720,14 @@ function closeVoteModal() {
 
 /* ─── PUBLIC QR CODE MODAL ──────────────────────────────── */
 function openPublicQrModal(eventId) {
-  const targetId = eventId || state.activeEventId || 'evt_hoakhoi_2026';
-  const ev = (state.events || []).find(e => e.id === targetId) || (state.events && state.events[0]);
-  if (!ev) return;
+  const targetId = eventId || state.activeEventId || (state.events && state.events[0] && state.events[0].id) || 'evt_hoakhoi_2026';
+  const ev = (state.events || []).find(e => e.id === targetId) || (state.events && state.events[0]) || { id: targetId, title: 'Bình Chọn Hoa Khôi', tag: '# HOA KHÔI 2026' };
   const baseUrl = window.location.origin + window.location.pathname;
   const voteUrl = `${baseUrl.replace(/\/index\.html.*$/, '')}/index.html?event=${encodeURIComponent(ev.id)}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=450x450&data=${encodeURIComponent(voteUrl)}`;
 
-  const cleanTitle = (ev.title || 'Bình Chọn').replace(/<[^>]*>?/gm, '');
-  const tag = ev.tag || '# CUỘC THI';
+  const cleanTitle = (ev.title || 'Bình Chọn Hoa Khôi').replace(/<[^>]*>?/gm, '');
+  const tag = ev.tag || '# HOA KHÔI 2026';
 
   const nameEl = document.getElementById('publicQrEventName');
   if (nameEl) nameEl.textContent = cleanTitle;

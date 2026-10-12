@@ -2516,14 +2516,13 @@ function renderAdminEvents() {
 
 function openEventQr(eventId) {
   const targetId = eventId || currentActiveEventId || 'evt_hoakhoi_2026';
-  const ev = (adminEvents || []).find(e => e.id === targetId) || (adminEvents && adminEvents[0]);
-  if (!ev) return;
-  const baseUrl = (appData.settings && appData.settings.share_url) ? appData.settings.share_url : window.location.origin;
+  const ev = (adminEvents || []).find(e => e.id === targetId) || (adminEvents && adminEvents[0]) || { id: targetId, title: 'Bình Chọn Hoa Khôi', tag: '# HOA KHÔI 2026' };
+  const baseUrl = (appData && appData.settings && appData.settings.share_url) ? appData.settings.share_url : window.location.origin;
   const voteUrl = `${baseUrl.replace(/\/admin\.html.*$/, '')}/index.html?event=${encodeURIComponent(ev.id)}`;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=450x450&data=${encodeURIComponent(voteUrl)}`;
 
-  const cleanTitle = (ev.title || 'Bình Chọn').replace(/<[^>]*>?/gm, '');
-  const tag = ev.tag || '# CUỘC THI';
+  const cleanTitle = (ev.title || 'Bình Chọn Hoa Khôi').replace(/<[^>]*>?/gm, '');
+  const tag = ev.tag || '# HOA KHÔI 2026';
 
   const titleEl = document.getElementById('qrModalTitle');
   if (titleEl) titleEl.textContent = 'Mã QR Bình Chọn';
