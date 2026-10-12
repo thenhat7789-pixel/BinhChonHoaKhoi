@@ -263,7 +263,7 @@ app.get('/api/votes', async (req, res) => {
       LEFT JOIN votes v ON v.contestant_id = c.id
     `;
     let params = [];
-    if (eventId) {
+    if (eventId && eventId !== 'all') {
       query += ' WHERE c.event_id = $1';
       params.push(eventId);
     }
@@ -442,21 +442,32 @@ app.get('/api/my-votes', async (req, res) => {
 
 // ─── GET /api/vote-log ────────────────────────────
 app.get('/api/vote-log', async (req, res) => {
+  const eventId = req.query.event || req.query.event_id;
   try {
-    const { rows } = await pool.query(`
+    let query = `
       SELECT v.vote_id, v.contestant_id as id, 
-             COALESCE(c.name, e.title, v.contestant_id) as name, 
+             COALESCE(c.name, v.contestant_id) as name,
+             COALESCE(c.subtitle, '') as "contestantSubtitle",
              v.voter_name as "voterName",
              COALESCE(v.student_id, '') as "studentId",
              COALESCE(v.student_class, '') as "studentClass",
              COALESCE(v.faculty, '') as "faculty",
-             v.comment, v.created_at as ts
+             v.comment, v.created_at as ts,
+             COALESCE(v.event_id, c.event_id, 'evt_hoakhoi_2026') as "eventId",
+             COALESCE(ev.title, 'Bình Chọn Hoa Khôi 2026') as "eventTitle",
+             COALESCE(ev.tag, '# CUỘC THI') as "eventTag"
       FROM votes v
       LEFT JOIN contestants c ON c.id = v.contestant_id
-      LEFT JOIN events e ON e.id = v.contestant_id
-      ORDER BY v.created_at DESC
-      LIMIT 10000
-    `);
+      LEFT JOIN events ev ON ev.id = COALESCE(v.event_id, c.event_id, 'evt_hoakhoi_2026')
+    `;
+    const params = [];
+    if (eventId && eventId !== 'all') {
+      query += ` WHERE (v.event_id = $1 OR (v.event_id IS NULL AND c.event_id = $1)) `;
+      params.push(eventId);
+    }
+    query += ` ORDER BY v.created_at DESC LIMIT 10000 `;
+
+    const { rows } = await pool.query(query, params);
     res.json({ log: rows, total: rows.length });
   } catch (e) {
     console.error('GET /api/vote-log error:', e);
@@ -481,15 +492,25 @@ app.post('/api/share', async (req, res) => {
 
 // ─── GET /api/share-log ───────────────────────────
 app.get('/api/share-log', async (req, res) => {
+  const eventId = req.query.event || req.query.event_id;
   try {
-    const { rows } = await pool.query(`
+    let query = `
       SELECT s.id, s.contestant_id as "contestantId", c.name as "contestantName",
-             s.sharer_name as "sharerName", s.platform, s.created_at as ts
+             s.sharer_name as "sharerName", s.platform, s.created_at as ts,
+             COALESCE(c.event_id, 'evt_hoakhoi_2026') as "eventId",
+             COALESCE(ev.title, 'Bình Chọn Hoa Khôi 2026') as "eventTitle"
       FROM shares s
       LEFT JOIN contestants c ON c.id = s.contestant_id
-      ORDER BY s.created_at DESC
-      LIMIT 10000
-    `);
+      LEFT JOIN events ev ON ev.id = c.event_id
+    `;
+    const params = [];
+    if (eventId && eventId !== 'all') {
+      query += ` WHERE c.event_id = $1 `;
+      params.push(eventId);
+    }
+    query += ` ORDER BY s.created_at DESC LIMIT 10000 `;
+
+    const { rows } = await pool.query(query, params);
     res.json({ log: rows, total: rows.length });
   } catch (e) {
     console.error('GET /api/share-log error:', e);
@@ -499,14 +520,34 @@ app.get('/api/share-log', async (req, res) => {
 
 // ─── GET /api/shares ──────────────────────────────
 app.get('/api/shares', async (req, res) => {
+  const eventId = req.query.event || req.query.event_id;
   try {
-    const { rows } = await pool.query(`
-      SELECT contestant_id as id, COUNT(*)::int as count 
-      FROM shares 
-      WHERE contestant_id IS NOT NULL 
-      GROUP BY contestant_id
-    `);
-    const { rows: totalRow } = await pool.query('SELECT COUNT(*)::int as total FROM shares');
+    let query = `
+      SELECT s.contestant_id as id, COUNT(*)::int as count 
+      FROM shares s
+      LEFT JOIN contestants c ON c.id = s.contestant_id
+      WHERE s.contestant_id IS NOT NULL 
+    `;
+    const params = [];
+    if (eventId && eventId !== 'all') {
+      query += ` AND c.event_id = $1 `;
+      params.push(eventId);
+    }
+    query += ` GROUP BY s.contestant_id `;
+    const { rows } = await pool.query(query, params);
+
+    let totalQuery = `
+      SELECT COUNT(*)::int as total 
+      FROM shares s
+      LEFT JOIN contestants c ON c.id = s.contestant_id
+    `;
+    const totalParams = [];
+    if (eventId && eventId !== 'all') {
+      totalQuery += ` WHERE c.event_id = $1 `;
+      totalParams.push(eventId);
+    }
+    const { rows: totalRow } = await pool.query(totalQuery, totalParams);
+
     const shares = {};
     rows.forEach(r => { shares[r.id] = r.count; });
     res.json({ shares, total: totalRow[0]?.total || 0 });
@@ -523,7 +564,16 @@ app.put('/api/vote/:voteId', async (req, res) => {
     const fields = [];
     const values = [];
     let idx = 1;
-    if (contestant_id) { fields.push(`contestant_id = $${idx++}`); values.push(contestant_id); }
+    if (contestant_id) {
+      fields.push(`contestant_id = $${idx++}`);
+      values.push(contestant_id);
+      // Đồng bộ event_id tương ứng với thí sinh
+      const { rows: cRows } = await pool.query('SELECT event_id FROM contestants WHERE id = $1', [contestant_id]);
+      if (cRows.length && cRows[0].event_id) {
+        fields.push(`event_id = $${idx++}`);
+        values.push(cRows[0].event_id);
+      }
+    }
     if (voter_name !== undefined) { fields.push(`voter_name = $${idx++}`); values.push(voter_name); }
     if (student_id !== undefined) { fields.push(`student_id = $${idx++}`); values.push(student_id); }
     if (student_class !== undefined) { fields.push(`student_class = $${idx++}`); values.push(student_class); }

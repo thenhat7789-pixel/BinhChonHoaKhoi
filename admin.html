@@ -1026,7 +1026,18 @@
     <!-- MAIN -->
     <div class="main-content">
       <div class="main-header">
-        <div class="main-header-title" id="mainTitle">Tổng quan</div>
+        <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+          <div class="main-header-title" id="mainTitle">Tổng quan</div>
+          <!-- Global Event Selector Pill -->
+          <div style="display:inline-flex;align-items:center;gap:.45rem;background:#ffffff;border:1.5px solid #93c5fd;padding:.32rem .75rem;border-radius:12px;box-shadow:0 1px 4px rgba(37,99,235,0.08);">
+            <span style="font-size:.82rem;font-weight:800;color:#1e40af;display:inline-flex;align-items:center;gap:.3rem;">
+              <span>🏆</span> Cuộc thi đang xem:
+            </span>
+            <select id="globalEventSelect" onchange="onGlobalEventChange(this.value)" style="border:none;background:transparent;font-weight:700;color:#0284c7;font-size:.88rem;cursor:pointer;outline:none;max-width:260px;">
+              <!-- Options populated dynamically -->
+            </select>
+          </div>
+        </div>
         <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
           <div id="statusPill" class="badge badge-green">● Đang mở bình chọn</div>
 
@@ -1042,6 +1053,31 @@
 
         <!-- ─── TAB: OVERVIEW ─── -->
         <div class="tab-pane active" id="tab-overview">
+          <!-- Overview Event Banner -->
+          <div id="overviewEventBanner" style="background:linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);border:1.5px solid #bfdbfe;border-radius:16px;padding:.9rem 1.25rem;margin-bottom:1.25rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:.75rem;box-shadow:0 2px 10px rgba(0,0,0,0.02);">
+            <div style="display:flex;align-items:center;gap:.75rem;">
+              <span style="font-size:1.6rem;background:#dbeafe;padding:.4rem .6rem;border-radius:12px;">🏆</span>
+              <div>
+                <div style="display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;margin-bottom:2px;">
+                  <span style="font-size:.72rem;font-weight:800;color:#1d4ed8;background:#dbeafe;padding:2px 8px;border-radius:999px;letter-spacing:.3px;" id="overviewEventTag"># HOA KHÔI 2026</span>
+                  <span style="font-size:.72rem;font-weight:700;color:#15803d;background:#dcfce7;padding:2px 8px;border-radius:999px;" id="overviewEventCountBadge">6 thí sinh</span>
+                </div>
+                <div style="font-size:1.18rem;font-weight:800;color:#0f172a;" id="overviewEventTitle">Bình Chọn Hoa Khôi Sinh Viên 2026</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;">
+              <button class="btn btn-sm" onclick="showTab('contestants')" style="background:#0284c7;color:#fff;font-weight:700;border:none;border-radius:8px;padding:.45rem .9rem;display:inline-flex;align-items:center;gap:.35rem;cursor:pointer;box-shadow:0 2px 6px rgba(2,132,199,0.3);">
+                <span>👥</span> Xem danh sách thí sinh
+              </button>
+              <button class="btn btn-ghost btn-sm" onclick="showTab('timeline')" style="border:1px solid #93c5fd;color:#0284c7;background:#fff;font-weight:600;border-radius:8px;padding:.45rem .85rem;">
+                <span>📋</span> Nhật ký bình chọn
+              </button>
+              <button class="btn btn-ghost btn-sm" onclick="openAdminTimeRatioModal(currentActiveEventId)" style="border:1px solid #93c5fd;color:#0284c7;background:#fff;font-weight:600;border-radius:8px;padding:.45rem .85rem;">
+                <span>⏱️</span> Cài đặt đếm ngược
+              </button>
+            </div>
+          </div>
+
           <div class="kpi-grid" id="kpiGrid"></div>
 
           <div class="chart-card">
@@ -1066,6 +1102,50 @@
 
         <!-- ─── TAB: TIMELINE ─── -->
         <div class="tab-pane" id="tab-timeline">
+          <!-- Timeline / Vote Log Header Toolbar -->
+          <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;padding:1rem 1.25rem;margin-bottom:1.25rem;box-shadow:0 2px 10px rgba(0,0,0,0.03);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+            <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap;">
+              <div style="display:flex;align-items:center;gap:.4rem;">
+                <span style="font-size:.9rem;font-weight:800;color:#0f172a;">🏆 Lọc theo cuộc thi:</span>
+                <select id="voteLogEventFilterSelect" class="input" onchange="onVoteLogEventFilterChange(this.value)" style="width:auto;min-width:250px;font-weight:700;color:#0284c7;border-color:#93c5fd;background:#eff6ff;cursor:pointer;padding:.45rem .85rem;">
+                  <!-- Options -->
+                </select>
+              </div>
+              <div style="display:flex;align-items:center;gap:.4rem;">
+                <input type="text" id="voteLogSearchInput" placeholder="🔍 Tìm theo tên cử tri, MSSV, lớp, thí sinh..." oninput="onVoteLogSearch(this.value)" class="input" style="min-width:280px;padding:.45rem .85rem;font-size:.85rem;" />
+              </div>
+            </div>
+            <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
+              <button class="btn btn-ghost btn-sm" onclick="exportVotersCSV()" style="color:#2563eb;border:1px solid #bfdbfe;background:#eff6ff;font-weight:600;padding:.45rem .85rem;">👥 Tải Excel Người Bình Chọn</button>
+              <button class="btn btn-ghost btn-sm" onclick="exportCSV()" style="font-weight:600;padding:.45rem .85rem;">📊 Tải Excel Tổng Hợp</button>
+            </div>
+          </div>
+
+          <!-- Quick Stats Ribbon for Vote Log -->
+          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(200px, 1fr));gap:.75rem;margin-bottom:1.25rem;">
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:.75rem 1rem;display:flex;align-items:center;gap:.75rem;box-shadow:0 1px 4px rgba(0,0,0,0.02);">
+              <span style="font-size:1.4rem;background:#eff6ff;padding:.4rem;border-radius:10px;">🎟️</span>
+              <div>
+                <div style="font-size:.72rem;color:#64748b;font-weight:700;text-transform:uppercase;">Tổng phiếu trong log</div>
+                <div style="font-size:1.2rem;font-weight:800;color:#0284c7;" id="logKpiTotalVotes">0</div>
+              </div>
+            </div>
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:.75rem 1rem;display:flex;align-items:center;gap:.75rem;box-shadow:0 1px 4px rgba(0,0,0,0.02);">
+              <span style="font-size:1.4rem;background:#f0fdf4;padding:.4rem;border-radius:10px;">👤</span>
+              <div>
+                <div style="font-size:.72rem;color:#64748b;font-weight:700;text-transform:uppercase;">Cử tri tham gia</div>
+                <div style="font-size:1.2rem;font-weight:800;color:#16a34a;" id="logKpiUniqueVoters">0</div>
+              </div>
+            </div>
+            <div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:.75rem 1rem;display:flex;align-items:center;gap:.75rem;box-shadow:0 1px 4px rgba(0,0,0,0.02);">
+              <span style="font-size:1.4rem;background:#fdf2f8;padding:.4rem;border-radius:10px;">👑</span>
+              <div>
+                <div style="font-size:.72rem;color:#64748b;font-weight:700;text-transform:uppercase;">Thí sinh nhận phiếu</div>
+                <div style="font-size:1.2rem;font-weight:800;color:#db2777;" id="logKpiVotedContestants">0</div>
+              </div>
+            </div>
+          </div>
+
           <div class="chart-card">
             <div class="chart-title">
               <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
@@ -1078,36 +1158,40 @@
             </div>
           </div>
 
-
+          <div class="chart-card" style="margin-top:1.25rem;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
-              <div class="chart-title" style="margin-bottom:0">Lịch sử bình chọn</div>
-              <div style="display:flex;gap:.4rem">
-                <button class="btn btn-ghost btn-sm" onclick="exportVotersCSV()" style="color:#2563eb;border:1px solid #bfdbfe;background:#eff6ff">👥 Tải Excel Người Bình Chọn</button>
-                <button class="btn btn-ghost btn-sm" onclick="exportCSV()">📊 Tải Excel Tổng Hợp</button>
+              <div class="chart-title" style="margin-bottom:0;display:flex;align-items:center;gap:.45rem;">
+                <span>📋</span> Nhật ký chi tiết từng lượt bình chọn
               </div>
+              <span id="logFilteredCountBadge" style="font-size:.8rem;font-weight:700;color:#64748b;background:#f1f5f9;padding:.2rem .65rem;border-radius:999px;">
+                Hiển thị: 0 phiếu
+              </span>
             </div>
             <div class="log-wrap">
               <table class="log-table">
                 <thead>
                   <tr>
                     <th style="width: 45px;">#</th>
-                    <th style="width: 140px;">Người bình chọn</th>
-                    <th style="width: 100px;">MSSV</th>
-                    <th style="width: 90px;">Lớp</th>
+                    <th style="width: 140px;">Thời điểm</th>
+                    <th style="width: 155px;">Cuộc thi</th>
+                    <th style="width: 165px;">Thí sinh được bầu</th>
+                    <th style="width: 135px;">Người bình chọn</th>
+                    <th style="width: 95px;">MSSV</th>
+                    <th style="width: 85px;">Lớp</th>
                     <th style="width: 110px;">Khoa</th>
-                    <th style="width: 130px;">Bình chọn cho</th>
-                    <th>Bình luận</th>
-                    <th style="width: 150px;">Thời điểm</th>
-                    <th style="width: 100px; text-align: right;">Hành động</th>
+                    <th>Lời nhắn / Bình luận</th>
+                    <th style="width: 90px; text-align: right;">Hành động</th>
                   </tr>
                 </thead>
                 <tbody id="logTableBody"></tbody>
               </table>
-              <div class="log-empty hidden" id="logEmpty">Chưa có nhật ký bình chọn.</div>
+              <div class="log-empty hidden" id="logEmpty">Chưa có nhật ký bình chọn nào phù hợp.</div>
             </div>
+          </div>
 
-            <!-- Share Logs Section -->
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:2rem;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
+          <!-- Share Logs Section -->
+          <div class="chart-card" style="margin-top:1.25rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:.5rem">
               <div class="chart-title" style="margin-bottom:0">📤 Lịch sử người bấm chia sẻ</div>
             </div>
             <div class="log-wrap">
@@ -1126,6 +1210,7 @@
               <div class="log-empty hidden" id="shareLogEmpty">Chưa có nhật ký chia sẻ.</div>
             </div>
           </div>
+        </div>
 
         <!-- ─── TAB: EVENTS MANAGER (QUẢN LÝ CUỘC THI BÌNH CHỌN) ─── -->
         <div class="tab-pane" id="tab-events-manager">
@@ -2239,6 +2324,14 @@ function showTab(name) {
     loadAdminEvents();
   } else if (name === 'contestants') {
     renderContestantList(currentContestantEventId);
+  } else if (name === 'overview') {
+    renderKPI();
+    renderLeaderboard();
+    renderTopThree();
+  } else if (name === 'timeline') {
+    renderLogTable();
+    renderTimeline();
+    loadShareLogs();
   }
 }
 
@@ -2366,7 +2459,7 @@ function renderAdminEvents() {
         </div>
 
         <!-- Title matching screenshot -->
-        <h3 style="font-size:1.18rem;font-weight:800;color:#0284c7;margin:0 0 .4rem 0;line-height:1.35;cursor:pointer;" onclick="manageEventContestants('${ev.id}')">
+        <h3 style="font-size:1.18rem;font-weight:800;color:#0284c7;margin:0 0 .4rem 0;line-height:1.35;cursor:pointer;" onclick="selectEventAndJump('${ev.id}', 'overview')">
           ${esc(ev.title)}
         </h3>
 
@@ -2386,12 +2479,24 @@ function renderAdminEvents() {
 
       <!-- Right Action Buttons Group matching screenshot -->
       <div style="display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;">
+        <!-- Button 0: Solid Indigo Tổng Quan -->
+        <button class="btn btn-sm" onclick="selectEventAndJump('${ev.id}', 'overview')" style="background:#2563eb;color:#fff;font-weight:700;border:none;border-radius:8px;padding:.52rem .95rem;display:inline-flex;align-items:center;gap:.35rem;box-shadow:0 2px 6px rgba(37,99,235,0.3);cursor:pointer;">
+          <span>📈</span>
+          <span>Tổng quan</span>
+        </button>
+
         <!-- Button 1: Solid Blue Xem DS (0 SV) matching screenshot -->
-        <button class="btn btn-sm" onclick="manageEventContestants('${ev.id}')" style="background:#0284c7;color:#fff;font-weight:700;border:none;border-radius:8px;padding:.52rem 1.1rem;display:inline-flex;align-items:center;gap:.4rem;box-shadow:0 2px 8px rgba(2,132,199,0.3);cursor:pointer;">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+        <button class="btn btn-sm" onclick="selectEventAndJump('${ev.id}', 'contestants')" style="background:#0284c7;color:#fff;font-weight:700;border:none;border-radius:8px;padding:.52rem 1rem;display:inline-flex;align-items:center;gap:.4rem;box-shadow:0 2px 8px rgba(2,132,199,0.3);cursor:pointer;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
             <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
           </svg>
-          <span>Xem DS (${contestantCount} TS)</span>
+          <span>DS (${contestantCount} TS)</span>
+        </button>
+
+        <!-- Button 1.5: Nhật ký bình chọn -->
+        <button class="btn btn-ghost btn-sm" onclick="selectEventAndJump('${ev.id}', 'timeline')" style="border:1.5px solid #93c5fd;color:#0284c7;background:#fff;font-weight:600;border-radius:8px;padding:.52rem .85rem;display:inline-flex;align-items:center;gap:.35rem;">
+          <span>📋</span>
+          <span>Nhật ký</span>
         </button>
 
         <!-- Button 2: In QR matching screenshot -->
@@ -2833,18 +2938,122 @@ async function resetDefaultAdminEvents() {
   toast('🎉 Đã khôi phục 4 cuộc thi chuẩn thành công!', 'success');
 }
 
+/* ─── GLOBAL EVENT STATE & SYNCHRONIZATION ──────────────── */
+let currentActiveEventId = 'evt_hoakhoi_2026';
+let currentContestantEventId = 'evt_hoakhoi_2026';
+let voteLogSearchKeyword = '';
+
+function syncAllEventSelectors() {
+  const eventsList = (adminEvents && adminEvents.length > 0) ? adminEvents : DEFAULT_ADMIN_EVENTS;
+
+  // 1. Global header selector
+  const gSelect = document.getElementById('globalEventSelect');
+  if (gSelect) {
+    const opts = [
+      `<option value="all" ${currentActiveEventId === 'all' ? 'selected' : ''}>🌐 Tất cả cuộc thi (${eventsList.length})</option>`
+    ].concat(eventsList.map(e => `
+      <option value="${esc(e.id)}" ${e.id === currentActiveEventId ? 'selected' : ''}>
+        🏆 ${esc(e.title.replace(/<[^>]*>?/gm, ''))} (${esc(e.tag || '# CUỘC THI')})
+      </option>
+    `));
+    gSelect.innerHTML = opts.join('');
+    gSelect.value = currentActiveEventId;
+  }
+
+  // 2. Contestant tab selector
+  const cSelect = document.getElementById('contestantEventFilterSelect');
+  if (cSelect) {
+    cSelect.innerHTML = eventsList.map(e => `
+      <option value="${esc(e.id)}" ${e.id === currentContestantEventId ? 'selected' : ''}>
+        🏆 ${esc(e.title.replace(/<[^>]*>?/gm, ''))} (${esc(e.tag || '# CUỘC THI')})
+      </option>
+    `).join('');
+    cSelect.value = currentContestantEventId;
+  }
+
+  // 3. Vote log tab selector
+  const vSelect = document.getElementById('voteLogEventFilterSelect');
+  if (vSelect) {
+    const opts = [
+      `<option value="all" ${currentActiveEventId === 'all' ? 'selected' : ''}>🌐 Tất cả cuộc thi (${eventsList.length})</option>`
+    ].concat(eventsList.map(e => `
+      <option value="${esc(e.id)}" ${e.id === currentActiveEventId ? 'selected' : ''}>
+        🏆 ${esc(e.title.replace(/<[^>]*>?/gm, ''))} (${esc(e.tag || '# CUỘC THI')})
+      </option>
+    `));
+    vSelect.innerHTML = opts.join('');
+    vSelect.value = currentActiveEventId;
+  }
+
+  // 4. Modal contestant selector
+  const mSelect = document.getElementById('editContestantEventSelect');
+  if (mSelect) {
+    mSelect.innerHTML = eventsList.map(e => `
+      <option value="${esc(e.id)}" ${e.id === currentContestantEventId ? 'selected' : ''}>
+        ${esc(e.title.replace(/<[^>]*>?/gm, ''))} (${esc(e.tag || '# CUỘC THI')})
+      </option>
+    `).join('');
+    mSelect.value = currentContestantEventId;
+  }
+}
+
+function selectEventAndJump(eventId, targetTab) {
+  currentActiveEventId = eventId || 'evt_hoakhoi_2026';
+  currentContestantEventId = (currentActiveEventId === 'all') ? (adminEvents[0]?.id || 'evt_hoakhoi_2026') : currentActiveEventId;
+  syncAllEventSelectors();
+  showTab(targetTab || 'overview');
+  renderAll();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function onGlobalEventChange(val) {
+  currentActiveEventId = val || 'evt_hoakhoi_2026';
+  currentContestantEventId = (currentActiveEventId === 'all') ? (adminEvents[0]?.id || 'evt_hoakhoi_2026') : currentActiveEventId;
+  syncAllEventSelectors();
+  renderAll();
+}
+
+function onContestantFilterChange(val) {
+  currentActiveEventId = val || 'evt_hoakhoi_2026';
+  currentContestantEventId = (currentActiveEventId === 'all') ? (adminEvents[0]?.id || 'evt_hoakhoi_2026') : currentActiveEventId;
+  syncAllEventSelectors();
+  renderContestantList(currentContestantEventId);
+  renderKPI();
+  renderLeaderboard();
+  renderTopThree();
+}
+
+function onVoteLogEventFilterChange(val) {
+  currentActiveEventId = val || 'evt_hoakhoi_2026';
+  currentContestantEventId = (currentActiveEventId === 'all') ? (adminEvents[0]?.id || 'evt_hoakhoi_2026') : currentActiveEventId;
+  syncAllEventSelectors();
+  renderKPI();
+  renderLeaderboard();
+  renderTopThree();
+  renderTimeline();
+  renderLogTable();
+}
+
+function onVoteLogSearch(keyword) {
+  voteLogSearchKeyword = (keyword || '').toLowerCase().trim();
+  renderLogTable();
+}
+
 /* ─── LOAD ADMIN DATA ───────────────────────────────────── */
 async function loadAdminData() {
   try {
-    // Load contestants from API
-    const cData = await api.get('/api/contestants');
-    appData.contestants = cData.contestants.length ? cData.contestants : DEFAULT_CONTESTANTS;
+    // 1. Load events
+    await loadAdminEvents();
 
-    // Load vote counts from API
+    // 2. Load contestants from API
+    const cData = await api.get('/api/contestants');
+    appData.contestants = (cData && cData.contestants && cData.contestants.length) ? cData.contestants : ALL_DEFAULT_CONTESTANTS;
+
+    // 3. Load vote counts from API
     const vData = await api.get('/api/votes');
     appData.votes = vData.votes || {};
 
-    // Load shares from API
+    // 4. Load shares from API
     try {
       const sData = await api.get('/api/shares');
       appData.shares = sData.shares || {};
@@ -2854,21 +3063,25 @@ async function loadAdminData() {
       appData.totalShares = 0;
     }
 
-    // Load vote log from API
+    // 5. Load vote log from API
     const logData = await api.get('/api/vote-log');
     appData.voteLog = (logData.log || []).map(entry => ({
       voteId: entry.vote_id,
       id: entry.id,
       name: entry.name,
+      contestantSubtitle: entry.contestantSubtitle || '',
       voterName: entry.voterName,
       studentId: entry.studentId || '',
       studentClass: entry.studentClass || '',
       faculty: entry.faculty || '',
       comment: entry.comment,
-      ts: new Date(entry.ts).getTime()
+      ts: new Date(entry.ts).getTime(),
+      eventId: entry.eventId || 'evt_hoakhoi_2026',
+      eventTitle: entry.eventTitle || 'Bình Chọn Hoa Khôi 2026',
+      eventTag: entry.eventTag || '# CUỘC THI'
     }));
 
-    // Load settings from API
+    // 6. Load settings from API
     const settings = await api.get('/api/settings');
     appData.settings = settings || {};
     if (settings.superadmin_email) {
@@ -2881,6 +3094,7 @@ async function loadAdminData() {
     toast('Lỗi tải dữ liệu: ' + e.message, 'error');
   }
 
+  syncAllEventSelectors();
   renderAll();
 }
 
@@ -2891,13 +3105,13 @@ function renderAll() {
   renderTimeline();
   renderLogTable();
   loadShareLogs();
-  renderContestantList();
+  renderContestantList(currentContestantEventId);
   renderSettings();
   loadSavedEvents();
-  loadAdminEvents();
   renderStatusPill();
   renderDebug();
 }
+
 /* ─── DEBUG PANEL ───────────────────────────────────────── */
 function renderDebug() {
   const el = document.getElementById('debugOutput');
@@ -2933,7 +3147,17 @@ function renderDebug() {
 function renderStatusPill() {
   const pill = document.getElementById('statusPill');
   const now = Date.now();
-  const closed = appData.endTime && now >= appData.endTime.getTime();
+  let closed = false;
+  
+  if (currentActiveEventId !== 'all') {
+    const activeEv = (adminEvents || []).find(e => e.id === currentActiveEventId);
+    if (activeEv && activeEv.end_time) {
+      closed = now >= new Date(activeEv.end_time).getTime();
+    }
+  } else if (appData.endTime) {
+    closed = now >= appData.endTime.getTime();
+  }
+
   if (closed) {
     pill.className = 'badge badge-rose';
     pill.textContent = '● Đã kết thúc';
@@ -2945,16 +3169,49 @@ function renderStatusPill() {
 
 /* ─── KPI CARDS ─────────────────────────────────────────── */
 function renderKPI() {
-  const total = Object.values(appData.votes).reduce((a,b)=>a+b, 0);
-  const ranked = [...appData.contestants].sort((a,b)=>(appData.votes[b.id]||0)-(appData.votes[a.id]||0));
+  const isAll = (currentActiveEventId === 'all');
+  const activeEv = (adminEvents || []).find(e => e.id === currentActiveEventId);
+
+  // Thí sinh thuộc cuộc thi đang chọn (hoặc tất cả)
+  const scopedContestants = isAll
+    ? appData.contestants
+    : appData.contestants.filter(c => (c.event_id || 'evt_hoakhoi_2026') === currentActiveEventId);
+
+  const total = scopedContestants.reduce((sum, c) => sum + (appData.votes[c.id] || 0), 0);
+  const ranked = [...scopedContestants].sort((a,b) => (appData.votes[b.id] || 0) - (appData.votes[a.id] || 0));
   const leader = ranked[0];
   const leaderVotes = leader ? (appData.votes[leader.id] || 0) : 0;
 
+  // Cập nhật banner trên trang Tổng quan
+  const bannerTag = document.getElementById('overviewEventTag');
+  const bannerTitle = document.getElementById('overviewEventTitle');
+  const bannerCount = document.getElementById('overviewEventCountBadge');
+  if (bannerTag && bannerTitle && bannerCount) {
+    if (isAll) {
+      bannerTag.textContent = '# TOÀN HỆ THỐNG';
+      bannerTitle.textContent = `Tất Cả Cuộc Thi (${adminEvents.length} sự kiện đang mở)`;
+      bannerCount.textContent = `${scopedContestants.length} thí sinh`;
+    } else if (activeEv) {
+      bannerTag.textContent = activeEv.tag || '# CUỘC THI';
+      bannerTitle.textContent = activeEv.title.replace(/<[^>]*>?/gm, '');
+      bannerCount.textContent = `${scopedContestants.length} thí sinh`;
+    }
+  }
+
+  // Thời gian còn lại tính riêng cho cuộc thi đang chọn
   let timeLeft = '—';
-  if (appData.endTime) {
-    const diff = appData.endTime - Date.now();
-    if (diff <= 0) { timeLeft = 'Đã kết thúc'; }
-    else {
+  let endDatetime = null;
+  if (!isAll && activeEv && activeEv.end_time) {
+    endDatetime = new Date(activeEv.end_time);
+  } else if (appData.endTime) {
+    endDatetime = appData.endTime;
+  }
+
+  if (endDatetime && !isNaN(endDatetime.getTime())) {
+    const diff = endDatetime.getTime() - Date.now();
+    if (diff <= 0) {
+      timeLeft = 'Đã kết thúc';
+    } else {
       const d = Math.floor(diff/86400000);
       const h = Math.floor((diff%86400000)/3600000);
       const m = Math.floor((diff%3600000)/60000);
@@ -2971,65 +3228,84 @@ function renderKPI() {
     }
   }
 
-  // Lấy tổng lượt chia sẻ từ SQL API hoặc localStorage
-  const totalShares = (appData.totalShares !== undefined) ? appData.totalShares : parseInt(localStorage.getItem('hh:total_shares') || '0');
+  // Lượt chia sẻ trong phạm vi cuộc thi
+  let totalShares = 0;
   const sharesPerC = {};
-  appData.contestants.forEach(c => {
-    sharesPerC[c.id] = (appData.shares && appData.shares[c.id] !== undefined)
+  scopedContestants.forEach(c => {
+    const count = (appData.shares && appData.shares[c.id] !== undefined)
       ? appData.shares[c.id]
       : parseInt(localStorage.getItem(`hh:shares:${c.id}`) || '0');
+    sharesPerC[c.id] = count;
+    totalShares += count;
   });
   const leaderShares = Object.entries(sharesPerC).sort((a,b) => b[1]-a[1])[0];
 
-  document.getElementById('kpiGrid').innerHTML = `
-    <div class="kpi-card kpi-blue">
-      <div class="kpi-label">📊 Tổng phiếu bầu</div>
-      <div class="kpi-value">${total.toLocaleString('vi-VN')}</div>
-      <div class="kpi-sub">${appData.contestants.length} thí sinh tham gia</div>
-    </div>
-    <div class="kpi-card kpi-gold">
-      <div class="kpi-label">🏆 Đang dẫn đầu</div>
-      <div class="kpi-value" style="font-size:1.4rem">${leader ? esc(leader.name) : '—'}</div>
-      <div class="kpi-sub">${leaderVotes.toLocaleString('vi-VN')} phiếu</div>
-    </div>
-    <div class="kpi-card kpi-green">
-      <div class="kpi-label">⏱ Thời gian còn lại</div>
-      <div class="kpi-value" style="font-size:1.4rem">${timeLeft}</div>
-      <div class="kpi-sub">${appData.endTime ? formatDate(appData.endTime) : 'Chưa đặt'}</div>
-    </div>
-    <div class="kpi-card kpi-purple">
-      <div class="kpi-label">📤 Lượt chia sẻ</div>
-      <div class="kpi-value">${totalShares.toLocaleString('vi-VN')}</div>
-      <div class="kpi-sub">${leaderShares ? `Nhiều nhất: ${esc(appData.contestants.find(c=>c.id===leaderShares[0])?.name||'?')} (${leaderShares[1]})` : 'Chưa có lượt nào'}</div>
-    </div>
-    <div class="kpi-card">
-      <div class="kpi-label">🗒 Sự kiện trong log</div>
-      <div class="kpi-value">${appData.voteLog.length.toLocaleString('vi-VN')}</div>
-      <div class="kpi-sub">Lượt bình chọn được ghi lại</div>
-    </div>`;
+  // Sự kiện trong log
+  const scopedLog = isAll
+    ? appData.voteLog
+    : appData.voteLog.filter(e => (e.eventId === currentActiveEventId) || scopedContestants.some(c => c.id === e.id));
+
+  const kpiGrid = document.getElementById('kpiGrid');
+  if (kpiGrid) {
+    kpiGrid.innerHTML = `
+      <div class="kpi-card kpi-blue">
+        <div class="kpi-label">📊 Tổng phiếu bầu</div>
+        <div class="kpi-value">${total.toLocaleString('vi-VN')}</div>
+        <div class="kpi-sub">${scopedContestants.length} thí sinh tham gia</div>
+      </div>
+      <div class="kpi-card kpi-gold">
+        <div class="kpi-label">🏆 Đang dẫn đầu</div>
+        <div class="kpi-value" style="font-size:1.4rem">${leader ? esc(leader.name) : '—'}</div>
+        <div class="kpi-sub">${leaderVotes.toLocaleString('vi-VN')} phiếu</div>
+      </div>
+      <div class="kpi-card kpi-green">
+        <div class="kpi-label">⏱ Thời gian còn lại</div>
+        <div class="kpi-value" style="font-size:1.4rem">${timeLeft}</div>
+        <div class="kpi-sub">${endDatetime ? formatDate(endDatetime) : 'Chưa đặt'}</div>
+      </div>
+      <div class="kpi-card kpi-purple">
+        <div class="kpi-label">📤 Lượt chia sẻ</div>
+        <div class="kpi-value">${totalShares.toLocaleString('vi-VN')}</div>
+        <div class="kpi-sub">${(leaderShares && leaderShares[1] > 0) ? `Nhiều nhất: ${esc(scopedContestants.find(c=>c.id===leaderShares[0])?.name||'?')} (${leaderShares[1]})` : 'Chưa có lượt nào'}</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">🗒 Sự kiện trong log</div>
+        <div class="kpi-value">${scopedLog.length.toLocaleString('vi-VN')}</div>
+        <div class="kpi-sub">Lượt bình chọn được ghi lại</div>
+      </div>`;
+  }
 }
 
 /* ─── LEADERBOARD (BẢNG XẾP HẠNG) ───────────────────────── */
 function renderLeaderboard() {
   const container = document.getElementById('barChart');
   if (!container) return;
-  const total = Object.values(appData.votes).reduce((a,b)=>a+b, 0);
-  const maxV  = Math.max(1, ...Object.values(appData.votes));
-  const ranked = [...appData.contestants].sort((a,b)=>(appData.votes[b.id]||0)-(appData.votes[a.id]||0));
+  const isAll = (currentActiveEventId === 'all');
+  const scopedContestants = isAll
+    ? appData.contestants
+    : appData.contestants.filter(c => (c.event_id || 'evt_hoakhoi_2026') === currentActiveEventId);
+
+  const maxV = Math.max(1, ...scopedContestants.map(c => appData.votes[c.id] || 0));
+  const ranked = [...scopedContestants].sort((a,b) => (appData.votes[b.id] || 0) - (appData.votes[a.id] || 0));
   const medals = ['🥇','🥈','🥉'];
 
   if (ranked.length === 0) {
-    container.innerHTML = '<div style="color:#94a3b8;font-size:.85rem;padding:1rem 0;text-align:center;">Chưa có dữ liệu thí sinh</div>';
+    container.innerHTML = '<div style="color:#94a3b8;font-size:.85rem;padding:1.5rem 0;text-align:center;">Chưa có dữ liệu thí sinh trong cuộc thi này.</div>';
     return;
   }
 
   container.innerHTML = ranked.map((c, idx) => {
-    const count  = appData.votes[c.id] || 0;
+    const count = appData.votes[c.id] || 0;
     const barPct = maxV > 0 && count > 0 ? Math.round((count / maxV) * 100) : 0;
+    const sbd = c.id.replace(/^[a-z]+_/, '');
     return `
     <div class="lb-row ${idx === 0 && count > 0 ? 'lb-first' : ''}">
       <span class="lb-rank">${medals[idx] || (idx + 1)}</span>
-      <span class="lb-name">${esc(c.name)}</span>
+      <span class="lb-name" style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
+        <span class="badge" style="background:#e0f2fe;color:#0369a1;font-size:.72rem;font-weight:700;">SBD ${esc(sbd)}</span>
+        <span style="font-weight:700;">${esc(c.name)}</span>
+        <span style="font-size:.72rem;color:#64748b;font-weight:normal;">(${esc(c.subtitle || '')})</span>
+      </span>
       <div class="lb-bar-wrap">
         <div class="progress"><div class="progress-fill" style="width:${barPct}%"></div></div>
       </div>
@@ -3041,32 +3317,53 @@ const renderBarChart = renderLeaderboard;
 
 /* ─── TOP 3 ─────────────────────────────────────────────── */
 function renderTopThree() {
-  const total = Object.values(appData.votes).reduce((a,b)=>a+b, 0);
-  const ranked = [...appData.contestants].sort((a,b)=>(appData.votes[b.id]||0)-(appData.votes[a.id]||0)).slice(0,3);
+  const container = document.getElementById('topThree');
+  if (!container) return;
+  const isAll = (currentActiveEventId === 'all');
+  const scopedContestants = isAll
+    ? appData.contestants
+    : appData.contestants.filter(c => (c.event_id || 'evt_hoakhoi_2026') === currentActiveEventId);
+
+  const total = scopedContestants.reduce((s, c) => s + (appData.votes[c.id] || 0), 0);
+  const ranked = [...scopedContestants].sort((a,b) => (appData.votes[b.id] || 0) - (appData.votes[a.id] || 0)).slice(0,3);
   const medals = ['🥇','🥈','🥉'];
   const colors = ['var(--gold)','var(--text-1)','var(--rose-3)'];
 
-  document.getElementById('topThree').innerHTML = `<div style="display:flex;flex-direction:column;gap:.6rem">` +
+  if (ranked.length === 0) {
+    container.innerHTML = '<div style="color:#94a3b8;font-size:.85rem;padding:.5rem 0;">Chưa có thí sinh</div>';
+    return;
+  }
+
+  container.innerHTML = `<div style="display:flex;flex-direction:column;gap:.6rem">` +
     ranked.map((c, i) => {
       const count = appData.votes[c.id] || 0;
       const pct = total ? Math.round((count/total)*100) : 0;
+      const sbd = c.id.replace(/^[a-z]+_/, '');
       return `
       <div style="display:flex;align-items:center;gap:.75rem;padding:.6rem .875rem;background:#fff;border-radius:.5rem;border:1px solid #e5e7eb">
         <span style="font-size:1.3rem">${medals[i]}</span>
-        <span style="flex:1;color:${colors[i]};font-weight:600;font-size:.875rem">${esc(c.name)}</span>
-        <span style="font-size:.78rem;color:#6b7280">${count.toLocaleString('vi-VN')} phiếu · ${pct}%</span>
+        <div style="flex:1;">
+          <span style="color:${colors[i]};font-weight:700;font-size:.875rem">${esc(c.name)}</span>
+          <span style="font-size:.72rem;color:#64748b;margin-left:.4rem;">SBD ${esc(sbd)} · ${esc(c.subtitle || '')}</span>
+        </div>
+        <span style="font-size:.78rem;color:#6b7280;font-weight:600;">${count.toLocaleString('vi-VN')} phiếu · ${pct}%</span>
       </div>`;
     }).join('') + `</div>`;
 }
 
 /* ─── TIMELINE CHART ────────────────────────────────────── */
 function renderTimeline() {
+  const isAll = (currentActiveEventId === 'all');
+  const scopedLog = isAll
+    ? appData.voteLog
+    : appData.voteLog.filter(e => (e.eventId || 'evt_hoakhoi_2026') === currentActiveEventId);
+
   const now = Date.now();
   const hours = 24;
   const buckets = new Array(hours).fill(0);
   const hourMs = 3600000;
 
-  appData.voteLog.forEach(entry => {
+  scopedLog.forEach(entry => {
     const diff = now - entry.ts;
     const h = Math.floor(diff / hourMs);
     if (h >= 0 && h < hours) buckets[hours - 1 - h]++;
@@ -3074,6 +3371,7 @@ function renderTimeline() {
 
   const maxB = Math.max(1, ...buckets);
   const wrap = document.getElementById('timelineChart');
+  if (!wrap) return;
   wrap.innerHTML = buckets.map((count, i) => {
     const heightPct = Math.round((count / maxB) * 100);
     const hour = new Date(now - (hours - 1 - i) * hourMs);
@@ -3090,14 +3388,69 @@ function renderTimeline() {
 function renderLogTable() {
   const body = document.getElementById('logTableBody');
   const empty = document.getElementById('logEmpty');
-  const log = [...appData.voteLog].reverse();
+  if (!body) return;
+
+  const isAll = (currentActiveEventId === 'all');
+
+  // 1. Lọc theo sự kiện
+  let log = [...appData.voteLog];
+  if (!isAll) {
+    log = log.filter(entry => {
+      if (entry.eventId && entry.eventId === currentActiveEventId) return true;
+      const c = appData.contestants.find(x => x.id === entry.id);
+      if (c && (c.event_id || 'evt_hoakhoi_2026') === currentActiveEventId) return true;
+      return false;
+    });
+  }
+
+  // 2. Lọc theo từ khóa tìm kiếm
+  if (voteLogSearchKeyword) {
+    log = log.filter(e => {
+      const vName = (e.voterName || '').toLowerCase();
+      const mssv = (e.studentId || '').toLowerCase();
+      const sClass = (e.studentClass || '').toLowerCase();
+      const faculty = (e.faculty || '').toLowerCase();
+      const cName = (e.name || '').toLowerCase();
+      const cId = (e.id || '').toLowerCase();
+      const comment = (e.comment || '').toLowerCase();
+      const evTitle = (e.eventTitle || '').toLowerCase();
+      return vName.includes(voteLogSearchKeyword) ||
+             mssv.includes(voteLogSearchKeyword) ||
+             sClass.includes(voteLogSearchKeyword) ||
+             faculty.includes(voteLogSearchKeyword) ||
+             cName.includes(voteLogSearchKeyword) ||
+             cId.includes(voteLogSearchKeyword) ||
+             comment.includes(voteLogSearchKeyword) ||
+             evTitle.includes(voteLogSearchKeyword);
+    });
+  }
+
+  // Cập nhật thẻ thống kê nhanh trên tab Nhật ký
+  const totalVotesEl = document.getElementById('logKpiTotalVotes');
+  const uniqueVotersEl = document.getElementById('logKpiUniqueVoters');
+  const votedContestantsEl = document.getElementById('logKpiVotedContestants');
+  const countBadgeEl = document.getElementById('logFilteredCountBadge');
+
+  if (totalVotesEl) totalVotesEl.textContent = log.length.toLocaleString('vi-VN');
+  if (uniqueVotersEl) {
+    const uniqueVoters = new Set(log.map(e => (e.studentId || e.voterName || '').trim()).filter(Boolean));
+    uniqueVotersEl.textContent = uniqueVoters.size.toLocaleString('vi-VN');
+  }
+  if (votedContestantsEl) {
+    const uniqueContestants = new Set(log.map(e => e.id));
+    votedContestantsEl.textContent = uniqueContestants.size.toLocaleString('vi-VN');
+  }
+  if (countBadgeEl) {
+    countBadgeEl.textContent = `Hiển thị: ${log.length} phiếu`;
+  }
 
   if (log.length === 0) {
     body.innerHTML = '';
-    empty.classList.remove('hidden');
+    if (empty) empty.classList.remove('hidden');
     return;
   }
-  empty.classList.add('hidden');
+  if (empty) empty.classList.add('hidden');
+
   body.innerHTML = log.slice(0, 500).map((entry, i) => {
     const voter = entry.voterName || 'Người ẩn danh';
     const mssv = entry.studentId || '—';
@@ -3105,21 +3458,38 @@ function renderLogTable() {
     const faculty = entry.faculty || '—';
     const comment = entry.comment || '—';
     const voteId = entry.voteId || `old_${log.length - i}`;
+    const sbd = entry.id.replace(/^[a-z]+_/, '');
+    const evTag = entry.eventTag || '# CUỘC THI';
+    const evTitle = entry.eventTitle || 'Bình Chọn Trực Tuyến';
+
     return `
     <tr>
       <td class="td-id">${log.length - i}</td>
+      <td class="td-ts" style="white-space:nowrap;font-size:0.75rem;color:#475569;">
+        ${formatDateFull(new Date(entry.ts))}
+      </td>
+      <td>
+        <span class="badge" style="background:#eff6ff;color:#0284c7;border:1px solid #bfdbfe;font-size:0.7rem;font-weight:700;">
+          ${esc(evTag)}
+        </span>
+        <div style="font-size:0.75rem;font-weight:700;color:#0f172a;margin-top:2px;max-width:145px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(evTitle)}">
+          ${esc(evTitle)}
+        </div>
+      </td>
+      <td>
+        <div style="display:flex;align-items:center;gap:.4rem;">
+          <span class="badge badge-rose" style="font-size:0.72rem;padding:0.15rem 0.5rem;font-weight:800;">
+            SBD ${esc(sbd)}
+          </span>
+          <span style="font-weight:700;color:#0f172a;font-size:0.85rem;">${esc(entry.name || '—')}</span>
+        </div>
+        ${entry.contestantSubtitle ? `<div style="font-size:0.72rem;color:#64748b;margin-top:2px;">${esc(entry.contestantSubtitle)}</div>` : ''}
+      </td>
       <td class="td-name fw-600" style="color:var(--text-0)">${esc(voter)}</td>
-      <td><code style="font-size:0.75rem;background:#f1f5f9;padding:2px 5px;border-radius:4px;color:#0f172a;font-weight:600;">${esc(mssv)}</code></td>
+      <td><code style="font-size:0.75rem;background:#f1f5f9;padding:2px 5px;border-radius:4px;color:#0f172a;font-weight:700;">${esc(mssv)}</code></td>
       <td style="font-size:0.78rem;color:#334155;">${esc(sClass)}</td>
       <td style="font-size:0.78rem;color:#475569;">${esc(faculty)}</td>
-      <td>
-        <span class="badge badge-rose" style="font-size: 0.72rem; padding: 0.15rem 0.5rem;">
-          <span>SBD ${esc(entry.id)}</span>
-        </span>
-        <div style="font-size: 0.75rem; color: var(--text-2); margin-top: 2px;">${esc(entry.name || '—')}</div>
-      </td>
-      <td style="color:var(--text-1); font-style: italic;">"${esc(comment)}"</td>
-      <td class="td-ts">${formatDateFull(new Date(entry.ts))}</td>
+      <td style="color:var(--text-1);font-style:italic;max-width:220px;word-break:break-word;">"${esc(comment)}"</td>
       <td style="text-align: right;">
         <div style="display: flex; gap: 4px; justify-content: flex-end;">
           <button class="btn btn-ghost btn-sm" onclick="openEditVote('${esc(voteId)}')">✎ Sửa</button>
@@ -3141,6 +3511,11 @@ async function loadShareLogs() {
   const body = document.getElementById('shareLogTableBody');
   const empty = document.getElementById('shareLogEmpty');
   if (!body) return;
+
+  const isAll = (currentActiveEventId === 'all');
+  if (!isAll) {
+    log = log.filter(e => (e.eventId || 'evt_hoakhoi_2026') === currentActiveEventId);
+  }
 
   if (log.length === 0) {
     body.innerHTML = '';
@@ -3946,48 +4321,77 @@ function exportJSON() {
 }
 
 function exportCSV() {
-  let csv = 'Số báo danh,Tên thí sinh,Quê quán / Đơn vị,Số phiếu bình chọn,Tỷ lệ phần trăm\n';
-  const total = Object.values(appData.votes).reduce((a,b)=>a+b,0);
-  const ranked = [...appData.contestants].sort((a,b)=>(appData.votes[b.id]||0)-(appData.votes[a.id]||0));
-  
+  const isAll = (currentActiveEventId === 'all');
+  const activeEv = (adminEvents || []).find(e => e.id === currentActiveEventId);
+  const evTitle = isAll ? 'Toan_bo_cuoc_thi' : (activeEv ? activeEv.title.replace(/<[^>]*>?/gm, '') : 'Cuoc_thi');
+
+  const scopedContestants = isAll
+    ? appData.contestants
+    : appData.contestants.filter(c => (c.event_id || 'evt_hoakhoi_2026') === currentActiveEventId);
+
+  const total = scopedContestants.reduce((sum, c) => sum + (appData.votes[c.id] || 0), 0);
+  const ranked = [...scopedContestants].sort((a,b) => (appData.votes[b.id] || 0) - (appData.votes[a.id] || 0));
+
+  let csv = 'Cuộc thi,Số báo danh,Tên thí sinh,Quê quán / Đơn vị,Số phiếu bình chọn,Tỷ lệ phần trăm\n';
   ranked.forEach(c => {
     const count = appData.votes[c.id] || 0;
     const pct = total ? ((count/total)*100).toFixed(1) : '0.0';
-    csv += `"${c.id}","${c.name}","${c.subtitle}",${count},${pct}%\n`;
+    const sbd = c.id.replace(/^[a-z]+_/, '');
+    const cEv = (adminEvents || []).find(e => e.id === (c.event_id || 'evt_hoakhoi_2026'));
+    const compName = cEv ? cEv.title.replace(/<[^>]*>?/gm, '') : 'Hoa Khôi 2026';
+    csv += `"${compName}","${sbd}","${c.name}","${c.subtitle || ''}",${count},${pct}%\n`;
   });
   
   // Add vote log
-  if (appData.voteLog && appData.voteLog.length) {
-    csv += '\nNhật ký bình chọn chi tiết\nMã bình chọn,Số báo danh,Tên thí sinh,Người bình chọn,Mã sinh viên (MSSV),Lớp,Khoa,Lời chúc / Bình luận,Thời điểm\n';
-    appData.voteLog.forEach(e => {
+  const scopedLog = isAll
+    ? appData.voteLog
+    : appData.voteLog.filter(e => (e.eventId === currentActiveEventId) || scopedContestants.some(c => c.id === e.id));
+
+  if (scopedLog && scopedLog.length) {
+    csv += '\nNhật ký bình chọn chi tiết\nSTT,Cuộc thi,Mã bình chọn,Số báo danh,Tên thí sinh,Người bình chọn,Mã sinh viên (MSSV),Lớp,Khoa,Lời chúc / Bình luận,Thời điểm\n';
+    scopedLog.forEach((e, idx) => {
       const voter = e.voterName || 'Người ẩn danh';
       const mssv = e.studentId || '';
       const sClass = e.studentClass || '';
       const faculty = e.faculty || '';
       const comment = e.comment || '';
-      csv += `"${e.voteId || ''}","${e.id}","${e.name}","${voter}","${mssv}","${sClass}","${faculty}","${comment.replace(/"/g, '""')}","${formatDateFull(new Date(e.ts))}"\n`;
+      const sbd = e.id.replace(/^[a-z]+_/, '');
+      csv += `${idx + 1},"${e.eventTitle || ''}","${e.voteId || ''}","${sbd}","${e.name}","${voter}","${mssv}","${sClass}","${faculty}","${comment.replace(/"/g, '""')}","${formatDateFull(new Date(e.ts))}"\n`;
     });
   }
-  downloadFile('hoakhoi_vote_ket_qua.csv', '\uFEFF' + csv, 'text/csv;charset=utf-8');
+  downloadFile(`${evTitle}_ket_qua.csv`, '\uFEFF' + csv, 'text/csv;charset=utf-8');
   toast('Đã tải file Excel tổng hợp thành công!', 'success');
 }
 
 function exportVotersCSV() {
-  if (!appData.voteLog || !appData.voteLog.length) {
-    toast('Chưa có lượt bình chọn nào để xuất!', 'info');
+  const isAll = (currentActiveEventId === 'all');
+  const activeEv = (adminEvents || []).find(e => e.id === currentActiveEventId);
+  const evTitle = isAll ? 'Toan_bo_cuoc_thi' : (activeEv ? activeEv.title.replace(/<[^>]*>?/gm, '') : 'Cuoc_thi');
+
+  const scopedContestants = isAll
+    ? appData.contestants
+    : appData.contestants.filter(c => (c.event_id || 'evt_hoakhoi_2026') === currentActiveEventId);
+
+  const scopedLog = isAll
+    ? appData.voteLog
+    : appData.voteLog.filter(e => (e.eventId === currentActiveEventId) || scopedContestants.some(c => c.id === e.id));
+
+  if (!scopedLog || !scopedLog.length) {
+    toast('Chưa có lượt bình chọn nào để xuất trong cuộc thi này!', 'info');
     return;
   }
-  let csv = 'STT,Mã lượt bình chọn,Tên người bình chọn,Mã sinh viên (MSSV),Lớp,Khoa,Số báo danh,Thí sinh được chọn,Lời chúc / Bình luận,Thời gian bình chọn\n';
-  appData.voteLog.forEach((e, idx) => {
+  let csv = 'STT,Cuộc thi,Mã lượt bình chọn,Tên người bình chọn,Mã sinh viên (MSSV),Lớp,Khoa,Số báo danh,Thí sinh được chọn,Lời chúc / Bình luận,Thời gian bình chọn\n';
+  scopedLog.forEach((e, idx) => {
     const voter = e.voterName || 'Người ẩn danh';
     const mssv = e.studentId || '';
     const sClass = e.studentClass || '';
     const faculty = e.faculty || '';
     const comment = e.comment || '';
     const dateStr = formatDateFull(new Date(e.ts));
-    csv += `${idx + 1},"${e.voteId || ''}","${voter}","${mssv}","${sClass}","${faculty}","${e.id}","${e.name}","${comment.replace(/"/g, '""')}","${dateStr}"\n`;
+    const sbd = e.id.replace(/^[a-z]+_/, '');
+    csv += `${idx + 1},"${e.eventTitle || ''}","${e.voteId || ''}","${voter}","${mssv}","${sClass}","${faculty}","${sbd}","${e.name}","${comment.replace(/"/g, '""')}","${dateStr}"\n`;
   });
-  downloadFile('danh_sach_nguoi_binh_chon.csv', '\uFEFF' + csv, 'text/csv;charset=utf-8');
+  downloadFile(`${evTitle}_danh_sach_nguoi_binh_chon.csv`, '\uFEFF' + csv, 'text/csv;charset=utf-8');
   toast('Đã tải danh sách người bình chọn (.csv)!', 'success');
 }
 
@@ -4229,11 +4633,21 @@ function openEditVote(voteId) {
   document.getElementById('editVoteFaculty').value = entry.faculty || '';
   document.getElementById('editVoteComment').value = entry.comment || '';
 
-  // Populate contestants dropdown
+  // Populate contestants dropdown grouped by competition
   const select = document.getElementById('editVoteContestantSelect');
-  select.innerHTML = appData.contestants.map(c => 
-    `<option value="${c.id}" ${c.id === entry.id ? 'selected' : ''}>SBD ${c.id} - ${c.name}</option>`
-  ).join('');
+  const eventsList = (adminEvents && adminEvents.length > 0) ? adminEvents : DEFAULT_ADMIN_EVENTS;
+  select.innerHTML = eventsList.map(ev => {
+    const cList = (appData.contestants || []).filter(c => (c.event_id || 'evt_hoakhoi_2026') === ev.id);
+    if (!cList.length) return '';
+    return `
+      <optgroup label="${esc(ev.title.replace(/<[^>]*>?/gm, ''))} (${esc(ev.tag || '# CUỘC THI')})">
+        ${cList.map(c => {
+          const sbd = c.id.replace(/^[a-z]+_/, '');
+          return `<option value="${esc(c.id)}" ${c.id === entry.id ? 'selected' : ''}>SBD ${esc(sbd)} - ${esc(c.name)} (${esc(c.subtitle || '')})</option>`;
+        }).join('')}
+      </optgroup>
+    `;
+  }).join('');
 
   document.getElementById('editVoteModal').classList.remove('hidden');
 }
