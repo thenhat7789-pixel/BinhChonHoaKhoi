@@ -1011,16 +1011,9 @@
       <div id="publicQrEventName" style="color:#0284c7;font-size:1.45rem;font-weight:900;line-height:1.3;margin-bottom:8px;">Bình Chọn Hoa Khôi</div>
 
       <!-- Activity Code Badge -->
-      <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:12px;font-size:13px;color:#64748b;font-weight:600;">
+      <div style="display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:16px;font-size:13px;color:#64748b;font-weight:600;">
         <span>Mã cuộc thi:</span>
         <span id="publicQrEventTag" style="background:#64748b;color:#fff;font-weight:700;border-radius:999px;padding:2px 12px;font-size:12px;letter-spacing:0.4px;"># HOA KHÔI 2026</span>
-      </div>
-
-      <!-- Benefit Pill -->
-      <div style="margin-bottom:16px;">
-        <span id="publicQrBenefit" style="background:#f43f5e;color:#fff;font-size:14px;font-weight:800;padding:6px 20px;border-radius:999px;display:inline-flex;align-items:center;gap:6px;box-shadow:0 4px 14px rgba(244,63,94,0.32);">
-          🎁 Quyền lợi: +0,5 NCTXH
-        </span>
       </div>
 
       <!-- High-res QR Card in rounded white container with soft shadow -->
@@ -1733,8 +1726,6 @@ function openPublicQrModal(eventId) {
   if (nameEl) nameEl.textContent = cleanTitle;
   const tagEl = document.getElementById('publicQrEventTag');
   if (tagEl) tagEl.textContent = tag;
-  const benefitEl = document.getElementById('publicQrBenefit');
-  if (benefitEl) benefitEl.textContent = `🎁 Quyền lợi: +0,5 NCTXH`;
   const imgEl = document.getElementById('publicQrImg');
   if (imgEl) imgEl.src = qrUrl;
   const urlEl = document.getElementById('publicQrUrl');

@@ -75,13 +75,13 @@ async function initDB() {
       CREATE TABLE IF NOT EXISTS events (
         id VARCHAR(50) PRIMARY KEY,
         tag VARCHAR(150) DEFAULT '',
-        benefit_badge VARCHAR(50) DEFAULT '+0,5 NCTXH',
+        benefit_badge VARCHAR(50) DEFAULT '',
         title VARCHAR(255) NOT NULL,
         description TEXT DEFAULT 'Không có mô tả.',
         location VARCHAR(255) DEFAULT '',
         radius INT DEFAULT 5000,
         event_time VARCHAR(100) DEFAULT '',
-        benefit VARCHAR(100) DEFAULT '+0,5 NCTXH',
+        benefit VARCHAR(100) DEFAULT '',
         creator VARCHAR(100) DEFAULT 'hongnhung',
         checked_in_count INT DEFAULT 0,
         is_active BOOLEAN DEFAULT TRUE,
@@ -99,6 +99,10 @@ async function initDB() {
       ALTER TABLE votes ADD COLUMN IF NOT EXISTS student_id VARCHAR(50) DEFAULT '';
       ALTER TABLE votes ADD COLUMN IF NOT EXISTS student_class VARCHAR(100) DEFAULT '';
       ALTER TABLE votes ADD COLUMN IF NOT EXISTS faculty VARCHAR(100) DEFAULT '';
+
+      -- Xóa bỏ tàn dư NCTXH và bán kính điểm danh cũ trong DB
+      UPDATE events SET benefit_badge = '', benefit = '' WHERE benefit_badge ILIKE '%nctxh%' OR benefit ILIKE '%nctxh%';
+      UPDATE events SET location = REPLACE(location, ' (Bán kính: 5000m)', '') WHERE location ILIKE '%5000m%';
 
       -- Index để kiểm tra duplicate vote và quota nhanh hơn
       CREATE INDEX IF NOT EXISTS idx_votes_voter_ip ON votes (voter_ip);
