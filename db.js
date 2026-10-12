@@ -90,6 +90,9 @@ async function initDB() {
       );
 
       -- Migration: thêm các cột nếu chưa có
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS start_time VARCHAR(100);
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS end_time VARCHAR(100);
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS vote_ratio INT DEFAULT 80;
       ALTER TABLE contestants ADD COLUMN IF NOT EXISTS event_id VARCHAR(50) DEFAULT 'evt_hoakhoi_2026';
       ALTER TABLE votes ADD COLUMN IF NOT EXISTS event_id VARCHAR(50) DEFAULT 'evt_hoakhoi_2026';
       ALTER TABLE votes ADD COLUMN IF NOT EXISTS voter_ip VARCHAR(255) DEFAULT '';

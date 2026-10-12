@@ -889,6 +889,33 @@
     </div>
   </div>
 
+  <!-- Countdown & Voting Rule Bar -->
+  <div id="topicCountdownCard" style="background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%);color:#fff;border-radius:18px;padding:1.2rem 1.4rem;margin-bottom:1.5rem;box-shadow:0 10px 30px rgba(0,0,0,0.12);border:1.5px solid rgba(56,189,248,0.25);">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1rem;">
+      <div>
+        <div style="font-size:.78rem;font-weight:700;color:#38bdf8;text-transform:uppercase;letter-spacing:1px;margin-bottom:.25rem;display:flex;align-items:center;gap:.4rem;">
+          <span>⏱️</span> <span id="topicCountdownTitle">Thời gian bình chọn còn lại</span>
+        </div>
+        <div id="topicCountdownDisplay" style="display:flex;align-items:center;gap:.5rem;font-family:'Outfit',sans-serif;margin-top:.4rem;flex-wrap:wrap;">
+          <!-- Live blocks: days, hours, mins, secs -->
+        </div>
+      </div>
+      <div style="background:rgba(255,255,255,0.06);padding:.75rem 1.1rem;border-radius:12px;border:1px solid rgba(255,255,255,0.1);display:flex;flex-direction:column;gap:.3rem;min-width:240px;">
+        <div style="display:flex;justify-content:space-between;font-size:.82rem;">
+          <span style="color:#94a3b8;">Lượt bầu của bạn:</span>
+          <strong id="topicMyVotesCount" style="color:#38bdf8;font-size:.95rem;">0 / 5 thí sinh</strong>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:.82rem;">
+          <span style="color:#94a3b8;">Tỉ lệ bình chọn:</span>
+          <strong id="topicVoteRatioBadge" style="color:#facc15;">80% (Tỉ lệ 8/2)</strong>
+        </div>
+        <div id="topicRuleText" style="font-size:.74rem;color:#cbd5e1;line-height:1.35;margin-top:2px;">
+          Được bình chọn tối đa 5 thí sinh khác nhau.
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Topic Contestants Grid -->
   <div class="contestants-grid" id="contestantsGrid"></div>
 
@@ -1178,6 +1205,17 @@ function renderPortalEvents() {
   grid.innerHTML = filtered.map(e => {
     const cleanTitle = (e.title || '').replace(/<[^>]*>?/gm, '');
     const count = parseInt(e.total_attendees || e.checked_in_count || 120);
+    const ratio = e.vote_ratio || 80;
+
+    let timeBadge = '';
+    if (e.end_time) {
+      const endD = new Date(e.end_time);
+      if (endD.getTime() < Date.now()) {
+        timeBadge = '<span class="tag-status" style="background:#fee2e2;color:#b91c1c;border-color:#fca5a5;">⛔ ĐÃ HẾT GIỜ</span>';
+      } else {
+        timeBadge = '<span class="tag-status" style="background:#fef3c7;color:#b45309;border-color:#fde68a;">⏱️ ĐANG ĐẾM NGƯỢC</span>';
+      }
+    }
 
     return `
     <div class="event-card" onclick="goToTopic('${e.id}')">
@@ -1185,7 +1223,8 @@ function renderPortalEvents() {
         <!-- Top Tags Row -->
         <div class="event-tags-row">
           <span class="tag-code">${esc(e.tag || '# CUỘC THI')}</span>
-          <span class="tag-status">🟢 ĐANG MỞ BÌNH CHỌN</span>
+          ${timeBadge ? timeBadge : '<span class="tag-status">🟢 ĐANG MỞ BÌNH CHỌN</span>'}
+          <span class="tag-code" style="background:#eff6ff;color:#2563eb;border-color:#bfdbfe;font-weight:800;">📊 TỈ LỆ ${ratio}%</span>
           <span class="tag-attendees">👥 ${count} LƯỢT</span>
         </div>
 
@@ -1280,7 +1319,115 @@ async function goToTopic(eventId) {
   await loadTopicContestantsAndVotes(eventId);
 }
 
+let countdownInterval = null;
+
+function startTopicCountdown(endTimeStr) {
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+  }
+
+  const displayEl = document.getElementById('topicCountdownDisplay');
+  const titleEl = document.getElementById('topicCountdownTitle');
+  const badgeEl = document.getElementById('topicActiveBadge');
+  if (!displayEl) return;
+
+  if (!endTimeStr) {
+    displayEl.innerHTML = `<div style="font-size:1rem;color:#94a3b8;font-weight:600;">Đang mở bình chọn trực tiếp</div>`;
+    state.isExpired = false;
+    return;
+  }
+
+  const endTime = new Date(endTimeStr).getTime();
+  if (isNaN(endTime)) {
+    displayEl.innerHTML = `<div style="font-size:1rem;color:#94a3b8;">Đang mở bình chọn</div>`;
+    state.isExpired = false;
+    return;
+  }
+
+  function update() {
+    const now = Date.now();
+    const diff = endTime - now;
+
+    if (diff <= 0) {
+      clearInterval(countdownInterval);
+      countdownInterval = null;
+      state.isExpired = true;
+
+      if (titleEl) titleEl.textContent = 'Trạng thái cuộc thi';
+      if (badgeEl) {
+        badgeEl.textContent = '⛔ ĐÃ HẾT GIỜ';
+        badgeEl.style.background = '#fee2e2';
+        badgeEl.style.color = '#b91c1c';
+        badgeEl.style.borderColor = '#fca5a5';
+      }
+
+      displayEl.innerHTML = `
+        <div style="background:#ef4444;color:#fff;padding:.45rem 1.1rem;border-radius:10px;font-weight:800;font-size:1.05rem;display:inline-flex;align-items:center;gap:.45rem;box-shadow:0 4px 15px rgba(239,68,68,0.4);">
+          <span>⛔</span> ĐÃ KẾT THÚC THỜI GIAN BÌNH CHỌN
+        </div>
+      `;
+
+      renderTopicContestants();
+      return;
+    }
+
+    state.isExpired = false;
+    if (badgeEl) {
+      badgeEl.textContent = '🟢 ĐANG BÌNH CHỌN';
+      badgeEl.style.background = '#dcfce7';
+      badgeEl.style.color = '#15803d';
+      badgeEl.style.borderColor = '#86efac';
+    }
+
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+    const pad = n => String(n).padStart(2, '0');
+
+    let html = '';
+    if (days > 0) {
+      html += `
+        <div style="text-align:center;background:rgba(255,255,255,0.08);padding:.35rem .65rem;border-radius:8px;border:1px solid rgba(255,255,255,0.12);min-width:54px;">
+          <div style="font-size:1.35rem;font-weight:800;color:#f8fafc;line-height:1.1;">${pad(days)}</div>
+          <div style="font-size:.65rem;color:#94a3b8;font-weight:700;">NGÀY</div>
+        </div>
+        <span style="font-size:1.2rem;color:#64748b;font-weight:800;">:</span>
+      `;
+    }
+
+    html += `
+      <div style="text-align:center;background:rgba(255,255,255,0.08);padding:.35rem .65rem;border-radius:8px;border:1px solid rgba(255,255,255,0.12);min-width:54px;">
+        <div style="font-size:1.35rem;font-weight:800;color:#f8fafc;line-height:1.1;">${pad(hours)}</div>
+        <div style="font-size:.65rem;color:#94a3b8;font-weight:700;">GIỜ</div>
+      </div>
+      <span style="font-size:1.2rem;color:#64748b;font-weight:800;">:</span>
+      <div style="text-align:center;background:rgba(255,255,255,0.08);padding:.35rem .65rem;border-radius:8px;border:1px solid rgba(255,255,255,0.12);min-width:54px;">
+        <div style="font-size:1.35rem;font-weight:800;color:#f8fafc;line-height:1.1;">${pad(minutes)}</div>
+        <div style="font-size:.65rem;color:#94a3b8;font-weight:700;">PHÚT</div>
+      </div>
+      <span style="font-size:1.2rem;color:#64748b;font-weight:800;">:</span>
+      <div style="text-align:center;background:rgba(37,99,235,0.25);border:1px solid #3b82f6;padding:.35rem .65rem;border-radius:8px;min-width:54px;box-shadow:0 0 12px rgba(59,130,246,0.3);">
+        <div style="font-size:1.35rem;font-weight:800;color:#38bdf8;line-height:1.1;">${pad(seconds)}</div>
+        <div style="font-size:.65rem;color:#93c5fd;font-weight:700;">GIÂY</div>
+      </div>
+    `;
+
+    displayEl.innerHTML = html;
+  }
+
+  update();
+  countdownInterval = setInterval(update, 1000);
+}
+
 function backToPortal() {
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+  }
+
   state.activeEventId = null;
   state.currentView = 'portal';
 
@@ -1312,13 +1459,14 @@ window.addEventListener('popstate', () => {
    TOPIC VIEW (VIEW 2): BÌNH CHỌN THÍ SINH CỦA CHỦ ĐỀ ĐÓ
    ══════════════════════════════════════════════════════════ */
 async function loadTopicContestantsAndVotes(eventId) {
+  const ev = state.events.find(e => e.id === eventId);
+
   // 1. Contestants
   let contestants = [];
   const cRes = await api.get(`/api/contestants?event=${encodeURIComponent(eventId)}`);
   if (cRes && Array.isArray(cRes.contestants) && cRes.contestants.length > 0) {
     contestants = cRes.contestants;
   } else {
-    // Check theme fallback or localStorage
     contestants = CONTESTANTS_BY_THEME[eventId] || CONTESTANTS_BY_THEME.evt_hoakhoi_2026;
   }
   state.contestants = contestants;
@@ -1327,19 +1475,51 @@ async function loadTopicContestantsAndVotes(eventId) {
   const vRes = await api.get(`/api/votes?event=${encodeURIComponent(eventId)}`);
   state.votes = (vRes && vRes.votes) ? vRes.votes : {};
 
-  // 3. My Votes for this event
+  // 3. My Votes, Time & Ratio for this event
   const studentId = localStorage.getItem('hh:student_id') || '';
   const myVRes = await api.get(`/api/my-votes?event=${encodeURIComponent(eventId)}&fp=${encodeURIComponent(VOTER_FP)}&student_id=${encodeURIComponent(studentId)}`);
+  
+  const ratio = (myVRes && myVRes.voteRatio) ? myVRes.voteRatio : (ev ? (ev.vote_ratio || 80) : 80);
+  state.voteRatio = ratio;
+
   if (myVRes && myVRes.votedIds) {
     state.votedIds = myVRes.votedIds;
-    state.maxAllowed = myVRes.maxAllowed || Math.max(1, Math.round((contestants.length * 80) / 100));
+    state.maxAllowed = myVRes.maxAllowed || Math.max(1, Math.round((contestants.length * (ratio / 100))));
   } else {
-    // LocalStorage fallback
     try {
       const saved = JSON.parse(localStorage.getItem(`hh:voted:${eventId}`) || '[]');
       state.votedIds = Array.isArray(saved) ? saved : [];
     } catch(e) { state.votedIds = []; }
-    state.maxAllowed = Math.max(1, Math.round((contestants.length * 80) / 100));
+    state.maxAllowed = Math.max(1, Math.round((contestants.length * (ratio / 100))));
+  }
+
+  // Update Countdown
+  const endTimeStr = (myVRes && myVRes.end_time) ? myVRes.end_time : (ev ? ev.end_time : null);
+  startTopicCountdown(endTimeStr);
+
+  // Update Voting Rule Bar
+  const myVotesCount = (state.votedIds || []).length;
+  const countEl = document.getElementById('topicMyVotesCount');
+  if (countEl) countEl.textContent = `${myVotesCount} / ${state.maxAllowed} thí sinh`;
+
+  const ratioEl = document.getElementById('topicVoteRatioBadge');
+  if (ratioEl) {
+    let ratioLabel = `${ratio}%`;
+    if (ratio === 50) ratioLabel = '50% (Tỉ lệ 5/5)';
+    else if (ratio === 70) ratioLabel = '70% (Tỉ lệ 7/3)';
+    else if (ratio === 80) ratioLabel = '80% (Tỉ lệ 8/2)';
+    else if (ratio === 100) ratioLabel = '100% (Tất cả)';
+    else {
+      const a = Math.round(ratio / 10);
+      const b = 10 - a;
+      ratioLabel = `${ratio}% (Tỉ lệ ${a}/${b})`;
+    }
+    ratioEl.textContent = ratioLabel;
+  }
+
+  const ruleEl = document.getElementById('topicRuleText');
+  if (ruleEl) {
+    ruleEl.textContent = `Hiện có ${contestants.length} thí sinh, mỗi sinh viên được bình chọn tối đa ${state.maxAllowed} thí sinh khác nhau.`;
   }
 
   // Update Hero Stats for Topic
@@ -1358,6 +1538,10 @@ function renderTopicContestants() {
   const myVotesCount = (state.votedIds || []).length;
   const reachedQuota = myVotesCount >= state.maxAllowed;
 
+  // Sync count badge in rule box
+  const countEl = document.getElementById('topicMyVotesCount');
+  if (countEl) countEl.textContent = `${myVotesCount} / ${state.maxAllowed} thí sinh`;
+
   grid.innerHTML = state.contestants.map(c => {
     const count = state.votes[c.id] || 0;
     const pct = totalVotes ? Math.round((count / totalVotes) * 100) : 0;
@@ -1368,7 +1552,11 @@ function renderTopicContestants() {
     let btnText = 'Bình chọn cho thí sinh này';
     let disabled = false;
 
-    if (isMine) {
+    if (state.isExpired) {
+      btnClass = 'vote-action-btn btn-disabled';
+      btnText = '⛔ Hết giờ bình chọn';
+      disabled = true;
+    } else if (isMine) {
       btnClass = 'vote-action-btn btn-voted';
       btnText = '✓ Đã bình chọn';
       disabled = true;
@@ -1421,6 +1609,10 @@ function renderTopicContestants() {
 let pendingContestantId = null;
 
 function openVoteModal(id) {
+  if (state.isExpired) {
+    toast('⛔ Thời gian bình chọn cho cuộc thi này đã kết thúc!', 'error');
+    return;
+  }
   if ((state.votedIds || []).includes(id)) {
     toast('Bạn đã bình chọn cho thí sinh này rồi!', 'info');
     return;
@@ -1453,6 +1645,12 @@ document.getElementById('confirmVoteBtn').addEventListener('click', async () => 
   const cId = pendingContestantId;
   const eventId = state.activeEventId;
 
+  if (state.isExpired) {
+    toast('⛔ Thời gian bình chọn cho cuộc thi này đã kết thúc!', 'error');
+    closeVoteModal();
+    return;
+  }
+
   const name = document.getElementById('voterNameInput').value.trim();
   const studentId = document.getElementById('voterStudentIdInput').value.trim();
   const studentClass = document.getElementById('voterClassInput').value.trim();
@@ -1479,7 +1677,7 @@ document.getElementById('confirmVoteBtn').addEventListener('click', async () => 
   toast(`🎉 Đã bình chọn thành công cho thí sinh!`, 'success');
 
   // Submit to Server API
-  await api.post('/api/vote', {
+  const res = await api.post('/api/vote', {
     contestant_id: cId,
     event_id: eventId,
     voter_name: name,
@@ -1489,6 +1687,21 @@ document.getElementById('confirmVoteBtn').addEventListener('click', async () => 
     comment: comment || 'Ủng hộ thí sinh!',
     voter_fingerprint: VOTER_FP
   });
+
+  if (res && res._error) {
+    if (res.code === 'VOTING_ENDED') {
+      state.isExpired = true;
+      toast('⛔ Thời gian bình chọn cho cuộc thi này đã kết thúc!', 'error');
+    } else {
+      toast(res.error || 'Lỗi khi gửi phiếu bầu', 'error');
+    }
+    // Revert optimistic update
+    state.votes[cId] = Math.max(0, (state.votes[cId] || 1) - 1);
+    state.votedIds = state.votedIds.filter(id => id !== cId);
+    localStorage.setItem(`hh:voted:${eventId}`, JSON.stringify(state.votedIds));
+    renderTopicContestants();
+    return;
+  }
 
   await loadTopicComments(eventId);
 });
@@ -1584,7 +1797,10 @@ async function init() {
     location: e.location || 'Hội trường A – Trường ĐH Xây dựng Miền Trung',
     event_time: e.event_time || '08:00 - 22:00',
     creator: e.creator || 'Đoàn TN – Hội Sinh viên MUCE',
-    checked_in_count: e.checked_in_count || (150 + idx * 45)
+    checked_in_count: e.checked_in_count || (150 + idx * 45),
+    start_time: e.start_time || null,
+    end_time: e.end_time || null,
+    vote_ratio: parseInt(e.vote_ratio) || 80
   }));
 
   // 2. Check URL for direct event link (e.g. index.html?event=evt_hoakhoi_2026)

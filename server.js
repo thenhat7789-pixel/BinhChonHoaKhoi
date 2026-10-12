@@ -61,8 +61,8 @@ app.post('/api/events', async (req, res) => {
       const item = list[i];
       const id = item.id || ('evt_' + Date.now() + '_' + i);
       await client.query(`
-        INSERT INTO events (id, tag, benefit_badge, title, description, location, radius, event_time, benefit, creator, checked_in_count, sort_order)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        INSERT INTO events (id, tag, benefit_badge, title, description, location, radius, event_time, benefit, creator, checked_in_count, sort_order, start_time, end_time, vote_ratio)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
         ON CONFLICT (id) DO UPDATE SET
           tag = EXCLUDED.tag,
           benefit_badge = EXCLUDED.benefit_badge,
@@ -74,7 +74,10 @@ app.post('/api/events', async (req, res) => {
           benefit = EXCLUDED.benefit,
           creator = EXCLUDED.creator,
           checked_in_count = EXCLUDED.checked_in_count,
-          sort_order = EXCLUDED.sort_order
+          sort_order = EXCLUDED.sort_order,
+          start_time = COALESCE(EXCLUDED.start_time, events.start_time),
+          end_time = COALESCE(EXCLUDED.end_time, events.end_time),
+          vote_ratio = COALESCE(EXCLUDED.vote_ratio, events.vote_ratio)
       `, [
         id,
         item.tag || '# CUỘC THI',
@@ -87,7 +90,10 @@ app.post('/api/events', async (req, res) => {
         item.benefit || '',
         item.creator || 'Đoàn TN – Hội Sinh viên MUCE',
         parseInt(item.checked_in_count) || 0,
-        item.sort_order !== undefined ? item.sort_order : i
+        item.sort_order !== undefined ? item.sort_order : i,
+        item.start_time || null,
+        item.end_time || null,
+        parseInt(item.vote_ratio) || 80
       ]);
     }
     await client.query('COMMIT');
@@ -95,9 +101,27 @@ app.post('/api/events', async (req, res) => {
   } catch (e) {
     await client.query('ROLLBACK');
     console.error('POST /api/events error:', e);
-    res.status(500).json({ error: 'Lỗi lưu sự kiện' });
+    res.status(500).json({ error: 'Lỗi server' });
   } finally {
     client.release();
+  }
+});
+
+// ─── POST /api/events/:id/time-ratio ──────────────
+app.post('/api/events/:id/time-ratio', async (req, res) => {
+  const { start_time, end_time, vote_ratio } = req.body;
+  try {
+    await pool.query(`
+      UPDATE events 
+      SET start_time = COALESCE($1, start_time),
+          end_time = COALESCE($2, end_time),
+          vote_ratio = COALESCE($3, vote_ratio)
+      WHERE id = $4
+    `, [start_time || null, end_time || null, vote_ratio ? parseInt(vote_ratio) : null, req.params.id]);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('POST /api/events/:id/time-ratio error:', e);
+    res.status(500).json({ error: 'Lỗi cập nhật thời gian & tỉ lệ' });
   }
 });
 
@@ -302,9 +326,21 @@ app.post('/api/vote', async (req, res) => {
       });
     }
 
-    // 2. Kiểm tra tỉ lệ bình chọn (vote_ratio)
+    // 2. Kiểm tra thời gian kết thúc và tỉ lệ bình chọn của cuộc thi này
+    const { rows: eventRow } = await pool.query("SELECT vote_ratio, end_time, start_time FROM events WHERE id = $1", [currentEventId]);
+    if (eventRow.length && eventRow[0].end_time) {
+      const endTime = new Date(eventRow[0].end_time).getTime();
+      if (!isNaN(endTime) && Date.now() > endTime) {
+        return res.status(400).json({
+          error: 'Thời gian bình chọn cho cuộc thi này đã kết thúc!',
+          code: 'VOTING_ENDED'
+        });
+      }
+    }
+
     const { rows: settingsRows } = await pool.query("SELECT value FROM settings WHERE key = 'vote_ratio'");
-    const voteRatio = settingsRows.length ? parseInt(settingsRows[0].value) || 80 : 80;
+    const globalRatio = settingsRows.length ? parseInt(settingsRows[0].value) || 80 : 80;
+    const voteRatio = (eventRow.length && eventRow[0].vote_ratio) ? parseInt(eventRow[0].vote_ratio) : globalRatio;
 
     const { rows: contestantCount } = await pool.query('SELECT COUNT(*)::int as cnt FROM contestants WHERE (event_id = $1 OR event_id IS NULL)', [currentEventId]);
     const totalContestants = contestantCount[0].cnt || 6;
@@ -381,8 +417,10 @@ app.get('/api/my-votes', async (req, res) => {
     const { rows } = await pool.query(myVotesQuery, myVotesParams);
     const votedIds = rows.map(r => r.contestant_id);
 
+    const { rows: eventRow } = await pool.query("SELECT vote_ratio, end_time, start_time FROM events WHERE id = $1", [eventId]);
     const { rows: settingsRows } = await pool.query("SELECT value FROM settings WHERE key = 'vote_ratio'");
-    const voteRatio = settingsRows.length ? parseInt(settingsRows[0].value) || 80 : 80;
+    const globalRatio = settingsRows.length ? parseInt(settingsRows[0].value) || 80 : 80;
+    const voteRatio = (eventRow.length && eventRow[0].vote_ratio) ? parseInt(eventRow[0].vote_ratio) : globalRatio;
     const { rows: contestantCount } = await pool.query('SELECT COUNT(*)::int as cnt FROM contestants WHERE (event_id = $1 OR event_id IS NULL)', [eventId]);
     const totalContestants = contestantCount[0].cnt || 6;
     const maxAllowed = Math.max(1, Math.round((totalContestants * voteRatio) / 100));
@@ -392,7 +430,9 @@ app.get('/api/my-votes', async (req, res) => {
       currentVotes: votedIds.length,
       maxAllowed,
       voteRatio,
-      totalContestants
+      totalContestants,
+      start_time: eventRow.length ? eventRow[0].start_time : null,
+      end_time: eventRow.length ? eventRow[0].end_time : null
     });
   } catch (e) {
     console.error('GET /api/my-votes error:', e);

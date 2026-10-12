@@ -582,7 +582,11 @@
     <input type="hidden" id="editId" />
     <div class="c-form">
       <div class="form-group">
-        <label class="form-label">Số báo danh</label>
+        <label class="form-label">Thuộc cuộc thi / sự kiện *</label>
+        <select class="input" id="editContestantEventSelect" style="font-weight:700;color:#0284c7;background:#eff6ff;border:1.5px solid #93c5fd;cursor:pointer;"></select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Số báo danh (SBD) *</label>
         <input class="input" id="editNum" placeholder="01" />
       </div>
       <div class="form-row">
@@ -672,6 +676,159 @@
         <button class="btn btn-gold btn-full" onclick="saveAdminEvent()">Lưu cuộc thi</button>
         <button class="btn btn-ghost" onclick="closeAdminEventModal()">Hủy</button>
       </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ MODAL: IN MÃ QR CUỘC THI ═══════════════════ -->
+<div class="modal-overlay hidden" id="qrModal">
+  <div class="modal" style="max-width:440px;text-align:center;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;border-bottom:1px solid #e2e8f0;padding-bottom:.5rem;">
+      <h2 class="modal-title" id="qrModalTitle" style="margin:0;font-size:1.15rem;color:#0284c7;display:flex;align-items:center;gap:.4rem;">
+        <span>🖨️</span> Mã QR Bình Chọn
+      </h2>
+      <button onclick="closeQrModal()" style="background:#f1f5f9;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-weight:700;font-size:.9rem;color:#64748b;">✕</button>
+    </div>
+    <div style="background:#fff;padding:1.25rem;border-radius:12px;border:1.5px solid #e2e8f0;display:inline-block;margin:.5rem 0 1rem 0;box-shadow:0 4px 15px rgba(0,0,0,0.04);">
+      <img id="qrModalImg" src="" style="width:230px;height:230px;display:block;margin:0 auto;" alt="Mã QR" />
+    </div>
+    <div id="qrModalEventName" style="font-weight:800;color:#0f172a;font-size:1rem;margin-bottom:.35rem;"></div>
+    <p id="qrModalUrl" style="font-size:.78rem;color:#64748b;word-break:break-all;margin-bottom:1.25rem;background:#f8fafc;padding:.45rem .65rem;border-radius:6px;border:1px solid #e2e8f0;"></p>
+    <div style="display:flex;gap:.5rem;justify-content:center;">
+      <button class="btn btn-sm" onclick="printQrCard()" style="background:#0284c7;color:#fff;font-weight:700;padding:.5rem 1.25rem;display:inline-flex;align-items:center;gap:.35rem;border:none;border-radius:8px;cursor:pointer;">
+        <span>🖨️</span> In Mã QR
+      </button>
+      <button class="btn btn-ghost btn-sm" onclick="closeQrModal()" style="border:1px solid #cbd5e1;background:#fff;padding:.5rem 1rem;border-radius:8px;">
+        Đóng
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ MODAL: CÀI ĐẶT THỜI GIAN & TỈ LỆ CHO CUỘC THI ═══════════════════ -->
+<div class="modal-overlay hidden" id="adminTimeRatioModal">
+  <div class="modal" style="max-width:680px;max-height:92vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;border-bottom:1px solid #e2e8f0;padding-bottom:.65rem;">
+      <h2 class="modal-title" style="margin:0;display:flex;align-items:center;gap:.5rem;font-size:1.25rem;color:#0f172a;">
+        <span>⏱️</span> Cài Đặt Thời Gian Đếm Ngược & Tỉ Lệ Bình Chọn
+      </h2>
+      <button onclick="closeAdminTimeRatioModal()" style="background:#f1f5f9;border:none;border-radius:50%;width:32px;height:32px;cursor:pointer;font-weight:700;font-size:1rem;color:#64748b;">✕</button>
+    </div>
+
+    <!-- 1. Thanh Chọn Sự Kiện (Dropdown Selection) -->
+    <div style="background:linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);border:2px solid #2563eb;padding:1rem 1.2rem;border-radius:12px;margin-bottom:1.25rem;">
+      <label style="font-size:.9rem;font-weight:800;color:#1e3a8a;display:flex;align-items:center;gap:.4rem;margin-bottom:.4rem;">
+        <span>🏆 CHỌN CUỘC THI CẦN CÀI ĐẶT:</span>
+      </label>
+      <select id="timeRatioEventSelect" class="input" onchange="onSelectEventForTimeRatio(this.value)" style="font-size:1.05rem;font-weight:700;color:#0f172a;background:#fff;border:2px solid #93c5fd;cursor:pointer;">
+        <!-- Filled dynamically: Bình Chọn Hoa Khôi, Bình Chọn Nam Vương,... -->
+      </select>
+      <div style="font-size:.78rem;color:#64748b;margin-top:.35rem;">
+        💡 Chọn sự kiện để tải và tùy chỉnh thời gian đếm ngược cùng tỉ lệ bình chọn riêng cho sự kiện đó.
+      </div>
+    </div>
+
+    <!-- 2. Khung Thời Gian Bình Chọn & Đếm Ngược (Exactly as in Screenshot 1) -->
+    <div style="background:#ffffff;border:1.5px solid #cbd5e1;border-radius:12px;padding:1.15rem;margin-bottom:1.25rem;box-shadow:0 2px 8px rgba(0,0,0,0.03);">
+      <div style="font-weight:800;color:#0f172a;font-size:.95rem;margin-bottom:.75rem;display:flex;align-items:center;gap:.4rem;">
+        <span>⏱ THỜI GIAN BÌNH CHỌN & ĐẾM NGƯỢC</span>
+      </div>
+      
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem;">
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" style="font-size:.82rem;font-weight:600;color:#475569;">Thời điểm bắt đầu</label>
+          <input class="input" type="datetime-local" step="1" id="trModalStartTime" />
+        </div>
+        <div class="form-group" style="margin:0;">
+          <label class="form-label" style="font-size:.82rem;font-weight:600;color:#475569;">Thời điểm kết thúc</label>
+          <input class="input" type="datetime-local" step="1" id="trModalEndTime" />
+        </div>
+      </div>
+
+      <div style="display:flex;gap:.45rem;flex-wrap:wrap;align-items:center;margin-bottom:.85rem;">
+        <button type="button" class="btn btn-gold btn-sm" onclick="saveEventTimeOnly()" style="font-weight:700;">
+          💾 Lưu thời gian
+        </button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickTimeModal(1)" style="border:1px solid #cbd5e1;background:#f8fafc;">+1 ngày</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickTimeModal(3)" style="border:1px solid #cbd5e1;background:#f8fafc;">+3 ngày</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickTimeModal(7)" style="border:1px solid #cbd5e1;background:#f8fafc;">+7 ngày</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickTimeModal(30)" style="border:1px solid #cbd5e1;background:#f8fafc;">+30 ngày</button>
+      </div>
+
+      <!-- Cài đặt đếm ngược chỉ có GIÂY (hoặc phút) (Matching Screenshot 1) -->
+      <div style="padding:.9rem 1rem;background:linear-gradient(135deg, #eff6ff 0%, #f8fafc 100%);border:1.5px dashed #3b82f6;border-radius:10px;">
+        <div style="display:flex;align-items:center;gap:.45rem;font-weight:700;color:#1e40af;font-size:.88rem;margin-bottom:.5rem;">
+          <svg viewBox="0 0 24 24" style="width:17px;height:17px;stroke:#2563eb;fill:none;stroke-width:2.2;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <span>Cài đặt đếm ngược chỉ có GIÂY (hoặc phút):</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
+          <input type="number" id="trModalSecondsInput" class="input" style="width:105px;padding:.4rem .6rem;font-weight:700;font-size:1rem;text-align:center;border-color:#93c5fd;" min="5" value="90" placeholder="Số giây" />
+          <span style="font-size:.88rem;font-weight:700;color:#1e3a8a;">giây</span>
+          <button type="button" class="btn btn-gold btn-sm" onclick="applyQuickSecondsModal()" style="font-weight:700;box-shadow:0 2px 8px rgba(245,158,11,0.35);">
+            ⚡ Bắt đầu đếm ngược ngay
+          </button>
+          <div style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;margin-left:.25rem;">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="applyQuickSecondsModal(15)" style="border:1px solid #bfdbfe;background:#fff;color:#1d4ed8;font-weight:600;">+15s</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="applyQuickSecondsModal(30)" style="border:1px solid #bfdbfe;background:#fff;color:#1d4ed8;font-weight:600;">+30s</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="applyQuickSecondsModal(60)" style="border:1px solid #bfdbfe;background:#fff;color:#1d4ed8;font-weight:600;">+60s</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="applyQuickSecondsModal(90)" style="border:1px solid #bfdbfe;background:#fff;color:#1d4ed8;font-weight:600;">+90s</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="applyQuickSecondsModal(120)" style="border:1px solid #bfdbfe;background:#fff;color:#1d4ed8;font-weight:600;">+120s (2p)</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="applyQuickSecondsModal(300)" style="border:1px solid #bfdbfe;background:#fff;color:#1d4ed8;font-weight:600;">+300s (5p)</button>
+          </div>
+        </div>
+        <div style="font-size:.78rem;color:#64748b;margin-top:.4rem;">
+          💡 Nhập số giây mong muốn (ví dụ: <strong>30s, 60s, 90s</strong>) rồi bấm <strong>"Bắt đầu đếm ngược ngay"</strong> để kích hoạt thời gian bình chọn kết thúc sau đúng số giây đã chọn.
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. Khung Tỉ Lệ Bình Chọn Mỗi Người (Matching Screenshot 1) -->
+    <div style="background:linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);border:2px solid #2563eb;padding:1.15rem 1.25rem;border-radius:12px;margin-bottom:1.25rem;box-shadow:0 3px 12px rgba(37,99,235,0.08);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.65rem;flex-wrap:wrap;gap:.4rem;">
+        <div style="font-weight:800;color:#1e3a8a;font-size:1rem;display:flex;align-items:center;gap:.4rem;">
+          <span>📊 TỈ LỆ BÌNH CHỌN MỖI NGƯỜI (VOTE RATIO)</span>
+        </div>
+        <span id="trModalRatioBadge" style="font-size:.9rem;font-weight:800;color:#1d4ed8;background:#dbeafe;padding:.3rem .85rem;border-radius:999px;border:1.5px solid #93c5fd;">
+          70% (Tỉ lệ 7/3)
+        </span>
+      </div>
+
+      <input type="range" id="trModalRatioSlider" min="10" max="100" step="10" value="70"
+        oninput="updateModalRatioDisplay()"
+        style="width:100%;cursor:pointer;accent-color:#2563eb;height:8px;" />
+
+      <div style="display:flex;justify-content:space-between;font-size:.76rem;color:#475569;margin-top:.35rem;font-weight:700;">
+        <span>10% (1/9)</span>
+        <span>50% (5/5)</span>
+        <span>70% (7/3)</span>
+        <span>80% (8/2)</span>
+        <span>100% (Tất cả)</span>
+      </div>
+
+      <div style="margin-top:.85rem;display:flex;gap:.45rem;flex-wrap:wrap;align-items:center;">
+        <span style="font-size:.8rem;font-weight:700;color:#1e40af;">⚡ Chọn nhanh:</span>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickRatioModal(50)" style="font-size:.76rem;padding:.3rem .65rem;background:#fff;border:1px solid #cbd5e1;font-weight:600;">5/5 (50%)</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickRatioModal(70)" style="font-size:.76rem;padding:.3rem .65rem;border:2px solid #2563eb;color:#1d4ed8;background:#eff6ff;font-weight:800;">7/3 (70%)</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickRatioModal(80)" style="font-size:.76rem;padding:.3rem .65rem;background:#fff;border:1px solid #cbd5e1;font-weight:600;">8/2 (80%)</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickRatioModal(100)" style="font-size:.76rem;padding:.3rem .65rem;background:#fff;border:1px solid #cbd5e1;font-weight:600;">10/0 (100%)</button>
+        <button type="button" class="btn btn-gold btn-sm" onclick="saveEventRatioOnly()" style="font-weight:700;margin-left:auto;">
+          💾 Lưu Tỉ Lệ Bình Chọn
+        </button>
+      </div>
+
+      <div id="trModalRatioDesc" style="font-size:.82rem;color:#1e293b;margin-top:.7rem;line-height:1.55;background:#ffffff;padding:.65rem .9rem;border-radius:8px;border:1px solid #bfdbfe;">
+        💡 <strong>Quy tắc:</strong> Hiện có 6 thí sinh, 1 người sẽ được bình chọn tối đa <strong>4 thí sinh</strong> khác nhau (70%). Mỗi thí sinh chỉ được bầu <strong>1 phiếu duy nhất</strong> (không được bình chọn lặp lại 2 lần trở lên).
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div style="display:flex;gap:.65rem;margin-top:1.25rem;border-top:1px solid #e2e8f0;padding-top:1rem;">
+      <button class="btn btn-gold btn-full" onclick="saveAllTimeRatioConfig()" style="font-weight:700;padding:.75rem 1rem;font-size:.95rem;">
+        💾 Lưu Toàn Bộ Cấu Hình Cho Cuộc Thi Này
+      </button>
+      <button class="btn btn-ghost" onclick="closeAdminTimeRatioModal()" style="padding:.75rem 1.25rem;">
+        Đóng
+      </button>
     </div>
   </div>
 </div>
@@ -835,14 +992,7 @@
           <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <span>Thí sinh</span>
         </button>
-        <button class="nav-item" onclick="showTab('event')" id="nav-event" style="background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);margin:2px 0;">
-          <svg viewBox="0 0 24 24" style="stroke:#f59e0b;stroke-width:2;"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>
-          <span style="color:#fbbf24;font-weight:700;">Đổi sự kiện 🔑</span>
-        </button>
-        <button class="nav-item" onclick="showTab('event-archive')" id="nav-event-archive" style="background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.25);margin:2px 0;">
-          <svg viewBox="0 0 24 24" style="stroke:#60a5fa;stroke-width:2;"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-          <span style="color:#93c5fd;font-weight:700;">Kho sự kiện cũ 📚</span>
-        </button>
+
         <button class="nav-item" onclick="showTab('settings')" id="nav-settings">
           <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
           <span>Cài đặt</span>
@@ -880,9 +1030,9 @@
         <div style="display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
           <div id="statusPill" class="badge badge-green">● Đang mở bình chọn</div>
 
-          <button class="btn btn-gold btn-sm" onclick="showTab('event')" style="display:inline-flex;align-items:center;gap:.45rem;cursor:pointer;font-weight:700;box-shadow:0 2px 10px rgba(245,158,11,0.35);">
-            <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.2;"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>
-            <span>🔑 Đổi Sự Kiện</span>
+          <button class="btn btn-sm" onclick="openAdminTimeRatioModal()" style="display:inline-flex;align-items:center;gap:.45rem;cursor:pointer;font-weight:700;background:#2563eb;color:#fff;border:none;box-shadow:0 2px 10px rgba(37,99,235,0.35);">
+            <svg viewBox="0 0 24 24" style="width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.2;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span>⏱️ Cài Đặt Thời Gian & Tỉ Lệ</span>
           </button>
 
           <a href="index.html" target="_blank" class="btn btn-ghost btn-sm" style="border:1.5px solid #3b82f6;color:#2563eb;">🏠 Xem trang bình chọn ↗</a>
@@ -976,289 +1126,114 @@
               <div class="log-empty hidden" id="shareLogEmpty">Chưa có nhật ký chia sẻ.</div>
             </div>
           </div>
-        </div>
 
         <!-- ─── TAB: EVENTS MANAGER (QUẢN LÝ CUỘC THI BÌNH CHỌN) ─── -->
         <div class="tab-pane" id="tab-events-manager">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap;gap:.75rem;">
-            <div>
-              <h2 class="section-title font-display" style="font-size:1.25rem;margin:0;">🏆 Danh Sách Cuộc Thi Bình Chọn</h2>
-              <p style="font-size:.82rem;color:#64748b;margin-top:.2rem;">Thêm, sửa, xóa các cuộc thi bình chọn trực tuyến hiển thị trên cổng sinh viên.</p>
-            </div>
-            <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
-              <button class="btn btn-gold btn-sm" onclick="openAddAdminEvent()">+ Thêm cuộc thi mới</button>
-              <button class="btn btn-ghost btn-sm" onclick="resetDefaultAdminEvents()" style="border:1px solid #bfdbfe;color:#0284c7;background:#eff6ff;">🔄 Khôi phục 4 cuộc thi chuẩn</button>
-            </div>
+          <!-- Top Navigation Pill Toolbar matching screenshot -->
+          <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;padding:.55rem .85rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;box-shadow:0 2px 8px rgba(0,0,0,0.02);">
+            <button type="button" class="btn btn-sm" onclick="showTab('events-manager')" style="background:#0284c7;color:#fff;font-weight:700;border-radius:999px;padding:.45rem 1.1rem;display:inline-flex;align-items:center;gap:.4rem;border:none;box-shadow:0 2px 6px rgba(2,132,199,0.3);cursor:pointer;">
+              <span>📅</span> Quản lý sự kiện
+            </button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="openAddAdminEvent()" style="background:#fff;border:1px solid #cbd5e1;color:#334155;font-weight:600;border-radius:999px;padding:.45rem 1.1rem;display:inline-flex;align-items:center;gap:.4rem;cursor:pointer;">
+              <span>➕</span> Thêm sự kiện mới
+            </button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="openAdminTimeRatioModal()" style="background:#fff;border:1px solid #cbd5e1;color:#334155;font-weight:600;border-radius:999px;padding:.45rem 1.1rem;display:inline-flex;align-items:center;gap:.4rem;cursor:pointer;">
+              <span>⏱️</span> Cài đặt thời gian & tỉ lệ
+            </button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="showTab('contestants')" style="background:#fff;border:1px solid #cbd5e1;color:#334155;font-weight:600;border-radius:999px;padding:.45rem 1.1rem;display:inline-flex;align-items:center;gap:.4rem;cursor:pointer;">
+              <span>👥</span> Quản lý thí sinh
+            </button>
           </div>
-          <div id="adminEventsGrid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:1.25rem;"></div>
+
+          <!-- White Card Container matching screenshot -->
+          <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:18px;padding:1.5rem;box-shadow:0 4px 20px rgba(0,0,0,0.04);">
+            <!-- Card Header -->
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;padding-bottom:.85rem;border-bottom:1px solid #f1f5f9;flex-wrap:wrap;gap:.75rem;">
+              <div style="display:flex;align-items:center;gap:.5rem;font-size:1.18rem;font-weight:800;color:#0f172a;">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="8" y1="6" x2="21" y2="6"></line>
+                  <line x1="8" y1="12" x2="21" y2="12"></line>
+                  <line x1="8" y1="18" x2="21" y2="18"></line>
+                  <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                  <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                  <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                </svg>
+                <span>Danh sách sự kiện đang mở</span>
+              </div>
+              <button class="btn btn-sm" onclick="resetDefaultAdminEvents()" style="background:#fef2f2;border:1px solid #fca5a5;color:#b91c1c;font-weight:700;border-radius:8px;padding:.4rem .9rem;display:inline-flex;align-items:center;gap:.35rem;cursor:pointer;">
+                <span>🗑</span> Thùng Rác & Khôi Phục
+              </button>
+            </div>
+
+            <!-- List of events matching screenshot layout -->
+            <div id="adminEventsGrid" style="display:flex;flex-direction:column;"></div>
+          </div>
         </div>
 
         <!-- ─── TAB: CONTESTANTS ─── -->
         <div class="tab-pane" id="tab-contestants">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem">
-            <h2 class="section-title font-display" style="font-size:1.2rem">Danh sách thí sinh</h2>
-            <button class="btn btn-gold btn-sm" onclick="openAdd()">+ Thêm thí sinh</button>
+          <!-- Top Navigation Pill Toolbar matching screenshot -->
+          <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:14px;padding:.55rem .85rem;margin-bottom:1.25rem;display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;box-shadow:0 2px 8px rgba(0,0,0,0.02);">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="showTab('events-manager')" style="background:#fff;border:1px solid #cbd5e1;color:#334155;font-weight:600;border-radius:999px;padding:.45rem 1.1rem;display:inline-flex;align-items:center;gap:.4rem;cursor:pointer;">
+              <span>📅</span> Quản lý sự kiện
+            </button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="openAddAdminEvent()" style="background:#fff;border:1px solid #cbd5e1;color:#334155;font-weight:600;border-radius:999px;padding:.45rem 1.1rem;display:inline-flex;align-items:center;gap:.4rem;cursor:pointer;">
+              <span>➕</span> Thêm sự kiện mới
+            </button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="openAdminTimeRatioModal()" style="background:#fff;border:1px solid #cbd5e1;color:#334155;font-weight:600;border-radius:999px;padding:.45rem 1.1rem;display:inline-flex;align-items:center;gap:.4rem;cursor:pointer;">
+              <span>⏱️</span> Cài đặt thời gian & tỉ lệ
+            </button>
+            <button type="button" class="btn btn-sm" onclick="showTab('contestants')" style="background:#0284c7;color:#fff;font-weight:700;border-radius:999px;padding:.45rem 1.1rem;display:inline-flex;align-items:center;gap:.4rem;border:none;box-shadow:0 2px 6px rgba(2,132,199,0.3);cursor:pointer;">
+              <span>👥</span> Quản lý thí sinh
+            </button>
           </div>
-          <div class="c-list" id="contestantList"></div>
-        </div>
 
-        <!-- ─── TAB: EVENT CONFIG (ĐỔI SỰ KIỆN 🔑) ─── -->
-        <div class="tab-pane" id="tab-event">
-          <div class="card" style="margin-bottom:1.5rem;background:linear-gradient(135deg, #1e293b 0%, #0f172a 100%);border:1px solid #334155;color:#fff;padding:1.5rem;border-radius:12px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
-              <div>
-                <h2 style="margin:0;font-size:1.4rem;color:#f8fafc;display:flex;align-items:center;gap:.5rem;">
-                  <span>🔑</span> Cấu Hình & Chuyển Đổi Sự Kiện
-                </h2>
-                <p style="margin:.35rem 0 0 0;font-size:.85rem;color:#94a3b8;">
-                  Thay đổi tên cuộc thi, chủ đề, logo hoặc chuyển sang tổ chức sự kiện bình chọn mới (Hoa Khôi, Nam Vương, Tài Năng, Tiếng Hát,...) tức thì.
-                </p>
-              </div>
-              <button class="btn btn-gold" onclick="saveEventSettings()" style="font-weight:700;display:inline-flex;align-items:center;gap:.5rem;box-shadow:0 4px 14px rgba(234,179,8,.4);">
-                <svg viewBox="0 0 24 24" style="width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>
-                <span>💾 Lưu & Áp Dụng Ngay</span>
+          <!-- Top Toolbar for Contestants -->
+          <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;padding:1rem 1.25rem;margin-bottom:1.25rem;box-shadow:0 2px 10px rgba(0,0,0,0.03);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+            <div style="display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;">
+              <span style="font-size:.92rem;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:.35rem;">
+                <span>🏆</span> Cuộc thi:
+              </span>
+              <select id="contestantEventFilterSelect" class="input" onchange="onContestantFilterChange(this.value)" style="width:auto;min-width:280px;font-weight:700;color:#0284c7;border-color:#93c5fd;background:#eff6ff;cursor:pointer;padding:.45rem .85rem;">
+                <!-- Populated dynamically -->
+              </select>
+            </div>
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+              <button class="btn btn-gold btn-sm" onclick="openAdd()" style="font-weight:700;display:inline-flex;align-items:center;gap:.35rem;padding:.45rem 1.1rem;box-shadow:0 2px 8px rgba(37,99,235,0.3);">
+                <span>➕</span> Thêm thí sinh mới
+              </button>
+              <button class="btn btn-ghost btn-sm" onclick="seedDefaultContestantsForCurrentEvent()" style="border:1.5px solid #bfdbfe;color:#0284c7;background:#fff;font-weight:600;padding:.45rem .85rem;">
+                <span>🔄</span> Nạp 6 thí sinh mẫu
+              </button>
+              <button class="btn btn-ghost btn-sm" onclick="showTab('events-manager')" style="border:1px solid #cbd5e1;background:#fff;color:#475569;padding:.45rem .85rem;">
+                <span>⬅</span> Quản lý sự kiện
               </button>
             </div>
-
-            <!-- Quick 1-Click Presets -->
-            <div style="margin-top:1.25rem;padding-top:1.25rem;border-top:1px solid rgba(255,255,255,0.1);">
-              <div style="font-size:.8rem;font-weight:600;color:#fcd34d;margin-bottom:.6rem;text-transform:uppercase;letter-spacing:.05em;">
-                ⚡ Mẫu Sự Kiện Có Sẵn (Bấm 1 chạm để tự động điền mẫu):
-              </div>
-              <div style="display:flex;gap:.6rem;flex-wrap:wrap;">
-                <button type="button" class="btn btn-ghost btn-sm" onclick="applyEventPreset('hoakhoi')" style="border:1px solid #eab308;color:#fef08a;">
-                  👑 Hoa Khôi Sinh Viên
-                </button>
-                <button type="button" class="btn btn-ghost btn-sm" onclick="applyEventPreset('namvuong')" style="border:1px solid #38bdf8;color:#bae6fd;">
-                  🌟 Nam Vương Học Đường
-                </button>
-                <button type="button" class="btn btn-ghost btn-sm" onclick="applyEventPreset('tienghat')" style="border:1px solid #f43f5e;color:#fecdd3;">
-                  🎤 Hội Thi Tiếng Hát
-                </button>
-                <button type="button" class="btn btn-ghost btn-sm" onclick="applyEventPreset('daisu')" style="border:1px solid #a855f7;color:#e9d5ff;">
-                  🏆 Gương Mặt Đại Sứ
-                </button>
-              </div>
-            </div>
           </div>
 
-          <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:1.5rem;align-items:start;">
-            <!-- Left Column: Settings Form -->
-            <div class="card" style="background:#fff;border-radius:12px;padding:1.5rem;box-shadow:0 4px 16px rgba(0,0,0,0.06);border:1px solid #e2e8f0;">
-              <h3 style="margin:0 0 1.25rem 0;font-size:1.05rem;color:#0f172a;display:flex;align-items:center;gap:.4rem;">
-                📝 Chi Tiết Thông Tin Cuộc Thi Mới
-              </h3>
-
-              <div class="form-group" style="margin-bottom:1rem;">
-                <label class="form-label" style="font-weight:600;color:#334155;">
-                  Tiêu đề chính sự kiện
-                  <span style="font-size:.72rem;color:#64748b;font-weight:normal;">(chấp nhận HTML)</span>
-                </label>
-                <input class="input" id="setEventTitle" oninput="updateEventPreview()" placeholder="Bình Chọn <span class='hero-title-accent'>Hoa Khôi</span>" />
+          <!-- Contestant List Container -->
+          <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:18px;padding:1.5rem;box-shadow:0 4px 20px rgba(0,0,0,0.04);">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.15rem;padding-bottom:.85rem;border-bottom:1px solid #f1f5f9;flex-wrap:wrap;gap:.5rem;">
+              <div style="font-size:1.15rem;font-weight:800;color:#0f172a;display:flex;align-items:center;gap:.45rem;">
+                <span>👥</span> <span id="contestantsHeaderTitle">Danh sách thí sinh – Cuộc thi Bình Chọn Hoa Khôi</span>
               </div>
-
-              <div class="form-group" style="margin-bottom:1rem;">
-                <label class="form-label" style="font-weight:600;color:#334155;">Niên khóa / Mốc thời gian</label>
-                <input class="input" id="setEventYear" oninput="updateEventPreview()" placeholder="✦ NĂM HỌC 2025 – 2026 ✦" />
-              </div>
-
-              <div class="form-group" style="margin-bottom:1rem;">
-                <label class="form-label" style="font-weight:600;color:#334155;">Khẩu hiệu / Mô tả phụ sự kiện</label>
-                <textarea class="input" id="setEventSub" oninput="updateEventPreview()" rows="2" style="resize:vertical;" placeholder="Chạm để trao vương miện cho thí sinh bạn yêu thích nhất"></textarea>
-              </div>
-
-              <div class="form-group" style="margin-bottom:1rem;">
-                <label class="form-label" style="font-weight:600;color:#334155;">
-                  Link hoặc tên file Logo
-                  <span style="font-size:.72rem;color:#64748b;font-weight:normal;">(tên file hoặc URL ảnh)</span>
-                </label>
-                <div style="display:flex;gap:.5rem;">
-                  <input class="input" id="setLogoUrl" oninput="updateEventPreview()" placeholder="logo-muce.png" />
-                  <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('setLogoUrl').value='logo-muce.png';updateEventPreview();" title="Đặt lại logo MUCE" style="white-space:nowrap;border:1px solid #cbd5e1;">
-                    Dùng Logo MUCE
-                  </button>
-                </div>
-              </div>
-
-              <div class="form-group" style="margin-bottom:1.25rem;">
-                <label class="form-label" style="font-weight:600;color:#334155;">Hạn chót bình chọn (Thời điểm kết thúc)</label>
-                <input class="input" type="datetime-local" step="1" id="setEventEndTime" onchange="syncEndTimeFromEvent()" />
-                <div style="margin-top:.45rem;display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;">
-                  <span style="font-size:.78rem;font-weight:700;color:#2563eb;">Giây:</span>
-                  <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickSecondsEvent(15)" style="border:1px solid #bfdbfe;color:#1d4ed8;background:#eff6ff;">+15s</button>
-                  <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickSecondsEvent(30)" style="border:1px solid #bfdbfe;color:#1d4ed8;background:#eff6ff;">+30s</button>
-                  <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickSecondsEvent(60)" style="border:1px solid #bfdbfe;color:#1d4ed8;background:#eff6ff;">+60s</button>
-                  <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickSecondsEvent(120)" style="border:1px solid #bfdbfe;color:#1d4ed8;background:#eff6ff;">+120s</button>
-                  <span style="font-size:.78rem;font-weight:700;color:#64748b;margin-left:.3rem;">Ngày:</span>
-                  <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickTimeEvent(1)">+1 ngày</button>
-                  <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickTimeEvent(3)">+3 ngày</button>
-                  <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickTimeEvent(7)">+7 ngày</button>
-                </div>
-              </div>
-
-              <!-- Thanh Tỉ Lệ Bình Chọn Mỗi Người (Đặt ngay trước nút Lưu & Áp Dụng) -->
-              <div class="form-group" style="margin-bottom:1.25rem;background:linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%);padding:1.1rem 1.25rem;border-radius:12px;border:2px solid #2563eb;box-shadow:0 3px 12px rgba(37,99,235,0.12);">
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.6rem;flex-wrap:wrap;gap:.4rem;">
-                  <label class="form-label" style="font-weight:800;color:#1e3a8a;margin-bottom:0;display:flex;align-items:center;gap:.4rem;font-size:1rem;">
-                    <span>📊 Tỉ Lệ Bình Chọn Mỗi Người (Vote Ratio)</span>
-                  </label>
-                  <span id="voteRatioBadge" style="font-size:.9rem;font-weight:800;color:#1d4ed8;background:#dbeafe;padding:.3rem .85rem;border-radius:999px;border:1.5px solid #93c5fd;box-shadow:0 1px 3px rgba(0,0,0,0.05);">
-                    80% (Tỉ lệ 8/2)
-                  </span>
-                </div>
-                
-                <input type="range" id="setVoteRatio" min="10" max="100" step="10" value="80" 
-                  oninput="updateVoteRatioDisplay()" 
-                  style="width:100%;cursor:pointer;accent-color:#2563eb;height:8px;" />
-                
-                <div style="display:flex;justify-content:space-between;font-size:.76rem;color:#475569;margin-top:.35rem;font-weight:700;">
-                  <span>10% (1/9)</span>
-                  <span>50% (5/5)</span>
-                  <span>70% (7/3)</span>
-                  <span>80% (8/2)</span>
-                  <span>100% (Tất cả)</span>
-                </div>
-
-                <div style="margin-top:.85rem;display:flex;gap:.45rem;flex-wrap:wrap;align-items:center;">
-                  <span style="font-size:.8rem;font-weight:700;color:#1e40af;">⚡ Chọn nhanh:</span>
-                  <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickRatio(50)" style="font-size:.76rem;padding:.3rem .65rem;background:#fff;border:1px solid #cbd5e1;font-weight:600;">5/5 (50%)</button>
-                  <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickRatio(70)" style="font-size:.76rem;padding:.3rem .65rem;background:#fff;border:1px solid #cbd5e1;font-weight:600;">7/3 (70%)</button>
-                  <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickRatio(80)" style="font-size:.76rem;padding:.3rem .65rem;border:2px solid #2563eb;color:#1d4ed8;background:#eff6ff;font-weight:800;">8/2 (80%)</button>
-                  <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickRatio(100)" style="font-size:.76rem;padding:.3rem .65rem;background:#fff;border:1px solid #cbd5e1;font-weight:600;">10/0 (100%)</button>
-                </div>
-
-                <div id="voteRatioDesc" style="font-size:.82rem;color:#1e293b;margin-top:.7rem;line-height:1.55;background:#ffffff;padding:.65rem .9rem;border-radius:8px;border:1px solid #bfdbfe;">
-                  💡 <strong>Quy tắc:</strong> Hiện có 10 thí sinh, 1 người sẽ được bình chọn tối đa <strong>8 thí sinh</strong> khác nhau (80%). Mỗi thí sinh chỉ được bầu <strong>1 phiếu duy nhất</strong> (không được bình chọn lặp lại 2 lần trở lên).
-                </div>
-              </div>
-
-              <div style="display:flex;gap:.75rem;flex-wrap:wrap;padding-top:1rem;border-top:1px solid #e2e8f0;">
-                <button class="btn btn-gold btn-full" onclick="saveEventSettings()" style="font-weight:700;padding:.75rem 1rem;">
-                  🔑 Lưu & Áp Dụng Sự Kiện Này
+              <div style="display:flex;align-items:center;gap:.6rem;">
+                <span id="contestantCountBadge" style="background:#e0f2fe;color:#0284c7;padding:.25rem .85rem;border-radius:999px;font-weight:800;font-size:.82rem;border:1px solid #bae6fd;">
+                  6 thí sinh
+                </span>
+                <button class="btn btn-gold btn-sm" onclick="openAdd()" style="font-weight:700;display:inline-flex;align-items:center;gap:.35rem;padding:.35rem .85rem;">
+                  <span>➕</span> Thêm thí sinh
                 </button>
               </div>
             </div>
 
-            <!-- Right Column: Live Preview & Reset Options -->
-            <div>
-              <!-- Live Preview Card -->
-              <div class="card" style="background:#0f172a;border-radius:12px;padding:1.5rem;color:#fff;border:1px solid #334155;margin-bottom:1.5rem;box-shadow:0 8px 24px rgba(0,0,0,0.25);">
-                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:.6rem;">
-                  <span style="font-size:.78rem;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.05em;">
-                    👀 Xem Trước Trực Quan Banner Trang Chủ
-                  </span>
-                  <span style="background:rgba(34,197,94,0.15);color:#4ade80;font-size:.68rem;padding:2px 8px;border-radius:99px;font-weight:600;">
-                    LIVE PREVIEW
-                  </span>
-                </div>
-
-                <!-- Preview Banner Box -->
-                <div style="background:linear-gradient(135deg, #0a1628 0%, #0d2847 40%, #0f3460 70%, #1a4a7a 100%);border-radius:10px;padding:1.5rem 1rem;text-align:center;position:relative;border:1px solid rgba(255,255,255,0.15);overflow:hidden;">
-                  <div style="display:flex;justify-content:center;margin-bottom:.75rem;">
-                    <img id="previewEventLogo" src="logo-muce.png" alt="Logo" style="height:48px;max-width:160px;object-fit:contain;background:#fff;padding:3px;border-radius:6px;" />
-                  </div>
-                  <div style="font-size:1.6rem;margin-bottom:.3rem;">👑</div>
-                  <div id="previewEventTitle" style="font-family:var(--font-d);font-size:1.35rem;font-weight:900;color:#fff;line-height:1.2;margin-bottom:.5rem;">
-                    Bình Chọn <span style="color:#f59e0b">Hoa Khôi</span>
-                  </div>
-                  <div id="previewEventSub" style="font-size:.82rem;color:rgba(255,255,255,0.8);max-width:320px;margin:0 auto .65rem auto;line-height:1.4;">
-                    Chạm để trao vương miện cho thí sinh bạn yêu thích nhất
-                  </div>
-                  <div id="previewEventYear" style="display:inline-block;font-size:.72rem;font-weight:700;letter-spacing:.08em;color:#fcd34d;background:rgba(254,240,138,0.12);padding:3px 12px;border-radius:99px;border:1px solid rgba(254,240,138,0.3);">
-                    ✦ NĂM HỌC 2025 – 2026 ✦
-                  </div>
-                </div>
-              </div>
-
-              <!-- Reset for New Event Card -->
-              <div class="card" style="background:#fff;border-radius:12px;padding:1.5rem;border:1px solid #e2e8f0;box-shadow:0 4px 16px rgba(0,0,0,0.06);">
-                <h4 style="margin:0 0 .75rem 0;color:#dc2626;font-size:.95rem;display:flex;align-items:center;gap:.4rem;">
-                  ⚠ Tùy Chọn Khởi Động Cuộc Thi Mới
-                </h4>
-                <p style="font-size:.8rem;color:#64748b;line-height:1.4;margin:0 0 1rem 0;">
-                  Khi chuyển sang sự kiện khác hoàn toàn (ví dụ: chuyển từ Hoa Khôi sang Nam Vương), bạn có thể đặt lại tất cả số phiếu bầu về 0 để mở cuộc bình chọn mới từ đầu.
-                </p>
-                <button type="button" class="btn btn-danger btn-sm" onclick="resetVotesForNewEvent()" style="font-weight:600;">
-                  🗑 Đưa số phiếu bầu về 0 (Bắt đầu cuộc thi mới)
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <!-- ─── KHO SỰ KIỆN ĐÃ LƯU (EVENT ARCHIVE / LIBRARY) ─── -->
-          <div class="card" style="margin-top:1.75rem;background:#fff;border-radius:12px;padding:1.5rem;box-shadow:0 4px 16px rgba(0,0,0,0.06);border:1px solid #e2e8f0;">
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.25rem;border-bottom:1px solid #e2e8f0;padding-bottom:.85rem;">
-              <div>
-                <h3 style="margin:0;font-size:1.15rem;color:#0f172a;display:flex;align-items:center;gap:.5rem;">
-                  <span>📚</span> Kho Sự Kiện Đã Lưu (Lịch Sử Cuộc Thi)
-                </h3>
-                <p style="margin:.3rem 0 0 0;font-size:.82rem;color:#64748b;">
-                  Tất cả các sự kiện cũ và mới được lưu giữ an toàn tại đây. Khi cần đổi sang cuộc thi nào, chỉ cần nhấn <strong>"⚡ Kích hoạt sự kiện này"</strong> là toàn bộ trang web sẽ đổi ngay!
-                </p>
-              </div>
-              <button type="button" class="btn btn-outline-gold btn-sm" onclick="saveCurrentAsNewEvent()" style="display:inline-flex;align-items:center;gap:.4rem;font-weight:700;">
-                <span>+</span> Lưu Sự Kiện Hiện Tại Thành Bản Mới
-              </button>
-            </div>
-
-            <!-- List of Saved Events -->
-            <div id="savedEventsList" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:1rem;">
-              <!-- Rendered by renderSavedEventsList() -->
-            </div>
-          </div>
-        </div>
-
-        <!-- ─── TAB: EVENT ARCHIVE (KHO SỰ KIỆN CŨ 📚) ─── -->
-        <div class="tab-pane" id="tab-event-archive">
-          <div class="card" style="margin-bottom:1.5rem;background:linear-gradient(135deg, #0f172a 0%, #1e293b 100%);border:1px solid #334155;color:#fff;padding:1.5rem;border-radius:12px;">
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
-              <div>
-                <h2 style="margin:0;font-size:1.4rem;color:#f8fafc;display:flex;align-items:center;gap:.5rem;">
-                  <span>📚</span> Kho Lưu Trữ Các Sự Kiện Cuộc Thi
-                </h2>
-                <p style="margin:.35rem 0 0 0;font-size:.85rem;color:#94a3b8;">
-                  Nơi lưu trữ tất cả các sự kiện cũ và mới. Khi muốn quay lại cuộc thi nào, chỉ cần nhấn <strong>"⚡ Kích hoạt ngay"</strong> để website tự động chuyển sang cuộc thi đó tức thì!
-                </p>
-              </div>
-              <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
-                <button class="btn btn-gold" onclick="showTab('event')" style="font-weight:700;display:inline-flex;align-items:center;gap:.4rem;">
-                  <span>🔑</span> Tạo / Đổi Sự Kiện Mới
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div class="card" style="background:#fff;border-radius:12px;padding:1.5rem;box-shadow:0 4px 16px rgba(0,0,0,0.06);border:1px solid #e2e8f0;">
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;margin-bottom:1.25rem;border-bottom:1px solid #e2e8f0;padding-bottom:.85rem;">
-              <h3 style="margin:0;font-size:1.1rem;color:#0f172a;">
-                Danh Sách Cuộc Thi Đã Lưu Trong Hệ Thống
-              </h3>
-              <span style="font-size:.8rem;color:#64748b;">Nhấn nút ⚡ để chuyển sự kiện trực tiếp</span>
-            </div>
-
-            <div id="archiveEventsList" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:1rem;">
-              <!-- Rendered by renderSavedEventsList() -->
-            </div>
+            <!-- List -->
+            <div class="c-list" id="contestantList"></div>
           </div>
         </div>
 
         <!-- ─── TAB: SETTINGS ─── -->
         <div class="tab-pane" id="tab-settings">
-          <!-- Event Content Settings Banner Shortcut -->
-          <div class="settings-section" style="background:rgba(245,158,11,0.06);border:1.5px solid rgba(245,158,11,0.3);">
-            <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.75rem;">
-              <div>
-                <div class="settings-label" style="margin-bottom:.2rem;color:#d97706;font-size:1rem;">🔑 Quản Lý & Đổi Sự Kiện Bình Chọn</div>
-                <div style="font-size:.82rem;color:#64748b;">
-                  Dễ dàng đổi tên cuộc thi, chủ đề, logo hoặc chuyển sang cuộc thi khác bất cứ lúc nào tại tab riêng.
-                </div>
-              </div>
-              <button class="btn btn-gold btn-sm" onclick="showTab('event')" style="font-weight:700;">
-                Mở Cấu Hình Sự Kiện 🔑
-              </button>
-            </div>
-          </div>
-
           <!-- Voting Period -->
           <div class="settings-section">
             <div class="settings-label">⏱ Thời gian bình chọn</div>
@@ -1513,15 +1488,41 @@ const api = {
   }
 };
 
-/* ─── DEFAULTS ──────────────────────────────────────────── */
-const DEFAULT_CONTESTANTS = [
-  { id: "01", name: "Thí sinh 01", subtitle: "Đến từ Hà Nội",    color: "#6B1E3C" },
-  { id: "02", name: "Thí sinh 02", subtitle: "Đến từ TP.HCM",    color: "#8C2F4B" },
-  { id: "03", name: "Thí sinh 03", subtitle: "Đến từ Đà Nẵng",   color: "#A63E5A" },
-  { id: "04", name: "Thí sinh 04", subtitle: "Đến từ Cần Thơ",   color: "#B94A63" },
-  { id: "05", name: "Thí sinh 05", subtitle: "Đến từ Huế",       color: "#C9576E" },
-  { id: "06", name: "Thí sinh 06", subtitle: "Đến từ Nha Trang", color: "#6B1E3C" },
+/* ─── DEFAULTS (DANH SÁCH THÍ SINH CỦA CÁC CUỘC THI) ──── */
+const ALL_DEFAULT_CONTESTANTS = [
+  // 1. Thí sinh Hoa Khôi 2026
+  { id: "hk_01", event_id: "evt_hoakhoi_2026", name: "Nguyễn Thảo Nhi", subtitle: "Khoa Xây dựng · SBD 01", color: "#0057a8" },
+  { id: "hk_02", event_id: "evt_hoakhoi_2026", name: "Trần Bảo Ngọc", subtitle: "Khoa Kiến trúc · SBD 02", color: "#003d7a" },
+  { id: "hk_03", event_id: "evt_hoakhoi_2026", name: "Lê Hoàng Yến", subtitle: "Khoa Kinh tế & QTKD · SBD 03", color: "#005299" },
+  { id: "hk_04", event_id: "evt_hoakhoi_2026", name: "Phạm Quỳnh Anh", subtitle: "Khoa Công nghệ thông tin · SBD 04", color: "#0057a8" },
+  { id: "hk_05", event_id: "evt_hoakhoi_2026", name: "Đặng Mai Phương", subtitle: "Khoa Kỹ thuật Hạ tầng · SBD 05", color: "#003d7a" },
+  { id: "hk_06", event_id: "evt_hoakhoi_2026", name: "Vũ Minh Hằng", subtitle: "Khoa Cầu đường · SBD 06", color: "#005299" },
+
+  // 2. Thí sinh Nam Vương 2026
+  { id: "nv_01", event_id: "evt_namvuong_2026", name: "Nguyễn Tuấn Kiệt", subtitle: "Khoa Xây dựng · SBD 01", color: "#1e3a8a" },
+  { id: "nv_02", event_id: "evt_namvuong_2026", name: "Trần Hải Đăng", subtitle: "Khoa Kiến trúc · SBD 02", color: "#0369a1" },
+  { id: "nv_03", event_id: "evt_namvuong_2026", name: "Lê Đức Phúc", subtitle: "Khoa CNTT · SBD 03", color: "#0f766e" },
+  { id: "nv_04", event_id: "evt_namvuong_2026", name: "Phạm Minh Khang", subtitle: "Khoa Kinh tế · SBD 04", color: "#1d4ed8" },
+  { id: "nv_05", event_id: "evt_namvuong_2026", name: "Đỗ Quốc Bảo", subtitle: "Khoa Cầu đường · SBD 05", color: "#0284c7" },
+  { id: "nv_06", event_id: "evt_namvuong_2026", name: "Hoàng Gia Huy", subtitle: "Khoa Cơ khí · SBD 06", color: "#0f172a" },
+
+  // 3. Tiết mục Tiếng Hát Sinh Viên 2026
+  { id: "th_01", event_id: "evt_tienghat_2026", name: "Tiết mục: Khát Vọng Tuổi Trẻ", subtitle: "CLB Âm Nhạc MUCE · SBD 01", color: "#7c3aed" },
+  { id: "th_02", event_id: "evt_tienghat_2026", name: "Tiết mục: Bài Ca Sinh Viên Xây Dựng", subtitle: "Khoa Xây dựng · SBD 02", color: "#9333ea" },
+  { id: "th_03", event_id: "evt_tienghat_2026", name: "Tiết mục: Nơi Đảo Xa", subtitle: "Khoa Công nghệ thông tin · SBD 03", color: "#6366f1" },
+  { id: "th_04", event_id: "evt_tienghat_2026", name: "Tiết mục: Chiều Lên Bản Thượng", subtitle: "Khoa Kiến trúc · SBD 04", color: "#4f46e5" },
+  { id: "th_05", event_id: "evt_tienghat_2026", name: "Tiết mục: Tự Hào MUCE", subtitle: "Liên quân Đoàn khoa · SBD 05", color: "#2563eb" },
+  { id: "th_06", event_id: "evt_tienghat_2026", name: "Tiết mục: Ước Mơ Xanh", subtitle: "Khoa Kinh tế · SBD 06", color: "#0284c7" },
+
+  // 4. Ứng viên Gương Mặt Đại Sứ 2026
+  { id: "ds_01", event_id: "evt_daisu_2026", name: "Nguyễn Hoàng Long", subtitle: "Đại sứ Học tập & NCKH Xuất sắc · SBD 01", color: "#d97706" },
+  { id: "ds_02", event_id: "evt_daisu_2026", name: "Trần Thu Trang", subtitle: "Đại sứ Hoạt động Phong trào · SBD 02", color: "#b45309" },
+  { id: "ds_03", event_id: "evt_daisu_2026", name: "Lê Thanh Tùng", subtitle: "Đại sứ Thể thao & Nghệ thuật · SBD 03", color: "#ea580c" },
+  { id: "ds_04", event_id: "evt_daisu_2026", name: "Phạm Ngọc Linh", subtitle: "Đại sứ Tình nguyện Vì cộng đồng · SBD 04", color: "#ca8a04" },
+  { id: "ds_05", event_id: "evt_daisu_2026", name: "Vũ Đức Trọng", subtitle: "Đại sứ Đổi mới Sáng tạo & Khởi nghiệp · SBD 05", color: "#0284c7" },
+  { id: "ds_06", event_id: "evt_daisu_2026", name: "Đặng Thanh Tâm", subtitle: "Đại sứ Hội nhập Quốc tế · SBD 06", color: "#059669" }
 ];
+const DEFAULT_CONTESTANTS = ALL_DEFAULT_CONTESTANTS;
 /* ─── FIREBASE CONFIG ──────────────────────────────────── */
 /* ⚠ THAY THẾ CẤU HÌNH NÀY BẰNG CONFIG TỪ FIREBASE PROJECT CỦA BẠN */
 const firebaseConfig = {
@@ -2222,10 +2223,8 @@ function showTab(name) {
   const titles = {
     overview: 'Tổng quan',
     timeline: 'Nhật ký bình chọn',
-    'events-manager': '🏆 Quản lý Cuộc Thi Bình Chọn',
+    'events-manager': 'Quản lý sự kiện',
     contestants: 'Quản lý thí sinh',
-    event: '🔑 Cấu hình & Đổi Sự Kiện',
-    'event-archive': '📚 Kho Sự Kiện Cũ (Lịch Sử Cuộc Thi)',
     settings: 'Cài đặt',
     admins: 'Quản lý Admin'
   };
@@ -2236,12 +2235,10 @@ function showTab(name) {
   if (targetPane) targetPane.classList.add('active');
   if (targetNav) targetNav.classList.add('active');
   document.getElementById('mainTitle').textContent = titles[name] || '';
-  if (name === 'event' || name === 'event-archive') {
-    updateEventPreview();
-    renderSavedEventsList();
-  }
   if (name === 'events-manager') {
-    renderAdminEvents();
+    loadAdminEvents();
+  } else if (name === 'contestants') {
+    renderContestantList(currentContestantEventId);
   }
 }
 
@@ -2253,9 +2250,9 @@ const DEFAULT_ADMIN_EVENTS = [
     year: '✦ NĂM HỌC 2025 – 2026 ✦',
     title: 'Bình Chọn Hoa Khôi',
     description: 'Chạm để trao vương miện cho thí sinh bạn yêu thích nhất',
-    location: 'Hội trường A – Trường ĐH Xây dựng Miền Trung',
+    location: 'Trường Đại học Xây dựng Miền Trung (Bán kính: 5000m)',
     event_time: '08:00 - 22:00',
-    creator: 'Đoàn TN – Hội Sinh viên MUCE',
+    creator: 'hongnhung',
     checked_in_count: 245
   },
   {
@@ -2264,9 +2261,9 @@ const DEFAULT_ADMIN_EVENTS = [
     year: '✦ NĂM HỌC 2025 – 2026 ✦',
     title: 'Bình Chọn Nam Vương',
     description: 'Bình chọn nam sinh tài năng, phong cách và ưu tú nhất',
-    location: 'Hội trường A – Trường ĐH Xây dựng Miền Trung',
+    location: 'Trường Đại học Xây dựng Miền Trung (Bán kính: 5000m)',
     event_time: '08:00 - 22:00',
-    creator: 'Đoàn TN – Hội Sinh viên MUCE',
+    creator: 'hongnhung',
     checked_in_count: 182
   },
   {
@@ -2275,9 +2272,9 @@ const DEFAULT_ADMIN_EVENTS = [
     year: '✦ HỘI THI 2026 ✦',
     title: 'Bình Chọn Tiếng Hát Sinh Viên',
     description: 'Bình chọn tiết mục và giọng ca vàng xuất sắc nhất',
-    location: 'Hội trường Khu B – Trường ĐH Xây dựng Miền Trung',
+    location: 'Trường Đại học Xây dựng Miền Trung (Bán kính: 5000m)',
     event_time: '18:00 - 22:00',
-    creator: 'Đoàn TN – Hội Sinh viên MUCE',
+    creator: 'hongnhung',
     checked_in_count: 310
   },
   {
@@ -2286,9 +2283,9 @@ const DEFAULT_ADMIN_EVENTS = [
     year: '✦ NHIỆM KỲ 2026 – 2027 ✦',
     title: 'Bình Chọn Gương Mặt Đại Sứ',
     description: 'Tôn vinh gương mặt đại diện và nét đẹp sinh viên tiêu biểu',
-    location: 'Trụ sở chính – Trường ĐH Xây dựng Miền Trung',
+    location: 'Trường Đại học Xây dựng Miền Trung (Bán kính: 5000m)',
     event_time: '08:00 - 22:00',
-    creator: 'Đoàn TN – Hội Sinh viên MUCE',
+    creator: 'hongnhung',
     checked_in_count: 156
   }
 ];
@@ -2330,34 +2327,405 @@ function renderAdminEvents() {
   const container = document.getElementById('adminEventsGrid');
   if (!container) return;
   if (!adminEvents.length) {
-    container.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2rem;color:#94a3b8;">Chưa có cuộc thi nào. Hãy nhấn "+ Thêm cuộc thi mới" để tạo!</div>';
+    container.innerHTML = '<div style="text-align:center;padding:3rem 1rem;color:#94a3b8;font-size:1rem;">Chưa có sự kiện nào đang mở. Nhấn "+ Thêm sự kiện mới" để tạo!</div>';
     return;
   }
   container.innerHTML = adminEvents.map((ev, i) => {
     const count = parseInt(ev.total_attendees || ev.checked_in_count || 0);
+    const ratio = ev.vote_ratio || 80;
+
+    // Contestants count for this event
+    const cList = (appData.contestants || []).filter(c => c.event_id === ev.id || (!c.event_id && ev.id === 'evt_hoakhoi_2026'));
+    const contestantCount = cList.length > 0 ? cList.length : 6;
+
+    let timeBadge = '';
+    if (ev.end_time) {
+      const endD = new Date(ev.end_time);
+      const isPast = endD.getTime() < Date.now();
+      const timeStr = endD.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' ' + endD.toLocaleDateString('vi-VN');
+      if (isPast) {
+        timeBadge = `<span style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;font-size:.74rem;font-weight:800;padding:.2rem .65rem;border-radius:999px;">⛔ HẾT GIỜ (${timeStr})</span>`;
+      } else {
+        timeBadge = `<span style="background:#fef3c7;color:#b45309;border:1px solid #fde68a;font-size:.74rem;font-weight:800;padding:.2rem .65rem;border-radius:999px;">⏱️ Hạn: ${timeStr}</span>`;
+      }
+    } else {
+      timeBadge = `<span style="background:#dcfce7;color:#15803d;border:1px solid #86efac;font-size:.74rem;font-weight:800;padding:.2rem .65rem;border-radius:999px;">🟢 ĐANG MỞ</span>`;
+    }
+
     return `
-    <div style="background:#ffffff;border:1.5px solid #bae6fd;border-radius:16px;padding:1.25rem;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 4px 14px rgba(0,0,0,0.04);">
-      <div>
-        <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.65rem;">
-          <span style="background:#e0f2fe;color:#0284c7;font-size:.72rem;font-weight:700;padding:.2rem .55rem;border-radius:6px;">${esc(ev.tag || '# CUỘC THI')}</span>
-          <span style="background:#dcfce7;color:#15803d;border:1px solid #86efac;font-size:.72rem;font-weight:800;padding:.2rem .55rem;border-radius:6px;">🟢 ĐANG MỞ BÌNH CHỌN</span>
-          <span style="background:#e0f2fe;color:#0284c7;font-size:.72rem;font-weight:700;padding:.2rem .55rem;border-radius:6px;">👥 ${count} LƯỢT</span>
+    <div style="padding:1.25rem 0;border-bottom:1px solid #f1f5f9;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:1.25rem;transition:background .2s ease;">
+      <!-- Left Info matching user screenshot -->
+      <div style="flex:1;min-width:320px;">
+        <!-- Badges Row matching screenshot -->
+        <div style="display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;margin-bottom:.45rem;">
+          <span style="background:#0284c7;color:#fff;font-size:.74rem;font-weight:800;padding:.22rem .65rem;border-radius:999px;letter-spacing:.3px;">${esc(ev.tag || '# CUỘC THI')}</span>
+          <span style="background:#dcfce7;color:#15803d;font-size:.74rem;font-weight:800;padding:.22rem .65rem;border-radius:999px;">👥 ${contestantCount} TS</span>
+          <span style="background:#fee2e2;color:#b91c1c;font-size:.74rem;font-weight:800;padding:.22rem .65rem;border-radius:999px;">🎁 +0,5 NCTXH</span>
+          <span style="background:#eff6ff;color:#0284c7;border:1px solid #bfdbfe;font-size:.74rem;font-weight:800;padding:.22rem .65rem;border-radius:999px;">📊 Tỉ lệ ${ratio}%</span>
+          ${timeBadge}
         </div>
-        <h3 style="font-size:1.1rem;font-weight:800;color:#0f172a;margin-bottom:.3rem;line-height:1.35;">${esc(ev.title)}</h3>
-        <div style="font-size:.76rem;color:#0284c7;font-weight:700;margin-bottom:.35rem;">${esc(ev.year || '✦ NĂM HỌC 2025 – 2026 ✦')}</div>
-        <p style="font-size:.8rem;color:#64748b;margin-bottom:.85rem;">${esc(ev.description || 'Chạm để bình chọn.')}</p>
-        <div style="font-size:.8rem;color:#334155;display:flex;flex-direction:column;gap:.35rem;line-height:1.4;">
-          <div>📍 ${esc(ev.location || 'Hội trường A – Trường ĐH Xây dựng Miền Trung')}</div>
-          <div>🕒 Thời gian: <strong>${esc(ev.event_time || '08:00 - 22:00')}</strong></div>
-          <div>👤 Đơn vị tổ chức: <strong>${esc(ev.creator || 'Đoàn TN – Hội Sinh viên MUCE')}</strong></div>
+
+        <!-- Title matching screenshot -->
+        <h3 style="font-size:1.18rem;font-weight:800;color:#0284c7;margin:0 0 .4rem 0;line-height:1.35;cursor:pointer;" onclick="manageEventContestants('${ev.id}')">
+          ${esc(ev.title)}
+        </h3>
+
+        <!-- Details with icons matching screenshot -->
+        <div style="display:flex;flex-direction:column;gap:.32rem;font-size:.83rem;color:#475569;">
+          <div style="display:flex;align-items:center;gap:.4rem;">
+            <span style="color:#0284c7;">📍</span> <span>${esc(ev.location || 'Trường Đại học Xây dựng Miền Trung (Bán kính: 5000m)')}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:.4rem;">
+            <span style="color:#e11d48;">🎁</span> <span>Quyền lợi: <strong>+0,5 NCTXH (hoặc tích lũy ĐRL)</strong></span>
+          </div>
+          <div style="display:flex;align-items:center;gap:.4rem;">
+            <span style="color:#0284c7;">👤</span> <span>Tài khoản tạo: <strong>${esc(ev.creator || 'hongnhung')}</strong></span>
+          </div>
         </div>
       </div>
-      <div style="margin-top:1.15rem;display:flex;gap:.5rem;">
-        <button class="btn btn-ghost btn-sm" onclick="openEditAdminEvent('${ev.id}')" style="flex:1;border:1px solid #bfdbfe;color:#0284c7;">✏️ Sửa</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteAdminEvent('${ev.id}')" style="padding:0 .75rem;">🗑️</button>
+
+      <!-- Right Action Buttons Group matching screenshot -->
+      <div style="display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;">
+        <!-- Button 1: Solid Blue Xem DS (0 SV) matching screenshot -->
+        <button class="btn btn-sm" onclick="manageEventContestants('${ev.id}')" style="background:#0284c7;color:#fff;font-weight:700;border:none;border-radius:8px;padding:.52rem 1.1rem;display:inline-flex;align-items:center;gap:.4rem;box-shadow:0 2px 8px rgba(2,132,199,0.3);cursor:pointer;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          <span>Xem DS (${contestantCount} TS)</span>
+        </button>
+
+        <!-- Button 2: In QR matching screenshot -->
+        <button class="btn btn-ghost btn-sm" onclick="openEventQr('${ev.id}')" style="border:1.5px solid #0284c7;color:#0284c7;background:#fff;font-weight:600;border-radius:8px;padding:.52rem .85rem;display:inline-flex;align-items:center;gap:.35rem;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect>
+          </svg>
+          <span>In QR</span>
+        </button>
+
+        <!-- Button 3: Tải Excel matching screenshot -->
+        <button class="btn btn-ghost btn-sm" onclick="exportEventExcel('${ev.id}')" style="border:1.5px solid #16a34a;color:#16a34a;background:#fff;font-weight:600;border-radius:8px;padding:.52rem .85rem;display:inline-flex;align-items:center;gap:.35rem;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line>
+          </svg>
+          <span>Tải Excel</span>
+        </button>
+
+        <!-- Button 4: Cài đặt đếm ngược & tỉ lệ -->
+        <button class="btn btn-ghost btn-sm" onclick="openAdminTimeRatioModal('${ev.id}')" style="border:1.5px solid #0284c7;color:#0284c7;background:#fff;font-weight:600;border-radius:8px;padding:.52rem .85rem;display:inline-flex;align-items:center;gap:.35rem;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline>
+          </svg>
+          <span>⏱️ Cài đặt</span>
+        </button>
+
+        <!-- Button 5: Sửa cuộc thi matching screenshot -->
+        <button class="btn btn-ghost btn-sm" onclick="openEditAdminEvent('${ev.id}')" style="border:1.5px solid #38bdf8;color:#0284c7;background:#fff;font-weight:600;border-radius:8px;padding:.52rem .85rem;display:inline-flex;align-items:center;gap:.35rem;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+          </svg>
+          <span>Sửa</span>
+        </button>
+
+        <!-- Button 6: Solid Red Trash button matching screenshot -->
+        <button class="btn btn-sm" onclick="deleteAdminEvent('${ev.id}')" title="Xóa cuộc thi" style="background:#dc2626;color:#fff;border:none;border-radius:8px;padding:.52rem .8rem;font-weight:700;cursor:pointer;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+          </svg>
+        </button>
       </div>
     </div>`;
   }).join('');
+}
+
+function openEventQr(eventId) {
+  const ev = (adminEvents || []).find(e => e.id === eventId);
+  if (!ev) return;
+  const baseUrl = (appData.settings && appData.settings.share_url) ? appData.settings.share_url : window.location.origin;
+  const voteUrl = `${baseUrl.replace(/\/admin\.html.*$/, '')}/index.html?event=${encodeURIComponent(eventId)}`;
+  const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(voteUrl)}`;
+
+  document.getElementById('qrModalTitle').innerHTML = `<span>🖨️</span> Mã QR: ${esc(ev.title.replace(/<[^>]*>?/gm, ''))}`;
+  document.getElementById('qrModalImg').src = qrUrl;
+  document.getElementById('qrModalEventName').textContent = ev.title.replace(/<[^>]*>?/gm, '');
+  document.getElementById('qrModalUrl').textContent = voteUrl;
+  document.getElementById('qrModal').classList.remove('hidden');
+}
+
+function closeQrModal() {
+  document.getElementById('qrModal').classList.add('hidden');
+}
+
+function printQrCard() {
+  const printWin = window.open('', '_blank');
+  const imgUrl = document.getElementById('qrModalImg').src;
+  const evTitle = document.getElementById('qrModalEventName').textContent;
+  const voteUrl = document.getElementById('qrModalUrl').textContent;
+  printWin.document.write(`
+    <html><head><title>Mã QR - ${evTitle}</title>
+    <style>
+      body { font-family: system-ui, sans-serif; text-align: center; padding: 40px; }
+      .box { border: 2px dashed #0284c7; border-radius: 16px; padding: 30px; max-width: 360px; margin: auto; }
+      h2 { color: #0284c7; margin-bottom: 6px; font-size: 20px; }
+      p { color: #64748b; font-size: 13px; margin-top: 4px; word-break: break-all; }
+      img { width: 240px; height: 240px; margin: 15px 0; }
+    </style></head><body>
+      <div class="box">
+        <h2>${evTitle}</h2>
+        <div style="font-weight: 700; color: #1e293b;">QUÉT MÃ ĐỂ BÌNH CHỌN TRỰC TUYẾN</div>
+        <img src="${imgUrl}" />
+        <p>${voteUrl}</p>
+      </div>
+      <script>window.onload = function(){ window.print(); }<\/script>
+    </body></html>
+  `);
+  printWin.document.close();
+}
+
+function exportEventExcel(eventId) {
+  const ev = (adminEvents || []).find(e => e.id === eventId);
+  const evTitle = ev ? ev.title.replace(/<[^>]*>?/gm, '') : 'Cuoc_thi';
+  const cList = (appData.contestants || []).filter(c => c.event_id === eventId || (!c.event_id && eventId === 'evt_hoakhoi_2026'));
+  let csv = 'Số báo danh,Tên thí sinh,Quê quán / Đơn vị,Số phiếu bình chọn\n';
+  cList.forEach(c => {
+    const votes = appData.votes[c.id] || 0;
+    const sbd = c.id.replace(/^[a-z]+_/, '');
+    csv += `"${sbd}","${c.name}","${c.subtitle || ''}",${votes}\n`;
+  });
+  downloadFile(`${evTitle}_danh_sach_thi_sinh.csv`, '\uFEFF' + csv, 'text/csv;charset=utf-8');
+  toast(`Đã tải file Excel cho cuộc thi "${evTitle}"!`, 'success');
+}
+
+/* ─── TIME & RATIO MODAL CONTROLLER ─────────────────────── */
+let currentModalEventId = null;
+
+function openAdminTimeRatioModal(eventId) {
+  const select = document.getElementById('timeRatioEventSelect');
+  if (!select) return;
+
+  if (!adminEvents || !adminEvents.length) {
+    adminEvents = DEFAULT_ADMIN_EVENTS;
+  }
+
+  // Populate events in the dropdown
+  select.innerHTML = adminEvents.map(e => `
+    <option value="${esc(e.id)}">${esc(e.title || 'Cuộc thi')} (${esc(e.tag || '# CUỘC THI')})</option>
+  `).join('');
+
+  if (eventId && adminEvents.some(e => e.id === eventId)) {
+    select.value = eventId;
+  } else if (adminEvents.length > 0) {
+    select.value = adminEvents[0].id;
+  }
+
+  currentModalEventId = select.value;
+  onSelectEventForTimeRatio(currentModalEventId);
+
+  document.getElementById('adminTimeRatioModal').classList.remove('hidden');
+}
+
+function closeAdminTimeRatioModal() {
+  document.getElementById('adminTimeRatioModal').classList.add('hidden');
+  currentModalEventId = null;
+}
+
+function onSelectEventForTimeRatio(eventId) {
+  currentModalEventId = eventId;
+  const ev = adminEvents.find(e => e.id === eventId);
+  if (!ev) return;
+
+  // Start time
+  let startVal = ev.start_time;
+  if (!startVal) {
+    const s = new Date();
+    s.setDate(s.getDate() - 7);
+    startVal = toDatetimeLocal(s);
+  } else {
+    try {
+      startVal = toDatetimeLocal(new Date(startVal));
+    } catch(e) {}
+  }
+  const startEl = document.getElementById('trModalStartTime');
+  if (startEl) startEl.value = startVal;
+
+  // End time
+  let endVal = ev.end_time;
+  if (!endVal) {
+    const d = new Date();
+    d.setDate(d.getDate() + 7);
+    endVal = toDatetimeLocal(d);
+  } else {
+    try {
+      endVal = toDatetimeLocal(new Date(endVal));
+    } catch(e) {}
+  }
+  const endEl = document.getElementById('trModalEndTime');
+  if (endEl) endEl.value = endVal;
+
+  // Ratio slider
+  const ratio = parseInt(ev.vote_ratio) || 80;
+  const slider = document.getElementById('trModalRatioSlider');
+  if (slider) slider.value = ratio;
+
+  updateModalRatioDisplay();
+}
+
+function setQuickTimeModal(days) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  const val = toDatetimeLocal(d);
+  const endEl = document.getElementById('trModalEndTime');
+  if (endEl) endEl.value = val;
+}
+
+async function applyQuickSecondsModal(secParam) {
+  if (secParam) {
+    document.getElementById('trModalSecondsInput').value = secParam;
+  }
+  const sec = parseInt(document.getElementById('trModalSecondsInput').value) || 60;
+  const d = new Date(Date.now() + sec * 1000);
+  const val = toDatetimeLocal(d);
+  const endEl = document.getElementById('trModalEndTime');
+  if (endEl) endEl.value = val;
+
+  // Auto save immediately!
+  await saveEventTimeOnly(true, sec);
+}
+
+function updateModalRatioDisplay() {
+  const slider = document.getElementById('trModalRatioSlider');
+  if (!slider) return;
+  const val = parseInt(slider.value) || 80;
+  const badge = document.getElementById('trModalRatioBadge');
+  const desc = document.getElementById('trModalRatioDesc');
+
+  let ratioLabel = `${val}%`;
+  if (val === 50) ratioLabel = '50% (Tỉ lệ 5/5)';
+  else if (val === 70) ratioLabel = '70% (Tỉ lệ 7/3)';
+  else if (val === 80) ratioLabel = '80% (Tỉ lệ 8/2)';
+  else if (val === 100) ratioLabel = '100% (Tất cả)';
+  else {
+    const a = Math.round(val / 10);
+    const b = 10 - a;
+    ratioLabel = `${val}% (Tỉ lệ ${a}/${b})`;
+  }
+
+  if (badge) badge.textContent = ratioLabel;
+
+  // Calculate quota estimation based on candidate count
+  const count = (appData.contestants && appData.contestants.length) ? appData.contestants.length : 6;
+  const quota = Math.max(1, Math.round((count * val) / 100));
+
+  if (desc) {
+    desc.innerHTML = `💡 <strong>Quy tắc áp dụng:</strong> Hiện có <strong>${count} thí sinh</strong>, mỗi người dùng sẽ được bình chọn tối đa <strong>${quota} thí sinh</strong> khác nhau (${val}%). Mỗi thí sinh chỉ được bầu <strong>1 phiếu duy nhất</strong> (không được bình chọn lặp lại 2 lần).`;
+  }
+}
+
+function setQuickRatioModal(pct) {
+  const slider = document.getElementById('trModalRatioSlider');
+  if (slider) {
+    slider.value = pct;
+    updateModalRatioDisplay();
+  }
+}
+
+async function saveEventTimeOnly(isQuickCountdown = false, sec = 0) {
+  if (!currentModalEventId) {
+    toast('Chưa chọn cuộc thi!', 'error');
+    return;
+  }
+  const endVal = document.getElementById('trModalEndTime').value;
+  const startVal = document.getElementById('trModalStartTime').value;
+  if (!endVal) {
+    toast('Vui lòng chọn thời gian kết thúc!', 'error');
+    return;
+  }
+
+  const ev = adminEvents.find(e => e.id === currentModalEventId);
+  if (ev) {
+    ev.start_time = startVal ? new Date(startVal).toISOString() : null;
+    ev.end_time = new Date(endVal).toISOString();
+  }
+  localStorage.setItem('hh:events', JSON.stringify(adminEvents));
+  renderAdminEvents();
+
+  try {
+    await api.post(`/api/events/${currentModalEventId}/time-ratio`, {
+      start_time: ev.start_time,
+      end_time: ev.end_time
+    });
+  } catch(e) {
+    console.error(e);
+  }
+
+  if (isQuickCountdown) {
+    toast(`⚡ Đã kích hoạt đếm ngược ${sec} giây cho cuộc thi "${ev ? ev.title : ''}"!`, 'success');
+  } else {
+    toast(`⏱️ Đã lưu thời gian bình chọn cho cuộc thi "${ev ? ev.title : ''}"!`, 'success');
+  }
+}
+
+async function saveEventRatioOnly() {
+  if (!currentModalEventId) {
+    toast('Chưa chọn cuộc thi!', 'error');
+    return;
+  }
+  const slider = document.getElementById('trModalRatioSlider');
+  const ratio = parseInt(slider.value) || 80;
+
+  const ev = adminEvents.find(e => e.id === currentModalEventId);
+  if (ev) {
+    ev.vote_ratio = ratio;
+  }
+  localStorage.setItem('hh:events', JSON.stringify(adminEvents));
+  renderAdminEvents();
+
+  try {
+    await api.post(`/api/events/${currentModalEventId}/time-ratio`, {
+      vote_ratio: ratio
+    });
+  } catch(e) {
+    console.error(e);
+  }
+
+  toast(`📊 Đã lưu tỉ lệ bình chọn ${ratio}% cho cuộc thi "${ev ? ev.title : ''}"!`, 'success');
+}
+
+async function saveAllTimeRatioConfig() {
+  if (!currentModalEventId) {
+    toast('Chưa chọn cuộc thi!', 'error');
+    return;
+  }
+  const endVal = document.getElementById('trModalEndTime').value;
+  const startVal = document.getElementById('trModalStartTime').value;
+  const slider = document.getElementById('trModalRatioSlider');
+  const ratio = parseInt(slider?.value) || 80;
+
+  if (!endVal) {
+    toast('Vui lòng chọn thời gian kết thúc!', 'error');
+    return;
+  }
+
+  const ev = adminEvents.find(e => e.id === currentModalEventId);
+  if (ev) {
+    ev.start_time = startVal ? new Date(startVal).toISOString() : null;
+    ev.end_time = new Date(endVal).toISOString();
+    ev.vote_ratio = ratio;
+  }
+  localStorage.setItem('hh:events', JSON.stringify(adminEvents));
+  renderAdminEvents();
+
+  try {
+    await api.post(`/api/events/${currentModalEventId}/time-ratio`, {
+      start_time: ev.start_time,
+      end_time: ev.end_time,
+      vote_ratio: ratio
+    });
+  } catch(e) {
+    console.error(e);
+  }
+
+  toast(`🎉 Đã lưu toàn bộ thời gian & tỉ lệ bình chọn cho cuộc thi "${ev ? ev.title : ''}"!`, 'success');
+  closeAdminTimeRatioModal();
 }
 
 let editingEventId = null;
@@ -2797,35 +3165,176 @@ async function loadShareLogs() {
   }).join('');
 }
 
-/* ─── CONTESTANT LIST ───────────────────────────────────── */
-function renderContestantList() {
-  document.getElementById('contestantList').innerHTML = appData.contestants.map(c => {
+/* ─── CONTESTANT MANAGEMENT CONTROLLER ──────────────────── */
+let currentContestantEventId = 'evt_hoakhoi_2026';
+
+function manageEventContestants(eventId) {
+  currentContestantEventId = eventId || 'evt_hoakhoi_2026';
+  showTab('contestants');
+  renderContestantList(currentContestantEventId);
+  const tabEl = document.getElementById('tab-contestants');
+  if (tabEl) tabEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function onContestantFilterChange(eventId) {
+  currentContestantEventId = eventId || 'evt_hoakhoi_2026';
+  renderContestantList(currentContestantEventId);
+}
+
+function renderContestantList(targetEventId) {
+  if (targetEventId) currentContestantEventId = targetEventId;
+  if (!currentContestantEventId) currentContestantEventId = 'evt_hoakhoi_2026';
+
+  const eventsList = (adminEvents && adminEvents.length > 0) ? adminEvents : DEFAULT_ADMIN_EVENTS;
+
+  // 1. Sync dropdown in filter bar
+  const filterSelect = document.getElementById('contestantEventFilterSelect');
+  if (filterSelect) {
+    filterSelect.innerHTML = eventsList.map(e => `
+      <option value="${esc(e.id)}" ${e.id === currentContestantEventId ? 'selected' : ''}>
+        🏆 ${esc(e.title.replace(/<[^>]*>?/gm, ''))} (${esc(e.tag || '# CUỘC THI')})
+      </option>
+    `).join('');
+    filterSelect.value = currentContestantEventId;
+  }
+
+  // 2. Sync dropdown in edit modal
+  const modalEventSelect = document.getElementById('editContestantEventSelect');
+  if (modalEventSelect) {
+    modalEventSelect.innerHTML = eventsList.map(e => `
+      <option value="${esc(e.id)}" ${e.id === currentContestantEventId ? 'selected' : ''}>
+        ${esc(e.title.replace(/<[^>]*>?/gm, ''))} (${esc(e.tag || '# CUỘC THI')})
+      </option>
+    `).join('');
+    modalEventSelect.value = currentContestantEventId;
+  }
+
+  // 3. Ensure appData.contestants has items; fallback if completely empty
+  if (!Array.isArray(appData.contestants) || appData.contestants.length === 0) {
+    appData.contestants = ALL_DEFAULT_CONTESTANTS.map(c => ({...c}));
+  }
+
+  // 4. Filter contestants for this specific event
+  let contestantsForEvent = appData.contestants.filter(c => {
+    if (c.event_id) return c.event_id === currentContestantEventId;
+    return currentContestantEventId === 'evt_hoakhoi_2026';
+  });
+
+  // If this event has 0 contestants, auto-populate from ALL_DEFAULT_CONTESTANTS
+  if (contestantsForEvent.length === 0) {
+    const defaults = ALL_DEFAULT_CONTESTANTS.filter(c => c.event_id === currentContestantEventId);
+    if (defaults.length > 0) {
+      defaults.forEach(d => {
+        if (!appData.contestants.some(c => c.id === d.id)) {
+          appData.contestants.push({...d});
+        }
+      });
+      contestantsForEvent = appData.contestants.filter(c => c.event_id === currentContestantEventId);
+      api.post('/api/contestants', { contestants: appData.contestants, event_id: currentContestantEventId }).catch(() => {});
+    }
+  }
+
+  // 5. Update Header Title and Badge
+  const currentEvt = eventsList.find(e => e.id === currentContestantEventId);
+  const evtTitle = currentEvt ? currentEvt.title.replace(/<[^>]*>?/gm, '') : 'Cuộc Thi Bình Chọn';
+  const headerTitleEl = document.getElementById('contestantsHeaderTitle');
+  if (headerTitleEl) headerTitleEl.textContent = `Danh sách thí sinh – ${evtTitle}`;
+
+  const countBadgeEl = document.getElementById('contestantCountBadge');
+  if (countBadgeEl) countBadgeEl.textContent = `${contestantsForEvent.length} thí sinh`;
+
+  // 6. Render contestants list
+  const listEl = document.getElementById('contestantList');
+  if (!listEl) return;
+
+  if (contestantsForEvent.length === 0) {
+    listEl.innerHTML = `
+      <div style="text-align:center;padding:3rem 1.5rem;background:#f8fafc;border-radius:12px;border:1.5px dashed #cbd5e1;">
+        <div style="font-size:2.5rem;margin-bottom:.5rem;">👥</div>
+        <div style="font-weight:700;font-size:1.05rem;color:#1e293b;margin-bottom:.35rem;">Chưa có thí sinh nào trong cuộc thi này</div>
+        <p style="color:#64748b;font-size:.85rem;margin-bottom:1.25rem;">Bạn có thể nạp ngay 6 thí sinh mẫu hoặc thêm thí sinh mới.</p>
+        <div style="display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap;">
+          <button class="btn btn-gold btn-sm" onclick="openAdd('${currentContestantEventId}')" style="font-weight:700;padding:.5rem 1.2rem;">
+            ➕ Thêm thí sinh mới
+          </button>
+          <button class="btn btn-ghost btn-sm" onclick="seedDefaultContestantsForCurrentEvent()" style="border:1.5px solid #bfdbfe;color:#0284c7;background:#fff;font-weight:600;padding:.5rem 1.2rem;">
+            🔄 Nạp 6 thí sinh mẫu
+          </button>
+        </div>
+      </div>
+    `;
+    return;
+  }
+
+  listEl.innerHTML = contestantsForEvent.map(c => {
     const shares = (appData.shares && appData.shares[c.id] !== undefined)
       ? appData.shares[c.id]
       : parseInt(localStorage.getItem(`hh:shares:${c.id}`) || '0');
+    const votes = appData.votes[c.id] || 0;
+    const sbd = c.id.replace(/^[a-z]+_/, '');
+
     return `
-    <div class="c-item">
-      <div style="width:48px;height:48px;border-radius:.5rem;overflow:hidden;flex-shrink:0;background:${c.color};display:flex;align-items:center;justify-content:center">
+    <div class="c-item" style="display:flex;align-items:center;gap:1.1rem;padding:1.1rem 1.25rem;border:1px solid #f1f5f9;border-radius:14px;margin-bottom:.85rem;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,0.02);transition:all .2s ease;">
+      <!-- Photo / Avatar -->
+      <div style="width:54px;height:54px;border-radius:.65rem;overflow:hidden;flex-shrink:0;background:${c.color || '#0057a8'};display:flex;align-items:center;justify-content:center;border:1.5px solid #e2e8f0;">
         ${c.photo
-          ? `<img src="${c.photo}" style="width:100%;height:100%;object-fit:cover" />`
-          : `<span style="font-size:1.3rem">👤</span>`
+          ? `<img src="${c.photo}" style="width:100%;height:100%;object-fit:cover;" />`
+          : `<span style="font-size:1.6rem">👤</span>`
         }
       </div>
-      <div class="c-item-id">SBD ${esc(c.id)}</div>
-      <div style="flex:1">
-        <div class="c-item-name">${esc(c.name)}</div>
-        <div class="c-item-sub">${esc(c.subtitle)}</div>
+
+      <!-- SBD Pill Badge -->
+      <div class="c-item-id" style="background:#eff6ff;color:#0284c7;font-weight:800;font-size:.85rem;padding:.35rem .8rem;border-radius:8px;border:1px solid #bfdbfe;letter-spacing:.3px;white-space:nowrap;">
+        SBD ${esc(sbd)}
       </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.2rem;min-width:100px">
-        <span style="font-size:.85rem;font-weight:700;color:#2563eb">${(appData.votes[c.id]||0).toLocaleString('vi-VN')} phiếu</span>
-        <span style="font-size:.72rem;color:#a855f7">📤 ${shares.toLocaleString('vi-VN')} chia sẻ</span>
+
+      <!-- Info -->
+      <div style="flex:1;min-width:180px;">
+        <div class="c-item-name" style="font-size:1.05rem;font-weight:800;color:#0f172a;line-height:1.3;">${esc(c.name)}</div>
+        <div class="c-item-sub" style="font-size:.84rem;color:#64748b;margin-top:3px;">${esc(c.subtitle || '')}</div>
       </div>
-      <div class="c-item-actions">
-        <button class="btn btn-ghost btn-sm" onclick="openEdit('${esc(c.id)}')">&#9998; Sửa</button>
-        <button class="btn btn-danger btn-sm" onclick="deleteContestant('${esc(c.id)}')">&#x2715;</button>
+
+      <!-- Votes & Shares stats -->
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.25rem;min-width:115px;">
+        <span style="font-size:.92rem;font-weight:800;color:#0284c7;background:#f0f9ff;padding:2px 10px;border-radius:6px;border:1px solid #bae6fd;">${votes.toLocaleString('vi-VN')} phiếu</span>
+        <span style="font-size:.76rem;color:#7c3aed;font-weight:600;">📤 ${shares.toLocaleString('vi-VN')} chia sẻ</span>
+      </div>
+
+      <!-- Actions: Sửa & Xóa -->
+      <div class="c-item-actions" style="display:flex;gap:.45rem;">
+        <button class="btn btn-ghost btn-sm" onclick="openEdit('${esc(c.id)}')" style="border:1.5px solid #38bdf8;background:#fff;font-weight:600;color:#0284c7;padding:.4rem .85rem;border-radius:8px;display:inline-flex;align-items:center;gap:.3rem;">
+          <span>✏️</span> Sửa
+        </button>
+        <button class="btn btn-danger btn-sm" onclick="deleteContestant('${esc(c.id)}')" style="background:#ef4444;color:#fff;border:none;border-radius:8px;padding:.4rem .8rem;font-weight:700;" title="Xóa thí sinh">
+          🗑️
+        </button>
       </div>
     </div>`;
   }).join('');
+}
+
+async function seedDefaultContestantsForCurrentEvent() {
+  const defaults = ALL_DEFAULT_CONTESTANTS.filter(c => c.event_id === currentContestantEventId);
+  if (!defaults || !defaults.length) {
+    toast('Không tìm thấy danh sách mẫu cho cuộc thi này.', 'warning');
+    return;
+  }
+  
+  // Remove existing contestants for this event and replace with defaults
+  appData.contestants = appData.contestants.filter(c => c.event_id !== currentContestantEventId);
+  defaults.forEach(d => {
+    appData.contestants.push({...d});
+    if (appData.votes[d.id] === undefined) appData.votes[d.id] = 0;
+  });
+
+  try {
+    await api.post('/api/contestants', { contestants: appData.contestants, event_id: currentContestantEventId });
+  } catch(e){}
+
+  renderContestantList(currentContestantEventId);
+  renderAdminEvents();
+  renderKPI();
+  toast(`🎉 Đã nạp thành công 6 thí sinh mẫu cho cuộc thi!`, 'success');
 }
 
 /* ─── SETTINGS FORM ─────────────────────────────────────── */
@@ -3559,15 +4068,24 @@ function _setPhotoPreview(photo) {
   }
 }
 
-function openAdd() {
+function openAdd(targetEventId) {
   editingId = null;
+  const evtId = targetEventId || currentContestantEventId || 'evt_hoakhoi_2026';
   document.getElementById('modalTitle').textContent = 'Thêm thí sinh mới';
+  
+  const eventSelect = document.getElementById('editContestantEventSelect');
+  if (eventSelect) eventSelect.value = evtId;
+
+  // Next SBD for this event
+  const currentList = (appData.contestants || []).filter(c => (c.event_id || 'evt_hoakhoi_2026') === evtId);
+  const nextNum = String(currentList.length + 1).padStart(2, '0');
+  
   document.getElementById('editId').value = '';
-  document.getElementById('editNum').value = String(appData.contestants.length + 1).padStart(2,'0');
+  document.getElementById('editNum').value = nextNum;
   document.getElementById('editName').value = '';
   document.getElementById('editSub').value = '';
-  document.getElementById('editColor').value = '#6B1E3C';
-  document.getElementById('editColorHex').value = '#6B1E3C';
+  document.getElementById('editColor').value = '#0057a8';
+  document.getElementById('editColorHex').value = '#0057a8';
   _setPhotoPreview(null);
   openModal();
 }
@@ -3577,11 +4095,16 @@ function openEdit(id) {
   if (!c) return;
   editingId = id;
   document.getElementById('modalTitle').textContent = 'Chỉnh sửa thí sinh';
-  document.getElementById('editNum').value = c.id;
+  
+  const eventSelect = document.getElementById('editContestantEventSelect');
+  if (eventSelect) eventSelect.value = c.event_id || currentContestantEventId || 'evt_hoakhoi_2026';
+
+  document.getElementById('editId').value = c.id;
+  document.getElementById('editNum').value = c.id.replace(/^[a-z]+_/, '');
   document.getElementById('editName').value = c.name;
-  document.getElementById('editSub').value = c.subtitle;
-  document.getElementById('editColor').value = c.color;
-  document.getElementById('editColorHex').value = c.color;
+  document.getElementById('editSub').value = c.subtitle || '';
+  document.getElementById('editColor').value = c.color || '#0057a8';
+  document.getElementById('editColorHex').value = c.color || '#0057a8';
   _setPhotoPreview(c.photo || null);
   openModal();
 }
@@ -3602,57 +4125,84 @@ function closeModal() {
 }
 
 async function saveEdit() {
-  const num   = document.getElementById('editNum').value.trim().padStart(2,'0');
-  const name  = document.getElementById('editName').value.trim();
-  const sub   = document.getElementById('editSub').value.trim();
+  const rawNum = document.getElementById('editNum').value.trim();
+  const num = rawNum.padStart(2, '0');
+  const name = document.getElementById('editName').value.trim();
+  const sub = document.getElementById('editSub').value.trim();
   const color = document.getElementById('editColorHex').value.trim() || document.getElementById('editColor').value;
+  const event_id = document.getElementById('editContestantEventSelect')?.value || currentContestantEventId || 'evt_hoakhoi_2026';
 
-  if (!num || !name || !sub) { toast('Vui lòng điền đầy đủ thông tin!', 'error'); return; }
+  if (!num || !name) { toast('Vui lòng nhập số báo danh và tên thí sinh!', 'error'); return; }
+
+  const prefixMap = {
+    'evt_hoakhoi_2026': 'hk_',
+    'evt_namvuong_2026': 'nv_',
+    'evt_tienghat_2026': 'th_',
+    'evt_daisu_2026': 'ds_'
+  };
+  const prefix = prefixMap[event_id] || (event_id.replace(/^evt_/, '') + '_');
+  const fullId = prefix + num;
 
   if (editingId === null) {
     // Add new
-    if (appData.contestants.find(c => c.id === num)) { toast('Số báo danh đã tồn tại!', 'error'); return; }
-    const newC = { id: num, name, subtitle: sub, color };
+    if (appData.contestants.some(c => c.id === fullId)) {
+      toast(`Số báo danh ${num} đã tồn tại trong cuộc thi này!`, 'error');
+      return;
+    }
+    const newC = { id: fullId, event_id, name, subtitle: sub, color };
     if (_pendingPhoto) newC.photo = _pendingPhoto;
     appData.contestants.push(newC);
-    appData.votes[num] = 0;
-    toast(`Đã thêm ${name}!`, 'success');
+    appData.votes[fullId] = 0;
+    toast(`Đã thêm thí sinh "${name}"!`, 'success');
   } else {
     // Edit existing
     const idx = appData.contestants.findIndex(c => c.id === editingId);
     if (idx !== -1) {
-      // If ID changed, migrate votes
-      if (num !== editingId) {
-        appData.votes[num] = appData.votes[editingId] || 0;
+      if (fullId !== editingId) {
+        appData.votes[fullId] = appData.votes[editingId] || 0;
         delete appData.votes[editingId];
       }
-      // Resolve photo
       let photo = appData.contestants[idx].photo || null;
-      if (_pendingPhoto === null) photo = null;       // cleared
-      else if (_pendingPhoto) photo = _pendingPhoto;  // new upload
-      // else undefined → keep existing
-      const updated = { id: num, name, subtitle: sub, color };
+      if (_pendingPhoto === null) photo = null;
+      else if (_pendingPhoto) photo = _pendingPhoto;
+
+      const updated = { id: fullId, event_id, name, subtitle: sub, color };
       if (photo) updated.photo = photo;
       appData.contestants[idx] = updated;
-      toast(`Đã cập nhật ${name}!`, 'success');
+      toast(`Đã cập nhật thí sinh "${name}"!`, 'success');
     }
   }
 
-  // Save all contestants to API
-  await api.post('/api/contestants', { contestants: appData.contestants });
+  try {
+    await api.post('/api/contestants', { contestants: appData.contestants, event_id });
+  } catch(e) {
+    console.error('Lỗi lưu contestants:', e);
+  }
+
   closeModal();
-  renderAll();
+  currentContestantEventId = event_id;
+  renderContestantList(currentContestantEventId);
+  renderAdminEvents();
+  renderKPI();
 }
 
 async function deleteContestant(id) {
   const c = appData.contestants.find(x => x.id === id);
   if (!c) return;
-  if (!confirm(`Xóa thí sinh "${c.name}"? Phiếu bầu cũng sẽ bị xóa!`)) return;
+  const sbd = c.id.replace(/^[a-z]+_/, '');
+  if (!confirm(`Xóa thí sinh "${c.name}" (SBD ${sbd})? Phiếu bầu của thí sinh cũng sẽ bị xóa!`)) return;
+
   appData.contestants = appData.contestants.filter(x => x.id !== id);
   delete appData.votes[id];
-  await api.del(`/api/contestants/${id}`);
-  renderAll();
-  toast(`Đã xóa ${c.name}.`, 'success');
+
+  try {
+    await api.del(`/api/contestants/${id}`);
+  } catch(e){}
+
+  renderContestantList(currentContestantEventId);
+  renderAdminEvents();
+  renderKPI();
+  toast(`Đã xóa thí sinh "${c.name}".`, 'success');
 }
 
 /* ─── DATE HELPERS ──────────────────────────────────────── */
