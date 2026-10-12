@@ -3541,20 +3541,6 @@ async function loadShareLogs() {
 }
 
 /* ─── CONTESTANT MANAGEMENT CONTROLLER ──────────────────── */
-let currentContestantEventId = 'evt_hoakhoi_2026';
-
-function manageEventContestants(eventId) {
-  currentContestantEventId = eventId || 'evt_hoakhoi_2026';
-  showTab('contestants');
-  renderContestantList(currentContestantEventId);
-  const tabEl = document.getElementById('tab-contestants');
-  if (tabEl) tabEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
-}
-
-function onContestantFilterChange(eventId) {
-  currentContestantEventId = eventId || 'evt_hoakhoi_2026';
-  renderContestantList(currentContestantEventId);
-}
 
 function renderContestantList(targetEventId) {
   if (targetEventId) currentContestantEventId = targetEventId;
