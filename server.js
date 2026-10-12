@@ -32,10 +32,151 @@ app.use('/api', (req, res, next) => {
 
 // ═══════════════════ API ROUTES ═══════════════════
 
+// ─── GET /api/events ──────────────────────────────
+app.get('/api/events', async (req, res) => {
+  try {
+    const { rows } = await pool.query(`
+      SELECT e.*, 
+             COALESCE(e.checked_in_count, 0) + COUNT(v.id)::int as total_attendees
+      FROM events e
+      LEFT JOIN votes v ON v.event_id = e.id
+      GROUP BY e.id
+      ORDER BY e.sort_order, e.created_at
+    `);
+    res.json({ events: rows });
+  } catch (e) {
+    console.error('GET /api/events error:', e);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
+// ─── POST /api/events ─────────────────────────────
+app.post('/api/events', async (req, res) => {
+  const { event, events } = req.body;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const list = Array.isArray(events) ? events : (event ? [event] : []);
+    for (let i = 0; i < list.length; i++) {
+      const item = list[i];
+      const id = item.id || ('evt_' + Date.now() + '_' + i);
+      await client.query(`
+        INSERT INTO events (id, tag, benefit_badge, title, description, location, radius, event_time, benefit, creator, checked_in_count, sort_order)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        ON CONFLICT (id) DO UPDATE SET
+          tag = EXCLUDED.tag,
+          benefit_badge = EXCLUDED.benefit_badge,
+          title = EXCLUDED.title,
+          description = EXCLUDED.description,
+          location = EXCLUDED.location,
+          radius = EXCLUDED.radius,
+          event_time = EXCLUDED.event_time,
+          benefit = EXCLUDED.benefit,
+          creator = EXCLUDED.creator,
+          checked_in_count = EXCLUDED.checked_in_count,
+          sort_order = EXCLUDED.sort_order
+      `, [
+        id,
+        item.tag || '# CUỘC THI',
+        item.benefit_badge || '🟢 ĐANG MỞ',
+        item.title || 'Cuộc thi mới',
+        item.description || 'Không có mô tả.',
+        item.location || 'Trường ĐH Xây dựng Miền Trung',
+        parseInt(item.radius) || 5000,
+        item.event_time || '08:00 - 22:00',
+        item.benefit || '',
+        item.creator || 'Đoàn TN – Hội Sinh viên MUCE',
+        parseInt(item.checked_in_count) || 0,
+        item.sort_order !== undefined ? item.sort_order : i
+      ]);
+    }
+    await client.query('COMMIT');
+    res.json({ success: true });
+  } catch (e) {
+    await client.query('ROLLBACK');
+    console.error('POST /api/events error:', e);
+    res.status(500).json({ error: 'Lỗi lưu sự kiện' });
+  } finally {
+    client.release();
+  }
+});
+
+// ─── DELETE /api/events/:id ───────────────────────
+app.delete('/api/events/:id', async (req, res) => {
+  try {
+    await pool.query('DELETE FROM events WHERE id = $1', [req.params.id]);
+    res.json({ success: true });
+  } catch (e) {
+    console.error('DELETE /api/events/:id error:', e);
+    res.status(500).json({ error: 'Lỗi xóa sự kiện' });
+  }
+});
+
+// ─── POST /api/check-in ───────────────────────────
+app.post('/api/check-in', async (req, res) => {
+  const { event_id, voter_name, student_id, student_class, faculty, comment, voter_fingerprint } = req.body;
+  if (!event_id) return res.status(400).json({ error: 'Thiếu mã sự kiện (event_id)' });
+
+  const cleanVoterName = (voter_name || '').trim();
+  const cleanStudentId = (student_id || '').trim();
+  const cleanStudentClass = (student_class || '').trim();
+  const cleanFaculty = (faculty || '').trim();
+
+  if (!cleanVoterName) return res.status(400).json({ error: 'Vui lòng nhập Họ và tên của bạn!' });
+  if (!cleanStudentId) return res.status(400).json({ error: 'Vui lòng nhập Mã sinh viên (MSSV)!' });
+  if (!cleanStudentClass) return res.status(400).json({ error: 'Vui lòng nhập Lớp của bạn!' });
+  if (!cleanFaculty) return res.status(400).json({ error: 'Vui lòng nhập Khoa của bạn!' });
+
+  const voterIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
+    || req.headers['x-real-ip']
+    || req.socket?.remoteAddress
+    || 'unknown';
+  const voterId = voter_fingerprint ? `${voterIp}_${voter_fingerprint}` : voterIp;
+
+  try {
+    const dupeQuery = 'SELECT COUNT(*)::int as cnt FROM votes WHERE contestant_id = $1 AND (student_id = $2 OR voter_ip = $3)';
+    const { rows: dupeCheck } = await pool.query(dupeQuery, [event_id, cleanStudentId, voterId]);
+    if (dupeCheck[0].cnt >= 1) {
+      return res.status(400).json({
+        error: 'Bạn hoặc mã sinh viên này đã điểm danh cho sự kiện này rồi!',
+        code: 'DUPLICATE_CHECKIN'
+      });
+    }
+
+    const vote_id = 'chk_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+    await pool.query(
+      `INSERT INTO votes (vote_id, contestant_id, voter_name, student_id, student_class, faculty, comment, voter_ip) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [vote_id, event_id, cleanVoterName, cleanStudentId, cleanStudentClass, cleanFaculty, comment || '', voterId]
+    );
+
+    const { rows: evRows } = await pool.query('SELECT title FROM events WHERE id = $1', [event_id]);
+    const eventTitle = evRows.length ? evRows[0].title : event_id;
+
+    res.json({
+      success: true,
+      checkin_id: vote_id,
+      event_id,
+      event_title: eventTitle
+    });
+  } catch (e) {
+    console.error('POST /api/check-in error:', e);
+    res.status(500).json({ error: 'Lỗi ghi nhận điểm danh' });
+  }
+});
+
 // ─── GET /api/contestants ─────────────────────────
 app.get('/api/contestants', async (req, res) => {
+  const eventId = req.query.event || req.query.event_id;
   try {
-    const { rows } = await pool.query('SELECT * FROM contestants ORDER BY sort_order, id');
+    let query = 'SELECT * FROM contestants';
+    let params = [];
+    if (eventId) {
+      query += ' WHERE event_id = $1';
+      params.push(eventId);
+    }
+    query += ' ORDER BY sort_order, id';
+    const { rows } = await pool.query(query, params);
     res.json({ contestants: rows });
   } catch (e) {
     console.error('GET /api/contestants error:', e);
@@ -45,7 +186,7 @@ app.get('/api/contestants', async (req, res) => {
 
 // ─── POST /api/contestants ────────────────────────
 app.post('/api/contestants', async (req, res) => {
-  const { contestants } = req.body;
+  const { contestants, event_id } = req.body;
   if (!Array.isArray(contestants)) return res.status(400).json({ error: 'Invalid data' });
 
   const client = await pool.connect();
@@ -55,15 +196,16 @@ app.post('/api/contestants', async (req, res) => {
     for (let i = 0; i < contestants.length; i++) {
       const c = contestants[i];
       await client.query(`
-        INSERT INTO contestants (id, name, subtitle, color, photo, sort_order)
-        VALUES ($1, $2, $3, $4, $5, $6)
+        INSERT INTO contestants (id, event_id, name, subtitle, color, photo, sort_order)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
         ON CONFLICT (id) DO UPDATE SET
+          event_id = EXCLUDED.event_id,
           name = EXCLUDED.name,
           subtitle = EXCLUDED.subtitle,
           color = EXCLUDED.color,
           photo = EXCLUDED.photo,
           sort_order = EXCLUDED.sort_order
-      `, [c.id, c.name || '', c.subtitle || '', c.color || '#0057a8', c.photo || '', i]);
+      `, [c.id, c.event_id || event_id || 'evt_hoakhoi_2026', c.name || '', c.subtitle || '', c.color || '#0057a8', c.photo || '', i]);
     }
     await client.query('COMMIT');
     res.json({ success: true });
@@ -89,14 +231,23 @@ app.delete('/api/contestants/:id', async (req, res) => {
 
 // ─── GET /api/votes ───────────────────────────────
 app.get('/api/votes', async (req, res) => {
+  const eventId = req.query.event || req.query.event_id;
   try {
-    const { rows } = await pool.query(`
+    let query = `
       SELECT c.id, c.name, COUNT(v.id)::int as count
       FROM contestants c
       LEFT JOIN votes v ON v.contestant_id = c.id
+    `;
+    let params = [];
+    if (eventId) {
+      query += ' WHERE c.event_id = $1';
+      params.push(eventId);
+    }
+    query += `
       GROUP BY c.id, c.name
       ORDER BY c.sort_order, c.id
-    `);
+    `;
+    const { rows } = await pool.query(query, params);
     const votes = {};
     let total = 0;
     rows.forEach(r => {
@@ -112,41 +263,32 @@ app.get('/api/votes', async (req, res) => {
 
 // ─── POST /api/vote ───────────────────────────────
 app.post('/api/vote', async (req, res) => {
-  const { contestant_id, voter_name, student_id, student_class, faculty, comment, voter_fingerprint } = req.body;
+  const { contestant_id, event_id, voter_name, student_id, student_class, faculty, comment, voter_fingerprint } = req.body;
   if (!contestant_id) return res.status(400).json({ error: 'Thiếu contestant_id' });
 
+  const currentEventId = event_id || 'evt_hoakhoi_2026';
   const cleanVoterName = (voter_name || '').trim();
   const cleanStudentId = (student_id || '').trim();
   const cleanStudentClass = (student_class || '').trim();
   const cleanFaculty = (faculty || '').trim();
 
-  if (!cleanVoterName) {
-    return res.status(400).json({ error: 'Vui lòng nhập Họ và tên của bạn!' });
-  }
-  if (!cleanStudentId) {
-    return res.status(400).json({ error: 'Vui lòng nhập Mã sinh viên (MSSV)!' });
-  }
-  if (!cleanStudentClass) {
-    return res.status(400).json({ error: 'Vui lòng nhập Lớp của bạn!' });
-  }
-  if (!cleanFaculty) {
-    return res.status(400).json({ error: 'Vui lòng nhập Khoa của bạn!' });
-  }
+  if (!cleanVoterName) return res.status(400).json({ error: 'Vui lòng nhập Họ và tên của bạn!' });
+  if (!cleanStudentId) return res.status(400).json({ error: 'Vui lòng nhập Mã sinh viên (MSSV)!' });
+  if (!cleanStudentClass) return res.status(400).json({ error: 'Vui lòng nhập Lớp của bạn!' });
+  if (!cleanFaculty) return res.status(400).json({ error: 'Vui lòng nhập Khoa của bạn!' });
 
-  // Lấy IP người dùng (hỗ trợ proxy/Render)
   const voterIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
     || req.headers['x-real-ip']
     || req.socket?.remoteAddress
     || 'unknown';
-  // Dùng fingerprint (nếu có) kết hợp IP để nhận diện voter chính xác hơn
   const voterId = voter_fingerprint ? `${voterIp}_${voter_fingerprint}` : voterIp;
 
   try {
-    // 1. Kiểm tra đã vote cho thí sinh này chưa (chống bình chọn lặp lại 2 lần trở lên)
-    let dupeQuery = 'SELECT COUNT(*)::int as cnt FROM votes WHERE contestant_id = $1 AND (voter_ip = $2';
-    const dupeParams = [contestant_id, voterId];
+    // 1. Kiểm tra đã vote cho thí sinh này chưa
+    let dupeQuery = 'SELECT COUNT(*)::int as cnt FROM votes WHERE contestant_id = $1 AND (event_id = $2 OR event_id IS NULL) AND (voter_ip = $3';
+    const dupeParams = [contestant_id, currentEventId, voterId];
     if (cleanStudentId) {
-      dupeQuery += ' OR (student_id = $3 AND student_id != \'\'))';
+      dupeQuery += ' OR (student_id = $4 AND student_id != \'\'))';
       dupeParams.push(cleanStudentId);
     } else {
       dupeQuery += ')';
@@ -164,23 +306,24 @@ app.post('/api/vote', async (req, res) => {
     const { rows: settingsRows } = await pool.query("SELECT value FROM settings WHERE key = 'vote_ratio'");
     const voteRatio = settingsRows.length ? parseInt(settingsRows[0].value) || 80 : 80;
 
-    const { rows: contestantCount } = await pool.query('SELECT COUNT(*)::int as cnt FROM contestants');
-    const totalContestants = contestantCount[0].cnt || 1;
+    const { rows: contestantCount } = await pool.query('SELECT COUNT(*)::int as cnt FROM contestants WHERE (event_id = $1 OR event_id IS NULL)', [currentEventId]);
+    const totalContestants = contestantCount[0].cnt || 6;
     const maxAllowed = Math.max(1, Math.round((totalContestants * voteRatio) / 100));
 
-    // Đếm số thí sinh khác nhau mà voter này đã bình chọn
-    let quotaQuery = 'SELECT COUNT(DISTINCT contestant_id)::int as cnt FROM votes WHERE voter_ip = $1';
-    const quotaParams = [voterId];
+    let quotaQuery = 'SELECT COUNT(DISTINCT contestant_id)::int as cnt FROM votes WHERE (event_id = $1 OR event_id IS NULL) AND (voter_ip = $2';
+    const quotaParams = [currentEventId, voterId];
     if (cleanStudentId) {
-      quotaQuery += ' OR (student_id = $2 AND student_id != \'\')';
+      quotaQuery += ' OR (student_id = $3 AND student_id != \'\'))';
       quotaParams.push(cleanStudentId);
+    } else {
+      quotaQuery += ')';
     }
     const { rows: voterVotes } = await pool.query(quotaQuery, quotaParams);
     const currentVoteCount = voterVotes[0].cnt;
 
     if (currentVoteCount >= maxAllowed) {
       return res.status(400).json({
-        error: `Bạn đã sử dụng hết ${maxAllowed} lượt bình chọn (${voteRatio}%)! Không thể bình chọn thêm.`,
+        error: `Bạn đã sử dụng hết ${maxAllowed} lượt bình chọn (${voteRatio}%) cho cuộc thi này!`,
         code: 'QUOTA_EXCEEDED',
         maxAllowed,
         currentVotes: currentVoteCount,
@@ -191,25 +334,15 @@ app.post('/api/vote', async (req, res) => {
     // 3. Ghi phiếu bầu
     const vote_id = 'vote_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
     await pool.query(
-      `INSERT INTO votes (vote_id, contestant_id, voter_name, student_id, student_class, faculty, comment, voter_ip) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-      [
-        vote_id,
-        contestant_id,
-        cleanVoterName,
-        cleanStudentId,
-        cleanStudentClass,
-        cleanFaculty,
-        comment || '',
-        voterId
-      ]
+      `INSERT INTO votes (vote_id, contestant_id, event_id, voter_name, student_id, student_class, faculty, comment, voter_ip) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [vote_id, contestant_id, currentEventId, cleanVoterName, cleanStudentId, cleanStudentClass, cleanFaculty, comment || '', voterId]
     );
 
-    // Get contestant name for response
     const { rows } = await pool.query('SELECT name FROM contestants WHERE id = $1', [contestant_id]);
     const name = rows.length ? rows[0].name : contestant_id;
-
     const remaining = maxAllowed - (currentVoteCount + 1);
+
     res.json({
       success: true,
       vote_id,
@@ -225,8 +358,8 @@ app.post('/api/vote', async (req, res) => {
 });
 
 // ─── GET /api/my-votes ────────────────────────────
-// Trả về danh sách thí sinh mà voter hiện tại (theo IP/MSSV) đã bình chọn
 app.get('/api/my-votes', async (req, res) => {
+  const eventId = req.query.event || req.query.event_id || 'evt_hoakhoi_2026';
   const voterIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
     || req.headers['x-real-ip']
     || req.socket?.remoteAddress
@@ -236,21 +369,22 @@ app.get('/api/my-votes', async (req, res) => {
   const studentId = (req.query.student_id || '').trim();
 
   try {
-    let myVotesQuery = 'SELECT DISTINCT contestant_id FROM votes WHERE voter_ip = $1';
-    const myVotesParams = [voterId];
+    let myVotesQuery = 'SELECT DISTINCT contestant_id FROM votes WHERE (event_id = $1 OR event_id IS NULL) AND (voter_ip = $2';
+    const myVotesParams = [eventId, voterId];
     if (studentId) {
-      myVotesQuery += ' OR (student_id = $2 AND student_id != \'\')';
+      myVotesQuery += ' OR (student_id = $3 AND student_id != \'\'))';
       myVotesParams.push(studentId);
+    } else {
+      myVotesQuery += ')';
     }
 
     const { rows } = await pool.query(myVotesQuery, myVotesParams);
     const votedIds = rows.map(r => r.contestant_id);
 
-    // Lấy vote_ratio và tổng thí sinh
     const { rows: settingsRows } = await pool.query("SELECT value FROM settings WHERE key = 'vote_ratio'");
     const voteRatio = settingsRows.length ? parseInt(settingsRows[0].value) || 80 : 80;
-    const { rows: contestantCount } = await pool.query('SELECT COUNT(*)::int as cnt FROM contestants');
-    const totalContestants = contestantCount[0].cnt || 1;
+    const { rows: contestantCount } = await pool.query('SELECT COUNT(*)::int as cnt FROM contestants WHERE (event_id = $1 OR event_id IS NULL)', [eventId]);
+    const totalContestants = contestantCount[0].cnt || 6;
     const maxAllowed = Math.max(1, Math.round((totalContestants * voteRatio) / 100));
 
     res.json({
@@ -270,13 +404,16 @@ app.get('/api/my-votes', async (req, res) => {
 app.get('/api/vote-log', async (req, res) => {
   try {
     const { rows } = await pool.query(`
-      SELECT v.vote_id, v.contestant_id as id, c.name, v.voter_name as "voterName",
+      SELECT v.vote_id, v.contestant_id as id, 
+             COALESCE(c.name, e.title, v.contestant_id) as name, 
+             v.voter_name as "voterName",
              COALESCE(v.student_id, '') as "studentId",
              COALESCE(v.student_class, '') as "studentClass",
              COALESCE(v.faculty, '') as "faculty",
              v.comment, v.created_at as ts
       FROM votes v
-      JOIN contestants c ON c.id = v.contestant_id
+      LEFT JOIN contestants c ON c.id = v.contestant_id
+      LEFT JOIN events e ON e.id = v.contestant_id
       ORDER BY v.created_at DESC
       LIMIT 10000
     `);

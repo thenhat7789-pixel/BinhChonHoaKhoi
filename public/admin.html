@@ -626,6 +626,56 @@
   </div>
 </div>
 
+<!-- ═══════════════════ EVENT MODAL (THÊM / SỬA SỰ KIỆN) ═══════════════════ -->
+<div class="modal-overlay hidden" id="adminEventModal">
+  <div class="modal" style="max-width:540px;">
+    <h2 class="modal-title" id="adminEventModalTitle">Thêm Cuộc Thi Mới</h2>
+    <input type="hidden" id="adminEventId" />
+    <div class="c-form">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
+        <div class="form-group">
+          <label class="form-label">Hashtag / Mã cuộc thi (#)</label>
+          <input class="input" id="adminEventTag" placeholder="# HOA KHÔI 2026" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nhiệm kỳ / Niên khóa</label>
+          <input class="input" id="adminEventYear" placeholder="✦ NĂM HỌC 2025 – 2026 ✦" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Tên cuộc thi *</label>
+        <input class="input" id="adminEventTitle" placeholder="Bình Chọn Hoa Khôi" required />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Mô tả cuộc thi</label>
+        <input class="input" id="adminEventDesc" placeholder="Chạm để trao vương miện cho thí sinh bạn yêu thích nhất" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Địa điểm tổ chức / Vòng thi</label>
+        <input class="input" id="adminEventLocation" placeholder="Hội trường A – Trường ĐH Xây dựng Miền Trung" />
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
+        <div class="form-group">
+          <label class="form-label">Thời gian bình chọn</label>
+          <input class="input" id="adminEventTime" placeholder="08:00 - 22:00" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Đơn vị tổ chức</label>
+          <input class="input" id="adminEventCreator" placeholder="Đoàn TN – Hội Sinh viên MUCE" />
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Số lượt bình chọn ban đầu</label>
+        <input class="input" type="number" id="adminEventCount" placeholder="100" />
+      </div>
+      <div style="display:flex;gap:.5rem;margin-top:.75rem">
+        <button class="btn btn-gold btn-full" onclick="saveAdminEvent()">Lưu cuộc thi</button>
+        <button class="btn btn-ghost" onclick="closeAdminEventModal()">Hủy</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- ═══════════════════ EDIT VOTE MODAL ═══════════════════ -->
 <div class="modal-overlay hidden" id="editVoteModal">
   <div class="modal" style="max-width:440px;">
@@ -777,6 +827,10 @@
           <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
           <span>Nhật ký bình chọn</span>
         </button>
+        <button class="nav-item" onclick="showTab('events-manager')" id="nav-events-manager" style="background:rgba(2,132,199,0.08);border:1px solid rgba(2,132,199,0.25);margin:2px 0;">
+          <svg viewBox="0 0 24 24" style="stroke:#0284c7;stroke-width:2;fill:none;"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"></path><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"></path><path d="M4 22h16"></path><path d="M10 14.66V17c0 .55-.45 1-1 1H8c-.55 0-1 .45-1 1v1h10v-1c0-.55-.45-1-1-1h-1c-.55 0-1-.45-1-1v-2.34"></path><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"></path></svg>
+          <span style="color:#0284c7;font-weight:700;">Cuộc Thi Bình Chọn 🏆</span>
+        </button>
         <button class="nav-item" onclick="showTab('contestants')" id="nav-contestants">
           <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
           <span>Thí sinh</span>
@@ -922,6 +976,21 @@
               <div class="log-empty hidden" id="shareLogEmpty">Chưa có nhật ký chia sẻ.</div>
             </div>
           </div>
+        </div>
+
+        <!-- ─── TAB: EVENTS MANAGER (QUẢN LÝ CUỘC THI BÌNH CHỌN) ─── -->
+        <div class="tab-pane" id="tab-events-manager">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.25rem;flex-wrap:wrap;gap:.75rem;">
+            <div>
+              <h2 class="section-title font-display" style="font-size:1.25rem;margin:0;">🏆 Danh Sách Cuộc Thi Bình Chọn</h2>
+              <p style="font-size:.82rem;color:#64748b;margin-top:.2rem;">Thêm, sửa, xóa các cuộc thi bình chọn trực tuyến hiển thị trên cổng sinh viên.</p>
+            </div>
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap;">
+              <button class="btn btn-gold btn-sm" onclick="openAddAdminEvent()">+ Thêm cuộc thi mới</button>
+              <button class="btn btn-ghost btn-sm" onclick="resetDefaultAdminEvents()" style="border:1px solid #bfdbfe;color:#0284c7;background:#eff6ff;">🔄 Khôi phục 4 cuộc thi chuẩn</button>
+            </div>
+          </div>
+          <div id="adminEventsGrid" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(320px, 1fr));gap:1.25rem;"></div>
         </div>
 
         <!-- ─── TAB: CONTESTANTS ─── -->
@@ -2153,6 +2222,7 @@ function showTab(name) {
   const titles = {
     overview: 'Tổng quan',
     timeline: 'Nhật ký bình chọn',
+    'events-manager': '🏆 Quản lý Cuộc Thi Bình Chọn',
     contestants: 'Quản lý thí sinh',
     event: '🔑 Cấu hình & Đổi Sự Kiện',
     'event-archive': '📚 Kho Sự Kiện Cũ (Lịch Sử Cuộc Thi)',
@@ -2170,6 +2240,229 @@ function showTab(name) {
     updateEventPreview();
     renderSavedEventsList();
   }
+  if (name === 'events-manager') {
+    renderAdminEvents();
+  }
+}
+
+/* ─── EVENTS MANAGER FUNCTIONS (CUỘC THI BÌNH CHỌN) ─── */
+const DEFAULT_ADMIN_EVENTS = [
+  {
+    id: 'evt_hoakhoi_2026',
+    tag: '# HOA KHÔI 2026',
+    year: '✦ NĂM HỌC 2025 – 2026 ✦',
+    title: 'Bình Chọn Hoa Khôi',
+    description: 'Chạm để trao vương miện cho thí sinh bạn yêu thích nhất',
+    location: 'Hội trường A – Trường ĐH Xây dựng Miền Trung',
+    event_time: '08:00 - 22:00',
+    creator: 'Đoàn TN – Hội Sinh viên MUCE',
+    checked_in_count: 245
+  },
+  {
+    id: 'evt_namvuong_2026',
+    tag: '# NAM VƯƠNG 2026',
+    year: '✦ NĂM HỌC 2025 – 2026 ✦',
+    title: 'Bình Chọn Nam Vương',
+    description: 'Bình chọn nam sinh tài năng, phong cách và ưu tú nhất',
+    location: 'Hội trường A – Trường ĐH Xây dựng Miền Trung',
+    event_time: '08:00 - 22:00',
+    creator: 'Đoàn TN – Hội Sinh viên MUCE',
+    checked_in_count: 182
+  },
+  {
+    id: 'evt_tienghat_2026',
+    tag: '# TIẾNG HÁT 2026',
+    year: '✦ HỘI THI 2026 ✦',
+    title: 'Bình Chọn Tiếng Hát Sinh Viên',
+    description: 'Bình chọn tiết mục và giọng ca vàng xuất sắc nhất',
+    location: 'Hội trường Khu B – Trường ĐH Xây dựng Miền Trung',
+    event_time: '18:00 - 22:00',
+    creator: 'Đoàn TN – Hội Sinh viên MUCE',
+    checked_in_count: 310
+  },
+  {
+    id: 'evt_daisu_2026',
+    tag: '# ĐẠI SỨ 2026',
+    year: '✦ NHIỆM KỲ 2026 – 2027 ✦',
+    title: 'Bình Chọn Gương Mặt Đại Sứ',
+    description: 'Tôn vinh gương mặt đại diện và nét đẹp sinh viên tiêu biểu',
+    location: 'Trụ sở chính – Trường ĐH Xây dựng Miền Trung',
+    event_time: '08:00 - 22:00',
+    creator: 'Đoàn TN – Hội Sinh viên MUCE',
+    checked_in_count: 156
+  }
+];
+
+let adminEvents = [];
+
+async function loadAdminEvents() {
+  try {
+    const res = await api.get('/api/events');
+    if (res && Array.isArray(res.events) && res.events.length > 0) {
+      adminEvents = res.events;
+    } else {
+      const local = localStorage.getItem('hh:events');
+      if (local) {
+        try { adminEvents = JSON.parse(local); } catch(e){}
+      }
+      if (!adminEvents || !adminEvents.length) {
+        adminEvents = DEFAULT_ADMIN_EVENTS;
+      }
+    }
+  } catch(e) {
+    adminEvents = DEFAULT_ADMIN_EVENTS;
+  }
+
+  // Filter out any stale attendance events (PHƯỜNG, NCTXH, Chuyển đổi số, Hiến máu)
+  adminEvents = adminEvents.filter(e => {
+    const text = ((e.title || '') + ' ' + (e.tag || '') + ' ' + (e.description || '')).toLowerCase();
+    return !text.includes('phường') && !text.includes('nctxh') && !text.includes('chuyển đổi số') && !text.includes('hiến máu');
+  });
+  if (!adminEvents || !adminEvents.length) {
+    adminEvents = DEFAULT_ADMIN_EVENTS;
+    localStorage.setItem('hh:events', JSON.stringify(DEFAULT_ADMIN_EVENTS));
+  }
+
+  renderAdminEvents();
+}
+
+function renderAdminEvents() {
+  const container = document.getElementById('adminEventsGrid');
+  if (!container) return;
+  if (!adminEvents.length) {
+    container.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:2rem;color:#94a3b8;">Chưa có cuộc thi nào. Hãy nhấn "+ Thêm cuộc thi mới" để tạo!</div>';
+    return;
+  }
+  container.innerHTML = adminEvents.map((ev, i) => {
+    const count = parseInt(ev.total_attendees || ev.checked_in_count || 0);
+    return `
+    <div style="background:#ffffff;border:1.5px solid #bae6fd;border-radius:16px;padding:1.25rem;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 4px 14px rgba(0,0,0,0.04);">
+      <div>
+        <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-bottom:.65rem;">
+          <span style="background:#e0f2fe;color:#0284c7;font-size:.72rem;font-weight:700;padding:.2rem .55rem;border-radius:6px;">${esc(ev.tag || '# CUỘC THI')}</span>
+          <span style="background:#dcfce7;color:#15803d;border:1px solid #86efac;font-size:.72rem;font-weight:800;padding:.2rem .55rem;border-radius:6px;">🟢 ĐANG MỞ BÌNH CHỌN</span>
+          <span style="background:#e0f2fe;color:#0284c7;font-size:.72rem;font-weight:700;padding:.2rem .55rem;border-radius:6px;">👥 ${count} LƯỢT</span>
+        </div>
+        <h3 style="font-size:1.1rem;font-weight:800;color:#0f172a;margin-bottom:.3rem;line-height:1.35;">${esc(ev.title)}</h3>
+        <div style="font-size:.76rem;color:#0284c7;font-weight:700;margin-bottom:.35rem;">${esc(ev.year || '✦ NĂM HỌC 2025 – 2026 ✦')}</div>
+        <p style="font-size:.8rem;color:#64748b;margin-bottom:.85rem;">${esc(ev.description || 'Chạm để bình chọn.')}</p>
+        <div style="font-size:.8rem;color:#334155;display:flex;flex-direction:column;gap:.35rem;line-height:1.4;">
+          <div>📍 ${esc(ev.location || 'Hội trường A – Trường ĐH Xây dựng Miền Trung')}</div>
+          <div>🕒 Thời gian: <strong>${esc(ev.event_time || '08:00 - 22:00')}</strong></div>
+          <div>👤 Đơn vị tổ chức: <strong>${esc(ev.creator || 'Đoàn TN – Hội Sinh viên MUCE')}</strong></div>
+        </div>
+      </div>
+      <div style="margin-top:1.15rem;display:flex;gap:.5rem;">
+        <button class="btn btn-ghost btn-sm" onclick="openEditAdminEvent('${ev.id}')" style="flex:1;border:1px solid #bfdbfe;color:#0284c7;">✏️ Sửa</button>
+        <button class="btn btn-danger btn-sm" onclick="deleteAdminEvent('${ev.id}')" style="padding:0 .75rem;">🗑️</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+let editingEventId = null;
+
+function openAddAdminEvent() {
+  editingEventId = null;
+  document.getElementById('adminEventModalTitle').textContent = 'Thêm Cuộc Thi Mới';
+  document.getElementById('adminEventId').value = '';
+  document.getElementById('adminEventTag').value = '# CUỘC THI 2026';
+  document.getElementById('adminEventYear').value = '✦ NĂM HỌC 2025 – 2026 ✦';
+  document.getElementById('adminEventTitle').value = '';
+  document.getElementById('adminEventDesc').value = 'Bình chọn cho thí sinh và tiết mục bạn yêu thích nhất';
+  document.getElementById('adminEventLocation').value = 'Hội trường A – Trường ĐH Xây dựng Miền Trung';
+  document.getElementById('adminEventTime').value = '08:00 - 22:00';
+  document.getElementById('adminEventCreator').value = 'Đoàn TN – Hội Sinh viên MUCE';
+  document.getElementById('adminEventCount').value = '100';
+  document.getElementById('adminEventModal').classList.remove('hidden');
+}
+
+function openEditAdminEvent(id) {
+  const ev = adminEvents.find(e => e.id === id);
+  if (!ev) return;
+  editingEventId = id;
+  document.getElementById('adminEventModalTitle').textContent = 'Chỉnh Sửa Cuộc Thi';
+  document.getElementById('adminEventId').value = ev.id;
+  document.getElementById('adminEventTag').value = ev.tag || '# CUỘC THI';
+  document.getElementById('adminEventYear').value = ev.year || '✦ NĂM HỌC 2025 – 2026 ✦';
+  document.getElementById('adminEventTitle').value = ev.title || '';
+  document.getElementById('adminEventDesc').value = ev.description || '';
+  document.getElementById('adminEventLocation').value = ev.location || '';
+  document.getElementById('adminEventTime').value = ev.event_time || '08:00 - 22:00';
+  document.getElementById('adminEventCreator').value = ev.creator || 'Đoàn TN – Hội Sinh viên MUCE';
+  document.getElementById('adminEventCount').value = ev.checked_in_count || 0;
+  document.getElementById('adminEventModal').classList.remove('hidden');
+}
+
+function closeAdminEventModal() {
+  document.getElementById('adminEventModal').classList.add('hidden');
+  editingEventId = null;
+}
+
+async function saveAdminEvent() {
+  const title = document.getElementById('adminEventTitle').value.trim();
+  if (!title) { toast('Vui lòng nhập tên cuộc thi!', 'error'); return; }
+
+  const evData = {
+    id: editingEventId || ('evt_' + Date.now()),
+    tag: document.getElementById('adminEventTag').value.trim() || '# CUỘC THI',
+    year: document.getElementById('adminEventYear').value.trim() || '✦ NĂM HỌC 2025 – 2026 ✦',
+    title: title,
+    description: document.getElementById('adminEventDesc').value.trim() || 'Chạm để bình chọn.',
+    location: document.getElementById('adminEventLocation').value.trim() || 'Hội trường A – Trường ĐH Xây dựng Miền Trung',
+    event_time: document.getElementById('adminEventTime').value.trim() || '08:00 - 22:00',
+    creator: document.getElementById('adminEventCreator').value.trim() || 'Đoàn TN – Hội Sinh viên MUCE',
+    checked_in_count: parseInt(document.getElementById('adminEventCount').value) || 0
+  };
+
+  if (editingEventId) {
+    const idx = adminEvents.findIndex(e => e.id === editingEventId);
+    if (idx !== -1) adminEvents[idx] = { ...adminEvents[idx], ...evData };
+  } else {
+    adminEvents.unshift(evData);
+  }
+
+  localStorage.setItem('hh:events', JSON.stringify(adminEvents));
+  renderAdminEvents();
+  closeAdminEventModal();
+
+  try {
+    await api.post('/api/events', { event: evData });
+  } catch(e){}
+
+  toast('🎉 Đã lưu cuộc thi thành công!', 'success');
+}
+
+async function deleteAdminEvent(id) {
+  const ev = adminEvents.find(e => e.id === id);
+  if (!ev) return;
+  const ok = confirm(`Bạn có chắc chắn muốn xóa cuộc thi "${ev.title}"?`);
+  if (!ok) return;
+
+  adminEvents = adminEvents.filter(e => e.id !== id);
+  localStorage.setItem('hh:events', JSON.stringify(adminEvents));
+  renderAdminEvents();
+
+  try {
+    await api.del(`/api/events/${id}`);
+  } catch(e){}
+
+  toast('Đã xóa cuộc thi!', 'info');
+}
+
+async function resetDefaultAdminEvents() {
+  const ok = confirm('Bạn có muốn khôi phục lại 4 cuộc thi chuẩn (Hoa Khôi, Nam Vương, Tiếng Hát, Đại Sứ) không?');
+  if (!ok) return;
+
+  adminEvents = DEFAULT_ADMIN_EVENTS;
+  localStorage.setItem('hh:events', JSON.stringify(DEFAULT_ADMIN_EVENTS));
+  renderAdminEvents();
+
+  try {
+    await api.post('/api/events', { events: DEFAULT_ADMIN_EVENTS });
+  } catch(e){}
+
+  toast('🎉 Đã khôi phục 4 cuộc thi chuẩn thành công!', 'success');
 }
 
 /* ─── LOAD ADMIN DATA ───────────────────────────────────── */
@@ -2233,6 +2526,7 @@ function renderAll() {
   renderContestantList();
   renderSettings();
   loadSavedEvents();
+  loadAdminEvents();
   renderStatusPill();
   renderDebug();
 }

@@ -3,57 +3,65 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Bình Chọn Hoa Khôi 2026</title>
+  <title>Cổng Bình Chọn Trực Tuyến – Trường Đại Học Xây Dựng Miền Trung</title>
   <link rel="icon" type="image/png" href="app-icon-192.png" />
-  <meta name="description" content="Bình chọn cho thí sinh Hoa Hậu yêu thích của bạn! Mỗi người chỉ được bình chọn một lần." />
-  <meta property="og:title" content="Bình Chọn Hoa Khôi 2026" />
-  <meta property="og:description" content="Hãy trao vương miện cho Hoa Khôi bạn yêu thích!" />
+  <meta name="description" content="Cổng bình chọn trực tiếp các cuộc thi Hoa Khôi, Nam Vương, Tiếng Hát Sinh Viên, Gương Mặt Đại Sứ – Đoàn TNCS Hồ Chí Minh & Hội Sinh Viên MUCE" />
+  <meta property="og:title" content="Cổng Bình Chọn Trực Tuyến MUCE 2026" />
+  <meta property="og:description" content="Tham gia bình chọn cho các thí sinh & tiết mục bạn yêu thích nhất!" />
   <meta property="og:type" content="website" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
-  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=20260916" />
-  <!-- PWA Manifest & App Installer -->
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400&family=Inter:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css?v=20261012" />
   <link rel="manifest" href="manifest.json" />
-  <meta name="theme-color" content="#FDF1EF" />
+  <meta name="theme-color" content="#0057a8" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-  <meta name="apple-mobile-web-app-title" content="Hoa Khôi" />
+  <meta name="apple-mobile-web-app-title" content="Bình Chọn MUCE" />
   <link rel="apple-touch-icon" href="app-icon-512.png" />
   <link rel="stylesheet" href="pwa-install.css?v=1.0" />
   <style>
-    /* ── PAGE ── */
-    body { background: #f8fafc; color: #1a1a1a; }
-
-    /* ── HERO ── */
-    .hero-section {
-      background: linear-gradient(135deg, #0a1628 0%, #0d2847 40%, #0f3460 70%, #1a4a7a 100%);
+    /* ── BASE & SAKURA BACKGROUND ── */
+    body {
+      background: #f8fafc;
+      color: #1e293b;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      overflow-x: hidden;
       position: relative;
-      overflow: hidden;
-      padding: 0;
-    }
-    .hero-section::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: 
-        radial-gradient(ellipse at 20% 50%, rgba(59,130,246,.12) 0%, transparent 50%),
-        radial-gradient(ellipse at 80% 20%, rgba(99,102,241,.1) 0%, transparent 50%);
-      pointer-events: none;
-    }
-    .hero-section::after {
-      content: '';
-      position: absolute;
-      bottom: 0;
-      left: 0;
-      right: 0;
-      height: 4px;
-      background: linear-gradient(90deg, #3b82f6, #f59e0b, #ef4444, #3b82f6);
+      min-height: 100vh;
     }
 
-    /* MUCE Topbar */
+    /* Falling Petals Background */
+    .sakura-bg {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+    .petal {
+      position: absolute;
+      background: radial-gradient(circle at 40% 40%, rgba(251, 182, 206, 0.75) 0%, rgba(244, 114, 182, 0.45) 80%, rgba(236, 72, 153, 0.1) 100%);
+      border-radius: 120% 10% 120% 10%;
+      pointer-events: none;
+      opacity: 0.65;
+      filter: blur(0.4px);
+      animation: floatPetal linear infinite;
+    }
+    @keyframes floatPetal {
+      0% { transform: translateY(-40px) rotate(0deg) scale(0.8); opacity: 0; }
+      15% { opacity: 0.7; }
+      85% { opacity: 0.7; }
+      100% { transform: translateY(105vh) rotate(540deg) scale(1.1) translateX(80px); opacity: 0; }
+    }
+
+    /* ── TOPBAR ── */
     .muce-topbar {
-      background: #242d3c;
+      background: #1e2638;
       color: #e2e8f0;
       font-size: .72rem;
       border-bottom: 1px solid rgba(255,255,255,.08);
@@ -61,20 +69,20 @@
       z-index: 10;
     }
     .muce-topbar-container {
-      max-width: 1240px;
+      max-width: 1260px;
       margin: 0 auto;
-      padding: 0 0 0 1.25rem;
+      padding: 0 1.25rem;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      min-height: 36px;
+      min-height: 38px;
     }
     .muce-topbar-left {
       display: flex;
       align-items: center;
-      gap: .55rem;
+      gap: .6rem;
       flex-wrap: wrap;
-      padding: .2rem 0;
+      padding: .25rem 0;
     }
     .topbar-admin-link {
       display: inline-flex;
@@ -92,252 +100,350 @@
       white-space: nowrap;
     }
     .topbar-admin-link:hover {
-      background: #1d4ed8;
-      border-color: #60a5fa;
+      background: #0284c7;
+      border-color: #38bdf8;
       color: #ffffff;
       transform: translateY(-1px);
-      box-shadow: 0 2px 10px rgba(29, 78, 216, 0.45);
     }
-    .topbar-admin-link svg {
-      stroke: #facc15;
-      flex-shrink: 0;
-    }
-    .topbar-admin-link:hover svg {
-      stroke: #ffffff;
-    }
-    .muce-topbar-title {
-      color: rgba(255,255,255,.8);
-      font-weight: 600;
-    }
-    .muce-phone-highlight {
-      color: #ffffff;
-      font-weight: 700;
-    }
-    .muce-topbar-divider { color: rgba(255,255,255,.3); }
-    .muce-phone-list { color: rgba(255,255,255,.7); }
-    
-    .muce-topbar-right {
-      display: flex;
-      align-items: center;
-      height: 36px;
-    }
-    .muce-topbar-blue-tab {
-      background: linear-gradient(135deg, #3897e6, #1d6ed8);
-      color: #ffffff;
-      font-weight: 700;
-      padding: 0 1.25rem 0 1.75rem;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      gap: .5rem;
-      font-size: .72rem;
-      letter-spacing: .04em;
-      text-transform: uppercase;
-      clip-path: polygon(14px 0, 100% 0, 100% 100%, 0 100%);
-    }
+    .topbar-admin-link svg { stroke: #facc15; flex-shrink: 0; }
 
-    /* Top brand bar (Nền trắng, logo + chữ chuẩn nhận diện thương hiệu MUCE) */
+    /* ── BRAND HEADER ── */
     .hero-top-bar {
       background: #ffffff;
-      border-bottom: 2px solid #003876;
-      padding: .5rem 0;
+      border-bottom: 1px solid #e2e8f0;
+      padding: .65rem 0;
+      position: relative;
+      z-index: 5;
     }
     .hero-top-bar-inner {
-      max-width: 1240px;
+      max-width: 1260px;
       margin: 0 auto;
       padding: 0 1.25rem;
       display: flex;
       align-items: center;
-      justify-content: flex-start;
+      justify-content: space-between;
     }
     .hero-brand {
       display: flex;
       align-items: center;
-      gap: .85rem;
+      gap: 1rem;
     }
     .hero-brand img {
       height: 52px;
       width: 52px;
       object-fit: contain;
     }
-    .hero-brand-info { text-align: left; }
+    .hero-brand-info { line-height: 1.25; }
     .hero-brand-ministry {
-      font-size: .75rem;
-      color: #003876;
-      letter-spacing: .03em;
-      font-weight: 800;
-      line-height: 1.25;
+      font-size: .68rem;
+      color: #64748b;
+      font-weight: 700;
+      letter-spacing: .08em;
       text-transform: uppercase;
     }
     .hero-brand-name {
-      font-family: var(--font-d);
-      font-size: clamp(.95rem, 2.4vw, 1.25rem);
-      font-weight: 900;
-      color: #a60000;
-      letter-spacing: .01em;
-      line-height: 1.25;
-      text-transform: uppercase;
+      font-size: clamp(.92rem, 2.6vw, 1.2rem);
+      color: #0057a8;
+      font-weight: 800;
+      letter-spacing: .02em;
     }
     .hero-brand-eng {
-      font-size: .63rem;
-      color: #003876;
-      letter-spacing: .06em;
+      font-size: .62rem;
+      color: #64748b;
       font-weight: 600;
-      text-transform: uppercase;
-      margin-top: .05rem;
+      letter-spacing: .03em;
     }
 
-    /* Hero content */
-    .hero-content {
+    /* ── HERO BANNER ── */
+    .hero-section {
+      background: linear-gradient(135deg, #091a32 0%, #0d2a52 45%, #0f3d75 75%, #185a9d 100%);
+      position: relative;
+      overflow: hidden;
+      padding: 2.2rem 1rem 2rem;
+      z-index: 1;
       text-align: center;
-      padding: 1.25rem 1rem 1.15rem;
     }
-    .hero-crown-icon {
-      width: 36px;
-      height: 36px;
-      margin: 0 auto .35rem;
-      background: linear-gradient(135deg, rgba(245,158,11,.2), rgba(245,158,11,.05));
-      border: 1px solid rgba(245,158,11,.3);
-      border-radius: 50%;
-      display: flex;
+    .hero-section::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: 
+        radial-gradient(ellipse at 20% 40%, rgba(56, 189, 248, 0.15) 0%, transparent 60%),
+        radial-gradient(ellipse at 80% 60%, rgba(244, 114, 182, 0.12) 0%, transparent 50%);
+      pointer-events: none;
+    }
+    .hero-section::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 4px;
+      background: linear-gradient(90deg, #0284c7, #f59e0b, #ef4444, #0284c7);
+    }
+    .hero-badge-pill {
+      display: inline-flex;
       align-items: center;
-      justify-content: center;
-      font-size: 1.15rem;
-      box-shadow: 0 0 20px rgba(245,158,11,.15);
+      gap: .45rem;
+      padding: .28rem .85rem;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 999px;
+      color: #38bdf8;
+      font-size: .75rem;
+      font-weight: 700;
+      margin-bottom: .6rem;
+      backdrop-filter: blur(8px);
     }
     .hero-title {
-      font-size: clamp(1.35rem, 3.5vw, 1.95rem);
+      font-size: clamp(1.4rem, 3.8vw, 2.15rem);
       font-weight: 900;
       color: #ffffff;
       letter-spacing: .02em;
-      line-height: 1.15;
+      line-height: 1.2;
       text-transform: uppercase;
-      text-shadow: 0 2px 15px rgba(0,0,0,.3);
+      text-shadow: 0 2px 14px rgba(0,0,0,.35);
+      font-family: 'Outfit', 'Inter', sans-serif;
     }
     .hero-title-accent {
-      background: linear-gradient(135deg, #f59e0b, #fbbf24, #f59e0b);
+      background: linear-gradient(135deg, #f59e0b, #fbbf24, #fcd34d);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
     }
     .hero-sub {
-      margin-top: .35rem;
-      color: rgba(255,255,255,.65);
-      font-size: .82rem;
-      font-weight: 400;
+      margin-top: .4rem;
+      color: rgba(255,255,255,.8);
+      font-size: .88rem;
+      max-width: 680px;
+      margin-left: auto;
+      margin-right: auto;
     }
-    .hero-year {
-      display: inline-block;
-      margin-top: .35rem;
-      padding: .15rem .75rem;
-      background: rgba(255,255,255,.06);
-      border: 1px solid rgba(255,255,255,.1);
-      border-radius: 999px;
-      font-size: .68rem;
-      color: rgba(255,255,255,.55);
-      letter-spacing: .12em;
-      font-weight: 600;
-    }
-
-    /* ── COUNTDOWN BANNER ── */
-    .countdown-banner {
-      margin: .75rem auto 0;
-      max-width: 380px;
-      background: rgba(255,255,255,.06);
-      border: 1px solid rgba(255,255,255,.1);
-      border-radius: 12px;
-      padding: .5rem 1rem;
-      backdrop-filter: blur(10px);
-    }
-    .countdown-banner .countdown {
-      gap: .35rem;
-    }
-    .countdown-banner .countdown-unit {
-      min-width: 2.2rem;
-    }
-    .countdown-banner .countdown-num {
-      font-size: 1.3rem;
-      color: #60a5fa;
-      text-shadow: 0 0 12px rgba(96,165,250,.4);
-    }
-    .countdown-banner .countdown-sep {
-      font-size: 1.1rem;
-      color: rgba(255,255,255,.4);
-      margin-bottom: .6rem;
-    }
-    .countdown-banner .countdown-label {
-      font-size: .58rem;
-      color: rgba(255,255,255,.5);
-      margin-top: 0;
-    }
-    .countdown-banner-label {
-      font-size: .6rem;
-      letter-spacing: .15em;
-      color: rgba(255,255,255,.5);
-      text-transform: uppercase;
-      margin-bottom: .25rem;
-      font-weight: 600;
-    }
-    .closed-banner {
-      background: rgba(239,68,68,.12);
-      border: 1px solid rgba(239,68,68,.3);
-      color: #fca5a5;
-      border-radius: 10px;
-      padding: .5rem 1rem;
-      text-align: center;
-      font-size: .8rem;
-      font-weight: 600;
-      margin: .6rem auto 0;
-      max-width: 340px;
-    }
-
-    /* ── STATS BAR ── */
-    .stats-bar {
-      margin: .65rem auto 0;
-      max-width: 380px;
+    .hero-stats {
+      margin-top: 1.1rem;
       display: flex;
       justify-content: center;
-      gap: .6rem;
+      gap: .65rem;
+      flex-wrap: wrap;
     }
-    .stat-pill {
+    .hero-stat-pill {
       display: inline-flex;
       align-items: center;
-      gap: .3rem;
-      padding: .25rem .7rem;
-      background: rgba(255,255,255,.06);
-      border: 1px solid rgba(255,255,255,.12);
+      gap: .4rem;
+      padding: .32rem .85rem;
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.16);
       border-radius: 999px;
-      font-size: .72rem;
+      font-size: .76rem;
       font-weight: 600;
-      color: rgba(255,255,255,.7);
-      backdrop-filter: blur(6px);
+      color: #f1f5f9;
+      backdrop-filter: blur(8px);
     }
-    .stat-pill svg { width: 12px; height: 12px; stroke: rgba(255,255,255,.5); fill: none; stroke-width: 2; }
+    .hero-stat-pill svg { width: 14px; height: 14px; stroke: #38bdf8; fill: none; stroke-width: 2; }
 
-    /* ── GRID ── */
-    .grid-section { padding: 2.5rem 0 1rem; }
-    .grid-section-title {
-      text-align: center;
-      margin-bottom: 2rem;
+    /* ── PORTAL VIEW: EVENT CARDS GRID (EXACTLY AS SCREENSHOT) ── */
+    .portal-section {
+      position: relative;
+      z-index: 2;
+      max-width: 1260px;
+      margin: 1.75rem auto 3rem;
+      padding: 0 1.25rem;
     }
-    .grid-section-title h2 {
-      font-family: var(--font-d);
-      font-size: 1.5rem;
+    .events-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+      gap: 1.65rem;
+    }
+
+    /* Event Card Styled Exactly Like User's Screenshot */
+    .event-card {
+      background: #ffffff;
+      border: 1.5px solid #bae6fd;
+      border-radius: 20px;
+      padding: 1.6rem 1.65rem;
+      box-shadow: 0 6px 24px rgba(2, 132, 199, 0.06), 0 1px 3px rgba(0,0,0,0.03);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      transition: all .28s cubic-bezier(0.16, 1, 0.3, 1);
+      cursor: pointer;
+    }
+    .event-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 18px 40px rgba(2, 132, 199, 0.16);
+      border-color: #38bdf8;
+    }
+    .event-tags-row {
+      display: flex;
+      align-items: center;
+      gap: .45rem;
+      flex-wrap: wrap;
+      margin-bottom: .95rem;
+    }
+    .tag-code {
+      background: #e0f2fe;
+      border: 1px solid #bae6fd;
+      color: #0284c7;
+      font-size: .76rem;
+      font-weight: 700;
+      padding: .24rem .65rem;
+      border-radius: 8px;
+      white-space: nowrap;
+    }
+    .tag-status {
+      background: #dcfce7;
+      border: 1px solid #86efac;
+      color: #15803d;
+      font-size: .76rem;
+      font-weight: 800;
+      padding: .24rem .65rem;
+      border-radius: 8px;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: .25rem;
+    }
+    .tag-attendees {
+      background: #e0f2fe;
+      border: 1px solid #bae6fd;
+      color: #0284c7;
+      font-size: .76rem;
+      font-weight: 700;
+      padding: .24rem .65rem;
+      border-radius: 8px;
+      white-space: nowrap;
+      display: inline-flex;
+      align-items: center;
+      gap: .25rem;
+    }
+    .event-title {
+      font-size: 1.25rem;
       font-weight: 800;
       color: #0f172a;
+      line-height: 1.35;
+      margin-bottom: .35rem;
+      letter-spacing: -.01em;
     }
-    .grid-section-title p {
-      font-size: .85rem;
+    .event-desc {
+      font-size: .86rem;
       color: #64748b;
-      margin-top: .3rem;
+      margin-bottom: 1.2rem;
+      line-height: 1.45;
     }
-    .contestant-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-      gap: 1.5rem;
+    .event-info-list {
+      display: flex;
+      flex-direction: column;
+      gap: .52rem;
+      font-size: .865rem;
+      color: #334155;
+      margin-bottom: 1.5rem;
+      flex: 1;
+    }
+    .event-info-item {
+      display: flex;
+      align-items: flex-start;
+      gap: .65rem;
+      line-height: 1.45;
+    }
+    .event-info-icon {
+      font-size: 1rem;
+      flex-shrink: 0;
+      line-height: 1.2;
+      width: 18px;
+      text-align: center;
+    }
+    .event-info-content {
+      flex: 1;
+      word-break: break-word;
+    }
+    .event-info-content strong {
+      color: #0f172a;
+      font-weight: 700;
+    }
+    .benefit-highlight {
+      color: #dc2626 !important;
+      font-weight: 700 !important;
+    }
+    .attendee-highlight {
+      color: #0284c7 !important;
+      font-weight: 700 !important;
     }
 
-    /* ── CONTESTANT CARD ── */
+    /* "Bình chọn ngay" Button (Exactly as in screenshot) */
+    .btn-vote-now {
+      width: 100%;
+      padding: .8rem 1.2rem;
+      background: #0073b7;
+      color: #ffffff;
+      font-size: .95rem;
+      font-weight: 700;
+      border-radius: 10px;
+      border: none;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: .55rem;
+      transition: all .2s ease;
+      box-shadow: 0 4px 14px rgba(0, 115, 183, 0.28);
+    }
+    .btn-vote-now:hover {
+      background: #005f96;
+      box-shadow: 0 6px 20px rgba(0, 115, 183, 0.4);
+      transform: translateY(-1px);
+    }
+
+    /* ── CONTESTANT VIEW (BÌNH CHỌN CHO CHỦ ĐỀ ĐÓ) ── */
+    .topic-view-section {
+      position: relative;
+      z-index: 2;
+      max-width: 1260px;
+      margin: 0 auto;
+      padding: 0 1.25rem 3rem;
+    }
+    .topic-nav-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      margin-top: 1.5rem;
+      margin-bottom: 1.75rem;
+      padding: .85rem 1.25rem;
+      background: #ffffff;
+      border: 1.5px solid #bfdbfe;
+      border-radius: 16px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.03);
+    }
+    .btn-back-portal {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .6rem 1.15rem;
+      background: #eff6ff;
+      color: #0284c7;
+      border: 1px solid #bfdbfe;
+      border-radius: 10px;
+      font-size: .88rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .2s ease;
+      text-decoration: none;
+    }
+    .btn-back-portal:hover {
+      background: #0284c7;
+      color: #ffffff;
+      border-color: #0284c7;
+      transform: translateX(-2px);
+    }
+
+    /* Contestant Grid & Cards */
+    .contestants-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 1.5rem;
+    }
     .c-card {
       position: relative;
       background: #ffffff;
@@ -346,53 +452,46 @@
       overflow: hidden;
       cursor: default;
       box-shadow: 0 4px 20px rgba(0,0,0,0.06);
-      transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
       display: flex;
       flex-direction: column;
     }
     .c-card:hover {
       box-shadow: 0 16px 40px rgba(0,0,0,0.12);
-      transform: translateY(-6px);
-      border-color: #cbd5e1;
+      transform: translateY(-5px);
+      border-color: #93c5fd;
     }
     .c-card.voted-card {
       border: 2.5px solid #2563eb;
       box-shadow: 0 0 0 4px rgba(37,99,235,.12), 0 8px 30px rgba(37,99,235,.15);
     }
-
-    /* Floating SBD badge */
     .sbd-badge {
       position: absolute;
       top: 14px;
       left: 14px;
       z-index: 3;
-      background: rgba(0,0,0,.55);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
+      background: rgba(0,0,0,.6);
+      backdrop-filter: blur(10px);
       color: #fff;
       border: 1px solid rgba(255,255,255,.2);
       padding: 5px 14px;
       border-radius: 20px;
       font-weight: 700;
       font-size: 0.72rem;
-      letter-spacing: 0.06em;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.25);
       display: flex;
       align-items: center;
       gap: 6px;
     }
     .sbd-badge::before {
       content: '';
-      display: inline-block;
       width: 6px;
       height: 6px;
       border-radius: 50%;
       background: #60a5fa;
       box-shadow: 0 0 8px #60a5fa;
     }
-
     .c-card-img {
-      height: 300px;
+      height: 280px;
       width: 100%;
       position: relative;
       overflow: hidden;
@@ -408,17 +507,10 @@
       object-position: center top;
       position: absolute;
       inset: 0;
-      transition: transform 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      transition: transform 0.5s ease;
     }
     .c-card:hover .c-card-photo {
       transform: scale(1.07);
-    }
-    .c-card-img-overlay {
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(180deg, rgba(0,0,0,0) 50%, rgba(0,0,0,0.45) 100%);
-      z-index: 1;
-      pointer-events: none;
     }
     .c-card-placeholder {
       display: flex;
@@ -426,31 +518,18 @@
       align-items: center;
       justify-content: center;
       gap: 0.4rem;
-      z-index: 1;
-      color: rgba(255, 255, 255, 0.85);
+      color: rgba(255, 255, 255, 0.9);
       user-select: none;
     }
     .c-card-placeholder-icon {
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1.6rem;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      font-size: 2.5rem;
     }
     .c-card-img-num {
-      font-family: var(--font-d);
-      font-size: 2.2rem;
+      font-family: 'Outfit', sans-serif;
+      font-size: 1.8rem;
       font-weight: 800;
-      letter-spacing: .05em;
       color: #ffffff;
-      text-shadow: 0 2px 10px rgba(0,0,0,0.3);
     }
-
     .c-card-body {
       padding: 1.35rem 1.4rem;
       display: flex;
@@ -459,7 +538,7 @@
       background: #fff;
     }
     .c-card-name {
-      font-family: var(--font-d);
+      font-family: 'Outfit', sans-serif;
       font-size: 1.2rem;
       font-weight: 700;
       color: #0f172a;
@@ -479,6 +558,18 @@
       color: #475569;
       font-weight: 600;
     }
+    .progress-bar {
+      height: 8px;
+      background: #e2e8f0;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #3b82f6, #0284c7);
+      border-radius: 999px;
+      transition: width 0.4s ease;
+    }
     .c-card-actions {
       margin-top: 1.15rem;
       display: flex;
@@ -486,50 +577,46 @@
       gap: 0.5rem;
     }
 
-    /* Vote button states */
-    .vote-btn {
+    /* Vote button */
+    .vote-action-btn {
       padding: 0.75rem 1rem;
-      border-radius: 14px;
+      border-radius: 12px;
       font-size: 0.88rem;
       font-weight: 700;
-      letter-spacing: 0.02em;
-      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 0.4rem;
       width: 100%;
       cursor: pointer;
-    }
-    .vote-btn.state-default {
-      background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 50%, #3b82f6 100%);
-      color: #fff;
       border: none;
-      box-shadow: 0 4px 16px rgba(37,99,235,0.3);
+      transition: all 0.2s ease;
     }
-    .vote-btn.state-default:hover {
-      background: linear-gradient(135deg, #1e40af 0%, #1d4ed8 100%);
-      box-shadow: 0 8px 24px rgba(37,99,235,0.4);
-      transform: translateY(-2px);
+    .vote-action-btn.btn-default {
+      background: linear-gradient(135deg, #0057a8 0%, #0284c7 100%);
+      color: #fff;
+      box-shadow: 0 4px 14px rgba(2,132,199,0.3);
     }
-    .vote-btn.state-mine {
-      background: linear-gradient(135deg, #eff6ff, #dbeafe);
-      color: #1d4ed8;
-      border: 2px solid #3b82f6;
+    .vote-action-btn.btn-default:hover {
+      background: linear-gradient(135deg, #004585 0%, #026ca3 100%);
+      transform: translateY(-1px);
+    }
+    .vote-action-btn.btn-voted {
+      background: #eff6ff;
+      color: #0284c7;
+      border: 2px solid #38bdf8;
       font-weight: 800;
+      cursor: default;
     }
-    .vote-btn.state-other, .vote-btn.state-closed {
+    .vote-action-btn.btn-disabled {
       background: #f1f5f9;
       color: #94a3b8;
-      border: 1px solid #e2e8f0;
       cursor: not-allowed;
     }
-
-    /* Share button */
     .share-btn {
       padding: 0.65rem 1rem;
-      border-radius: 14px;
-      background: linear-gradient(135deg, #1877F2, #0c63d4);
+      border-radius: 12px;
+      background: #1877F2;
       color: #fff;
       border: none;
       font-size: 0.82rem;
@@ -538,313 +625,148 @@
       align-items: center;
       justify-content: center;
       gap: 0.4rem;
-      transition: all 0.2s;
+      cursor: pointer;
       width: 100%;
+      transition: all .2s;
     }
     .share-btn:hover {
-      background: linear-gradient(135deg, #0c63d4, #0a52b5);
-      box-shadow: 0 4px 16px rgba(24,119,242,0.3);
+      background: #0c63d4;
       transform: translateY(-1px);
     }
-    .share-btn svg { width: 14px; height: 14px; fill: #fff; }
 
-    /* ── SECTION DIVIDER ── */
-    .section-divider {
-      border: none;
-      height: 1px;
-      background: linear-gradient(90deg, transparent, #cbd5e1, transparent);
-      margin: 3rem 0 0;
+    /* ── VOTE MODAL ── */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.65);
+      backdrop-filter: blur(5px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .modal-overlay.hidden { display: none; }
+    .modal-box {
+      background: #ffffff;
+      border-radius: 20px;
+      width: 100%;
+      max-width: 480px;
+      padding: 1.75rem;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+      border-top: 5px solid #0057a8;
+      animation: modalPop .2s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    @keyframes modalPop {
+      0% { transform: scale(0.95); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .modal-title { font-size: 1.35rem; font-weight: 800; color: #0f172a; margin-bottom: .25rem; font-family:'Outfit',sans-serif; }
+    .modal-subtitle { font-size: .88rem; color: #64748b; font-weight: 600; margin-bottom: 1.25rem; }
+    .form-group { margin-bottom: 1rem; }
+    .form-label { display: block; font-size: .84rem; font-weight: 600; color: #334155; margin-bottom: .35rem; }
+    .form-input {
+      width: 100%;
+      padding: .75rem 1rem;
+      border: 1.5px solid #cbd5e1;
+      border-radius: 10px;
+      font-size: .92rem;
+      background: #ffffff;
+      color: #0f172a;
+      transition: all .2s;
+    }
+    .form-input:focus {
+      outline: none;
+      border-color: #0284c7;
+      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
     }
 
+    /* ── TOAST ── */
+    .toast-wrap {
+      position: fixed;
+      top: 1.25rem;
+      right: 1.25rem;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: .6rem;
+      pointer-events: none;
+    }
+    .toast {
+      pointer-events: auto;
+      padding: .85rem 1.35rem;
+      border-radius: 12px;
+      font-size: .88rem;
+      font-weight: 600;
+      color: #ffffff;
+      box-shadow: 0 10px 25px rgba(0,0,0,.18);
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      max-width: 380px;
+    }
+    .toast-success { background: #059669; }
+    .toast-warning { background: #d97706; }
+    .toast-error   { background: #dc2626; }
+    .toast-info    { background: #0284c7; }
 
     /* ── COMMENTS SECTION ── */
-    .comments-section { padding: 2.5rem 0 1rem; }
-    .comments-header { display: flex; align-items: center; gap: .6rem; justify-content: center; margin-bottom: 1.5rem; }
-    .comments-header svg { width: 22px; height: 22px; stroke: #2563eb; fill: none; stroke-width: 1.8; }
-    .comments-list { max-width: 600px; margin: 0 auto; display: flex; flex-direction: column; gap: .6rem; }
+    .comments-section {
+      margin-top: 2.5rem;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 20px;
+      padding: 1.75rem;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.03);
+    }
+    .comments-header {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      margin-bottom: 1.25rem;
+      font-size: 1.15rem;
+      font-weight: 800;
+      color: #0f172a;
+      font-family: 'Outfit', sans-serif;
+    }
     .comment-card {
-      background: #ffffff; border: 1px solid #e2e8f0;
-      border-left: 4px solid #2563eb;
-      border-radius: 12px; padding: 1rem 1.2rem;
-      transition: all .2s;
-      box-shadow: 0 1px 4px rgba(0,0,0,.04);
-    }
-    .comment-card:hover { background: #f8faff; transform: translateX(4px); }
-    .comment-meta { display: flex; align-items: center; gap: .5rem; font-size: .8rem; margin-bottom: .4rem; flex-wrap: wrap; }
-    .comment-voter { font-weight: 700; color: #0f172a; }
-    .comment-badge { font-size: .68rem; padding: .15rem .55rem; border-radius: 999px; background: #eff6ff; border: 1px solid #bfdbfe; color: #2563eb; font-weight: 600; }
-    .comment-time { font-size: .72rem; color: #94a3b8; margin-left: auto; }
-    .comment-text { font-size: .875rem; color: #475569; line-height: 1.6; white-space: pre-wrap; font-style: italic; }
-    .comments-empty { text-align: center; color: #94a3b8; font-size: .85rem; padding: 2rem; }
-
-    /* ── MUCE OFFICIAL FOOTER ── */
-    .muce-footer {
-      margin-top: 3.5rem;
-      width: 100%;
-      background: #242e3d;
-      font-family: var(--font-b);
-    }
-    .muce-footer-container {
-      max-width: 1240px;
-      margin: 0 auto;
-      padding: 0 1.25rem;
-    }
-    .muce-footer-notice {
-      text-align: center;
-      padding: 1.2rem 1rem;
-      background: #f1f5f9;
-      color: #64748b;
-      font-size: .84rem;
-      border-top: 1px solid #e2e8f0;
-      border-bottom: 1px solid #e2e8f0;
-    }
-
-    /* Tier 1: Campuses Blue Bar */
-    .muce-footer-campuses {
-      background: #0060ad;
-      color: #ffffff;
-      padding: 2.25rem 0;
-      border-bottom: 1px solid rgba(255,255,255,.12);
-    }
-    .muce-campus-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 1.5rem;
-    }
-    .muce-campus-col {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
-      padding: 0 1rem;
-      border-right: 1px solid rgba(255,255,255,.25);
-    }
-    .muce-campus-col:last-child {
-      border-right: none;
-    }
-    .muce-campus-pin {
-      margin-bottom: .6rem;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .muce-campus-title {
-      font-size: .88rem;
-      font-weight: 700;
-      color: #ffffff;
-      text-transform: uppercase;
-      letter-spacing: .02em;
+      background: #f8fafc;
+      border-left: 4px solid #0284c7;
+      border-radius: 10px;
+      padding: .85rem 1rem;
       margin-bottom: .65rem;
-      line-height: 1.4;
     }
-    .muce-campus-text {
-      font-size: .78rem;
-      color: rgba(255,255,255,.92);
-      line-height: 1.65;
-      margin-bottom: .25rem;
+    .comment-meta {
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+      font-size: .8rem;
+      margin-bottom: .3rem;
+      flex-wrap: wrap;
     }
-    .muce-campus-text a {
-      color: #ffffff;
-      text-decoration: none;
+    .comment-voter { font-weight: 700; color: #0f172a; }
+    .comment-badge {
+      font-size: .7rem;
+      padding: .15rem .5rem;
+      border-radius: 999px;
+      background: #e0f2fe;
+      color: #0284c7;
       font-weight: 600;
     }
-    .muce-campus-text a:hover {
-      text-decoration: underline;
-    }
+    .comment-time { font-size: .72rem; color: #94a3b8; margin-left: auto; }
+    .comment-text { font-size: .875rem; color: #475569; font-style: italic; }
 
-    /* Tier 2: Dark Navy Links */
-    .muce-footer-main {
-      background: #242e3d;
-      padding: 2.75rem 0 2rem;
-      color: #cbd5e1;
+    @media (max-width: 768px) {
+      .events-grid, .contestants-grid { grid-template-columns: 1fr; }
     }
-    .muce-links-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 2rem 1.5rem;
-    }
-    .muce-links-col {
-      display: flex;
-      flex-direction: column;
-    }
-    .muce-links-title {
-      font-size: .92rem;
-      font-weight: 700;
-      color: #ffffff;
-      text-transform: uppercase;
-      letter-spacing: .03em;
-      margin-bottom: 1.25rem;
-      position: relative;
-    }
-    .muce-links-list {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      gap: .55rem;
-    }
-    .muce-links-list a {
-      color: #94a3b8;
-      font-size: .82rem;
-      text-decoration: none;
-      transition: all .18s ease;
-      display: inline-block;
-    }
-    .muce-links-list a:hover {
-      color: #ffffff;
-      transform: translateX(3px);
-    }
-
-    /* Social Icons Row */
-    .muce-social-row {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: .75rem;
-      margin-top: 2.5rem;
-      padding-top: 1.5rem;
-      border-top: 1px solid rgba(255,255,255,.08);
-    }
-    .muce-social-btn {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
-      background: #3e4b5d;
-      color: #ffffff;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      text-decoration: none;
-      transition: all .2s ease;
-    }
-    .muce-social-btn:hover {
-      background: #0060ad;
-      transform: translateY(-2px);
-      box-shadow: 0 4px 12px rgba(0,0,0,.25);
-    }
-
-    /* Tier 3: Bottom Copyright Bar */
-    .muce-footer-bottom {
-      background: #258ad4;
-      color: #ffffff;
-      padding: .85rem 1rem;
-      text-align: center;
-      font-size: .8rem;
-    }
-    .muce-footer-admin-link {
-      color: #ffffff;
-      font-weight: 700;
-      text-decoration: none;
-      transition: opacity .18s ease;
-    }
-    .muce-footer-admin-link:hover {
-      text-decoration: underline;
-      opacity: .9;
-    }
-
-    /* ── LOADING ── */
-    .loading-wrap { display: flex; justify-content: center; align-items: center; padding: 5rem 0; }
-    .loading-wrap svg { width: 32px; height: 32px; stroke: #2563eb; fill: none; }
-
-    @media (max-width: 900px) {
-      .muce-campus-grid {
-        grid-template-columns: 1fr;
-        gap: 1.5rem;
-      }
-      .muce-campus-col {
-        border-right: none;
-        border-bottom: 1px solid rgba(255,255,255,.2);
-        padding-bottom: 1.25rem;
-      }
-      .muce-campus-col:last-child {
-        border-bottom: none;
-        padding-bottom: 0;
-      }
-      .muce-links-grid {
-        grid-template-columns: repeat(2, 1fr);
-        gap: 2rem 1.25rem;
-      }
-    }
-
-    @media (max-width: 640px) {
-      .container { padding: 0 .75rem !important; }
-      .muce-topbar-container { justify-content: space-between !important; padding: .35rem .65rem !important; }
-      .muce-topbar-left { justify-content: space-between !important; width: 100% !important; gap: .35rem !important; font-size: .68rem !important; }
-      .muce-topbar-right { display: none !important; }
-      .muce-phone-list { display: none !important; }
-      .muce-topbar-divider { display: none !important; }
-      .muce-topbar-title { display: none !important; }
-      .muce-phone-highlight { color: #facc15 !important; text-decoration: underline !important; }
-      .topbar-admin-link { font-size: .68rem !important; padding: .2rem .5rem !important; }
-
-      .muce-links-grid {
-        grid-template-columns: 1fr !important;
-        gap: 1.5rem !important;
-        text-align: center !important;
-      }
-      .muce-links-col {
-        align-items: center !important;
-      }
-      .muce-links-list {
-        align-items: center !important;
-      }
-
-      .hero-top-bar { padding: .45rem 0 !important; }
-      .hero-top-bar-inner { justify-content: center !important; padding: 0 .5rem !important; }
-      .hero-brand { gap: .6rem !important; }
-      .hero-brand img { height: 42px !important; width: 42px !important; }
-      .hero-brand-ministry { font-size: .6rem !important; }
-      .hero-brand-name { font-size: clamp(.82rem, 3.8vw, 1.05rem) !important; }
-      .hero-brand-eng { font-size: .52rem !important; }
-
-      .hero-content { padding: 1.25rem .75rem 1rem !important; }
-      .hero-title { font-size: clamp(1.5rem, 6.5vw, 2.2rem) !important; }
-      .hero-sub { font-size: .84rem !important; padding: 0 .5rem !important; }
-
-      .stats-bar { max-width: 100% !important; flex-wrap: wrap !important; gap: .35rem !important; justify-content: center !important; }
-      .stat-pill { font-size: .7rem !important; padding: .2rem .55rem !important; }
-
-      .grid-section { padding: 1.5rem 0 1rem !important; }
-      .grid-section-title { margin-bottom: 1.25rem !important; }
-      .grid-section-title h2 { font-size: 1.35rem !important; }
-
-      .contestant-grid {
-        grid-template-columns: 1fr !important;
-        max-width: 420px !important;
-        margin: 0 auto !important;
-        gap: 1.25rem !important;
-      }
-      .c-card { border-radius: 18px !important; }
-      .c-card-img { height: 280px !important; }
-      .c-card-body { padding: 1.1rem 1.15rem !important; }
-      .c-card-name { font-size: 1.15rem !important; }
-      .vote-btn { padding: .75rem 1rem !important; font-size: .88rem !important; }
-
-
-      .comments-section { padding: 1.75rem 0 .5rem !important; }
-      .comments-list { max-width: 100% !important; }
-      .comment-card { padding: .85rem 1rem !important; }
-
-      .modal {
-        max-width: calc(100vw - 1.5rem) !important;
-        max-height: 90vh !important;
-        overflow-y: auto !important;
-        -webkit-overflow-scrolling: touch;
-        padding: 1.25rem 1rem !important;
-        border-radius: 16px !important;
-      }
-    }
-
-    /* ── MODAL ── */
-    #voteModal .modal { border-top: 4px solid #2563eb; border-radius: 20px; }
-    #voteModal .modal-title { color: #1e293b; }
-    #voteModal .modal-subtitle { color: #64748b !important; }
   </style>
 </head>
 <body>
 
-<!-- ═══════════════════ TOAST ═══════════════════ -->
+<!-- Sakura Falling Background -->
+<div class="sakura-bg" id="sakuraBg"></div>
+
+<!-- Toast Notifications -->
 <div class="toast-wrap" id="toastWrap"></div>
 
 <!-- ═══════════════════ MUCE TOPBAR ═══════════════════ -->
@@ -859,7 +781,7 @@
         <span>Đăng nhập Admin</span>
       </a>
       <!-- Topbar Install App Button -->
-      <button type="button" class="topbar-install-btn" data-open-pwa-modal title="Cài đặt App lên điện thoại hoặc máy tính">
+      <button type="button" class="topbar-admin-link" data-open-pwa-modal title="Cài đặt App lên điện thoại hoặc máy tính" style="background:rgba(255,255,255,0.08);cursor:pointer;">
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
           <polyline points="7 10 12 15 17 10"></polyline>
@@ -867,20 +789,19 @@
         </svg>
         <span>📲 Tải App</span>
       </button>
-      <span class="muce-topbar-divider">|</span>
-      <span class="muce-topbar-title">HỖ TRỢ & HƯỚNG DẪN BÌNH CHỌN - HOTLINE (Zalo):</span>
-      <a href="tel:0962244195" class="muce-phone-highlight" style="color:#ffffff;text-decoration:none;">096 22 44 195</a>
-      <span class="muce-topbar-divider">|</span>
-      <span class="muce-phone-list">0977 388 818 – 0935 081 799 – 0988 856 007</span>
+      <span style="color:rgba(255,255,255,.3);">|</span>
+      <span style="color:rgba(255,255,255,.8);font-weight:600;">HỖ TRỢ & HƯỚNG DẪN BÌNH CHỌN - HOTLINE:</span>
+      <a href="tel:0962244195" style="color:#ffffff;font-weight:700;text-decoration:none;">096 22 44 195</a>
     </div>
-    <div class="muce-topbar-right">
-      <div class="muce-topbar-blue-tab">
-        <span>👑 BÌNH CHỌN HOA KHÔI</span>
-      </div>
+    <div style="display:flex;align-items:center;gap:.5rem;">
+      <span style="background:rgba(2,132,199,.25);border:1px solid rgba(56,189,248,.4);color:#38bdf8;padding:.2rem .65rem;border-radius:999px;font-weight:700;font-size:.72rem;">
+        👑 CỔNG BÌNH CHỌN MUCE
+      </span>
     </div>
   </div>
 </div>
-<!-- ═══════════════════ MUCE BRAND HEADER (WHITE BACKGROUND) ═══════════════════ -->
+
+<!-- ═══════════════════ BRAND HEADER ═══════════════════ -->
 <div class="hero-top-bar">
   <div class="hero-top-bar-inner">
     <div class="hero-brand">
@@ -891,895 +812,790 @@
         <div class="hero-brand-eng">MIENTRUNG UNIVERSITY OF CIVIL ENGINEERING</div>
       </div>
     </div>
+    <div id="quickNavPortal" style="display:none;">
+      <button class="btn-back-portal" onclick="backToPortal()">
+        ← Danh Sách Cuộc Thi
+      </button>
+    </div>
   </div>
 </div>
 
+<!-- ═══════════════════ HERO BANNER ═══════════════════ -->
 <div class="hero-section">
+  <div class="hero-badge-pill" id="heroBadge">
+    <span>✦ ĐOÀN THANH NIÊN – HỘI SINH VIÊN MUCE ✦</span>
+  </div>
+  <h1 class="hero-title" id="heroTitle">
+    CÁC CUỘC THI <span class="hero-title-accent">BÌNH CHỌN TRỰC TUYẾN</span>
+  </h1>
+  <p class="hero-sub" id="heroSub">
+    Chọn cuộc thi bên dưới và nhấn "Bình chọn ngay" để vào trang bình chọn thí sinh & tiết mục yêu thích của bạn!
+  </p>
 
-  <!-- Hero Content -->
-  <div class="hero-content">
-    <div class="hero-crown-icon">👑</div>
-    <h1 class="hero-title font-display" id="heroTitle">Bình Chọn <span class="hero-title-accent">Hoa Khôi</span></h1>
-    <p class="hero-sub" id="heroSub">Chạm để trao vương miện cho thí sinh bạn yêu thích nhất</p>
-    <div class="hero-year" id="heroYear">✦ NĂM HỌC 2025 – 2026 ✦</div>
-
-    <!-- Countdown or closed -->
-    <div id="countdownBanner" class="countdown-banner hidden">
-      <div class="countdown-banner-label">⏱ Thời gian còn lại</div>
-      <div class="countdown" id="countdownDisplay">
-        <div class="countdown-unit" id="unitDays">
-          <span class="countdown-num" id="cdDays">00</span>
-          <span class="countdown-label">Ngày</span>
-        </div>
-        <span class="countdown-sep" id="sepDays">:</span>
-        <div class="countdown-unit" id="unitHours">
-          <span class="countdown-num" id="cdHours">00</span>
-          <span class="countdown-label">Giờ</span>
-        </div>
-        <span class="countdown-sep" id="sepHours">:</span>
-        <div class="countdown-unit" id="unitMins">
-          <span class="countdown-num" id="cdMins">00</span>
-          <span class="countdown-label">Phút</span>
-        </div>
-        <span class="countdown-sep" id="sepMins">:</span>
-        <div class="countdown-unit" id="unitSecs">
-          <span class="countdown-num" id="cdSecs">00</span>
-          <span class="countdown-label">Giây</span>
-        </div>
-      </div>
+  <div class="hero-stats" id="heroStats">
+    <div class="hero-stat-pill">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+      <span id="heroStatEvents">Đang mở: 4 cuộc thi</span>
     </div>
-    <div id="closedBanner" class="closed-banner hidden">🔒 Thời gian bình chọn đã kết thúc</div>
-
-    <!-- Stats -->
-    <div class="stats-bar" id="statsBar">
-      <div class="stat-pill">
-        <svg viewBox="0 0 24 24"><path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z"/><path d="M12 6v6l4 2"/></svg>
-        <span id="totalVotesBadge">Đang tải...</span>
-      </div>
-      <div class="stat-pill">
-        <svg viewBox="0 0 24 24"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>
-        <span id="totalSharesBadge">0 lượt chia sẻ</span>
-      </div>
+    <div class="hero-stat-pill">
+      <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+      <span id="heroStatVotes">893 lượt sinh viên đã bình chọn</span>
     </div>
   </div>
 </div>
 
-<div class="container">
-
-  <!-- ═══════════════════ GRID ═══════════════════ -->
-  <div class="grid-section">
-    <div id="loadingWrap" class="loading-wrap">
-      <svg viewBox="0 0 24 24" class="animate-spin"><path d="M21 12a9 9 0 1 1-6.219-8.56" stroke-linecap="round" stroke-width="2"/></svg>
+<!-- ══════════════════════════════════════════════════════════
+     VIEW 1: PORTAL DANH SÁCH CUỘC THI (EVENT CARDS GRID)
+     ══════════════════════════════════════════════════════════ -->
+<div class="portal-section" id="portalView">
+  <!-- Search & filter -->
+  <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;padding:1rem 1.25rem;margin-bottom:1.65rem;box-shadow:0 4px 18px rgba(0,0,0,0.03);display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap;">
+    <div style="flex:1;min-width:270px;position:relative;">
+      <span style="position:absolute;left:.95rem;top:50%;transform:translateY(-50%);color:#64748b;pointer-events:none;">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
+      </span>
+      <input type="text" id="portalSearchInput" oninput="filterPortalEvents(this.value)" placeholder="Tìm kiếm cuộc thi theo tên, chủ đề, địa điểm..." style="width:100%;padding:.75rem 1rem .75rem 2.65rem;border:1.5px solid #cbd5e1;border-radius:12px;font-size:.92rem;background:#f8fafc;" />
     </div>
-    <div class="contestant-grid hidden" id="contestantGrid"></div>
+    <div style="font-size:.84rem;color:#475569;font-weight:600;display:flex;align-items:center;gap:.5rem;">
+      <span>Hiển thị:</span>
+      <span id="portalEventCountBadge" style="background:#e0f2fe;color:#0284c7;padding:.2rem .65rem;border-radius:999px;font-weight:800;">4 cuộc thi</span>
+    </div>
   </div>
 
+  <!-- Events Grid Matching User Screenshot -->
+  <div class="events-grid" id="portalEventsGrid"></div>
+</div>
 
-  <!-- ═══════════════════ COMMENTS SECTION ═══════════════════ -->
-  <hr class="section-divider hidden" id="commentsDivider">
-  <div class="comments-section fade-up hidden" id="commentsSection">
-    <div class="comments-header">
-      <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke-width="1.8" fill="none"/>
+<!-- ══════════════════════════════════════════════════════════
+     VIEW 2: TRANG BÌNH CHỌN CỦA CHỦ ĐỀ ĐÓ (CONTESTANT VOTING VIEW)
+     ══════════════════════════════════════════════════════════ -->
+<div class="topic-view-section" id="topicView" style="display:none;">
+  <!-- Navigation bar to return to portal -->
+  <div class="topic-nav-bar">
+    <button class="btn-back-portal" onclick="backToPortal()">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
       </svg>
-      <h2 class="section-title font-display">Lời Chúc Từ Người Bình Chọn</h2>
-    </div>
-    <div class="comments-list" id="commentsList"></div>
-    <div class="comments-empty hidden" id="commentsEmpty">Chưa có bình luận nào. Hãy là người đầu tiên gửi lời chúc!</div>
-  </div>
-
-</div><!-- /.container -->
-
-<!-- ═══════════════════ MUCE OFFICIAL FOOTER ═══════════════════ -->
-<footer class="muce-footer">
-  <div class="muce-footer-notice">
-    Mỗi người chỉ được bình chọn một lần · Kết quả cập nhật theo thời gian thực
-  </div>
-
-  <!-- Tier 1: Campuses Blue Bar -->
-  <div class="muce-footer-campuses">
-    <div class="muce-footer-container">
-      <div class="muce-campus-grid">
-        <!-- Khu A -->
-        <div class="muce-campus-col">
-          <div class="muce-campus-pin">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="#ef4444">
-              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-            </svg>
-          </div>
-          <h3 class="muce-campus-title">TRỤ SỞ CHÍNH TẠI ĐẮK LẮK (KHU A)</h3>
-          <p class="muce-campus-text">ĐC: 24 Nguyễn Du, phường Tuy Hòa, tỉnh Đắk Lắk</p>
-          <p class="muce-campus-text">ĐT: <a href="tel:02573823371">0257 3823 371</a></p>
-          <p class="muce-campus-text">Email: <a href="mailto:dhxdmt@muce.edu.vn">dhxdmt@muce.edu.vn</a></p>
-        </div>
-
-        <!-- Khu B -->
-        <div class="muce-campus-col">
-          <div class="muce-campus-pin">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="#ef4444">
-              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-            </svg>
-          </div>
-          <h3 class="muce-campus-title">TRỤ SỞ CHÍNH TẠI ĐẮK LẮK (KHU B)</h3>
-          <p class="muce-campus-text">ĐC:Khu B, 195 Hà Huy Tập, phường Bình Kiến, tỉnh Đắk Lắk</p>
-          <p class="muce-campus-text">ĐT: <a href="tel:02573827618">(0257) 3827618</a>; <a href="tel:0962244195">0962 244 195;</a></p>
-          <p class="muce-campus-text">Email: <a href="mailto:dhxdmt@muce.edu.vn">dhxdmt@muce.edu.vn</a></p>
-        </div>
-
-        <!-- Phân hiệu Đà Nẵng -->
-        <div class="muce-campus-col">
-          <div class="muce-campus-pin">
-            <svg viewBox="0 0 24 24" width="24" height="24" fill="#ef4444">
-              <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-            </svg>
-          </div>
-          <h3 class="muce-campus-title">PHÂN HIỆU ĐÀ NẴNG</h3>
-          <p class="muce-campus-text">ĐC: số 544B Nguyễn Lương Bằng, phường Hải Vân, Thành phố Đà Nẵng</p>
-          <p class="muce-campus-text">ĐT: <a href="tel:02363845102">(0236) 3845102</a>; <a href="tel:0935081799">0935 081 799</a></p>
-          <p class="muce-campus-text">Email: <a href="mailto:tuyensinh@mucedanang.edu.vn">tuyensinh@mucedanang.edu.vn</a></p>
-        </div>
-      </div>
+      <span>← Quay lại danh sách cuộc thi</span>
+    </button>
+    <div style="display:flex;align-items:center;gap:.5rem;">
+      <span id="topicActiveBadge" style="background:#dcfce7;color:#15803d;border:1px solid #86efac;padding:.25rem .75rem;border-radius:999px;font-weight:700;font-size:.78rem;">
+        🟢 ĐANG BÌNH CHỌN
+      </span>
     </div>
   </div>
 
-  <!-- Tier 2: Dark Navy Links -->
-  <div class="muce-footer-main">
-    <div class="muce-footer-container">
-      <div class="muce-links-grid">
-        <!-- Cột 1 -->
-        <div class="muce-links-col">
-          <h4 class="muce-links-title">THÔNG TIN TUYỂN SINH</h4>
-          <ul class="muce-links-list">
-            <li><a href="https://muce.edu.vn" target="_blank" rel="noopener">Sau Đại học</a></li>
-            <li><a href="https://muce.edu.vn" target="_blank" rel="noopener">Đại học</a></li>
-          </ul>
-        </div>
+  <!-- Topic Contestants Grid -->
+  <div class="contestants-grid" id="contestantsGrid"></div>
 
-        <!-- Cột 2 -->
-        <div class="muce-links-col">
-          <h4 class="muce-links-title">THÔNG TIN ĐÀO TẠO</h4>
-          <ul class="muce-links-list">
-            <li><a href="https://muce.edu.vn" target="_blank" rel="noopener">Ngành đào tạo</a></li>
-            <li><a href="https://muce.edu.vn" target="_blank" rel="noopener">Chuẩn đầu ra</a></li>
-            <li><a href="https://muce.edu.vn" target="_blank" rel="noopener">Ba công khai</a></li>
-            <li><a href="https://muce.edu.vn" target="_blank" rel="noopener">Công khai ngân sách</a></li>
-            <li><a href="https://muce.edu.vn" target="_blank" rel="noopener">Công khai tài sản công</a></li>
-            <li><a href="https://muce.edu.vn" target="_blank" rel="noopener">Tra cứu văn bằng</a></li>
-            <li><a href="https://muce.edu.vn" target="_blank" rel="noopener">Tra cứu chứng chỉ CNTT</a></li>
-            <li><a href="https://muce.edu.vn" target="_blank" rel="noopener">Tra cứu chứng nhận đầu ra tiếng Anh</a></li>
-          </ul>
-        </div>
-
-        <!-- Cột 3 -->
-        <div class="muce-links-col">
-          <h4 class="muce-links-title">THÔNG TIN NỘI BỘ</h4>
-          <ul class="muce-links-list">
-            <li><a href="https://muce.edu.vn" target="_blank" rel="noopener">Thời khóa biểu</a></li>
-            <li><a href="https://muce.edu.vn" target="_blank" rel="noopener">Thời khóa biểu lớp học cải thiện</a></li>
-            <li><a href="https://muce.edu.vn" target="_blank" rel="noopener">Lịch làm việc</a></li>
-            <li><a href="https://muce.edu.vn" target="_blank" rel="noopener">Thông báo chung</a></li>
-            <li><a href="https://muce.edu.vn" target="_blank" rel="noopener">Thư điện tử</a></li>
-            <li><a href="https://muce.edu.vn" target="_blank" rel="noopener">Trang tin nội bộ</a></li>
-          </ul>
-        </div>
-
-        <!-- Cột 4 -->
-        <div class="muce-links-col">
-          <h4 class="muce-links-title">THÔNG TIN KẾT NỐI</h4>
-          <ul class="muce-links-list">
-            <li><a href="https://muce.edu.vn" target="_blank" rel="noopener">Liên hệ</a></li>
-            <li><a href="https://muce.edu.vn" target="_blank" rel="noopener">Tuyển dụng</a></li>
-            <li><a href="https://muce.edu.vn" target="_blank" rel="noopener">Giới thiệu việc làm</a></li>
-            <li><a href="https://muce.edu.vn" target="_blank" rel="noopener">Website MUCE</a></li>
-          </ul>
-        </div>
-      </div>
-
-      <!-- Social Media Icons Row -->
-      <div class="muce-social-row">
-        <a href="https://www.facebook.com" target="_blank" rel="noopener" class="muce-social-btn" title="Facebook">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M22 12c0-5.523-4.477-10-10-10S2 6.477 2 12c0 4.991 3.657 9.128 8.438 9.878v-6.987h-2.54V12h2.54V9.797c0-2.506 1.492-3.89 3.777-3.89 1.094 0 2.238.195 2.238.195v2.46h-1.26c-1.243 0-1.63.771-1.63 1.562V12h2.773l-.443 2.89h-2.33v6.988C18.343 21.128 22 16.991 22 12z"/></svg>
-        </a>
-        <a href="https://www.youtube.com" target="_blank" rel="noopener" class="muce-social-btn" title="YouTube">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M21.582 6.186a2.71 2.71 0 0 0-1.907-1.921C17.994 3.8 12 3.8 12 3.8s-5.994 0-7.675.465a2.71 2.71 0 0 0-1.907 1.921C2 7.882 2 12 2 12s0 4.118.418 5.814a2.71 2.71 0 0 0 1.907 1.921C6.006 20.2 12 20.2 12 20.2s5.994 0 7.675-.465a2.71 2.71 0 0 0 1.907-1.921C22 16.118 22 12 22 12s0-4.118-.418-5.814zM10 15.5V8.5l6 3.5-6 3.5z"/></svg>
-        </a>
-        <a href="https://plus.google.com" target="_blank" rel="noopener" class="muce-social-btn" title="Google+">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M7.64 12.045c0 2.518 1.968 4.455 4.364 4.455 2.14 0 3.73-1.427 4.14-3.327h-4.14v-2.18h6.49c.07.39.11.8.11 1.25 0 3.82-2.58 6.54-6.6 6.54-3.79 0-6.86-3.07-6.86-6.74 0-3.66 3.07-6.73 6.86-6.73 1.85 0 3.4 0.68 4.59 1.79l-1.87 1.8c-.52-.49-1.42-1.06-2.72-1.06-2.39 0-4.36 1.98-4.36 4.45zm13.36-.045v-2h-1.5v2h-2v1.5h2v2h1.5v-2h2v-1.5h-2z"/></svg>
-        </a>
-        <a href="https://twitter.com" target="_blank" rel="noopener" class="muce-social-btn" title="Twitter">
-          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M22.46 6c-.77.35-1.6.58-2.46.69.88-.53 1.56-1.37 1.88-2.38-.83.5-1.75.85-2.72 1.05C18.37 4.5 17.26 4 16 4c-2.35 0-4.27 1.92-4.27 4.29 0 .34.04.67.11.98C8.28 9.09 5.11 7.38 3 4.79c-.37.63-.58 1.37-.58 2.15 0 1.49.75 2.81 1.91 3.56-.71 0-1.37-.2-1.95-.5v.05c0 2.08 1.48 3.82 3.44 4.21a4.22 4.22 0 0 1-1.93.07 4.28 4.28 0 0 0 4 2.98 8.521 8.521 0 0 1-5.33 1.84c-.34 0-.68-.02-1.02-.06C3.44 20.29 5.7 21 8.12 21 16 21 20.33 14.46 20.33 8.79c0-.19 0-.37-.01-.56.84-.6 1.56-1.36 2.14-2.23z"/></svg>
-        </a>
-      </div>
+  <!-- Comments / Wishes Feed -->
+  <div class="comments-section" id="topicCommentsSection">
+    <div class="comments-header">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0284c7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+      </svg>
+      <span>Lời Chúc & Bình Luận Từ Người Bình Chọn</span>
+    </div>
+    <div id="topicCommentsList"></div>
+    <div id="topicCommentsEmpty" style="text-align:center;color:#94a3b8;font-size:.85rem;padding:1.5rem;">
+      Chưa có bình luận nào cho cuộc thi này. Hãy là người đầu tiên bình chọn và gửi lời chúc!
     </div>
   </div>
-
-  <!-- Tier 3: Bottom Copyright & Admin bar -->
-  <div class="muce-footer-bottom">
-    <div class="muce-footer-container">
-      <p>
-        Copyright © MUCE 2019 Trường Đại học Xây dựng Miền Trung - 
-        <a href="admin.html" class="muce-footer-admin-link">Admin: 0905 119 399</a>
-      </p>
-    </div>
-  </div>
-</footer>
+</div>
 
 <!-- ═══════════════════ VOTE COMMENT MODAL ═══════════════════ -->
 <div class="modal-overlay hidden" id="voteModal">
-  <div class="modal" style="max-width:440px;">
-    <h2 class="modal-title font-display">Bình Chọn Thí Sinh</h2>
-    <p class="modal-subtitle" id="voteModalContestantName" style="color:#555; font-weight:600; margin-bottom:1.25rem;"></p>
-    <div class="c-form">
-      <div style="font-size:0.8rem;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;padding:6px 10px;border-radius:6px;margin-bottom:0.75rem;display:flex;align-items:center;gap:6px;">
-        <span>⚠️</span>
-        <span>Vui lòng điền <strong>đầy đủ thông tin</strong> bên dưới để hoàn tất bình chọn!</span>
+  <div class="modal-box">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
+      <h2 class="modal-title">Bình Chọn Thí Sinh</h2>
+      <button onclick="closeVoteModal()" style="background:#f1f5f9;border:none;border-radius:50%;width:30px;height:30px;cursor:pointer;font-weight:700;">✕</button>
+    </div>
+    <p class="modal-subtitle" id="voteModalCandidateName">Thí sinh – SBD 01</p>
+
+    <div style="font-size:0.8rem;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;padding:7px 10px;border-radius:8px;margin-bottom:1rem;display:flex;align-items:center;gap:6px;">
+      <span>⚠️</span>
+      <span>Vui lòng điền <strong>đầy đủ thông tin</strong> để hoàn tất bình chọn!</span>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Họ và tên của bạn <span style="color:#dc2626;font-weight:700">*</span></label>
+      <input class="form-input" id="voterNameInput" placeholder="Ví dụ: Nguyễn Văn A" required />
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
+      <div class="form-group">
+        <label class="form-label">Mã sinh viên (MSSV) <span style="color:#dc2626;font-weight:700">*</span></label>
+        <input class="form-input" id="voterStudentIdInput" placeholder="Ví dụ: 65KDD12345" required />
       </div>
       <div class="form-group">
-        <label class="form-label">Họ và tên của bạn <span style="color:#dc2626;font-weight:700">*</span></label>
-        <input class="input" id="voterNameInput" placeholder="Ví dụ: Nguyễn Văn A" required />
+        <label class="form-label">Lớp <span style="color:#dc2626;font-weight:700">*</span></label>
+        <input class="form-input" id="voterClassInput" placeholder="Ví dụ: 65KDD1" required />
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.6rem;">
-        <div class="form-group">
-          <label class="form-label">Mã sinh viên (MSSV) <span style="color:#dc2626;font-weight:700">*</span></label>
-          <input class="input" id="voterStudentIdInput" placeholder="Ví dụ: 65KDD12345" required />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Lớp <span style="color:#dc2626;font-weight:700">*</span></label>
-          <input class="input" id="voterClassInput" placeholder="Ví dụ: 65KDD1" required />
-        </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Khoa <span style="color:#dc2626;font-weight:700">*</span></label>
-        <input class="input" id="voterFacultyInput" placeholder="Ví dụ: Khoa Xây dựng" required />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Lời chúc / Bình luận <span style="color:#94a3b8;font-size:0.75rem">(tùy chọn)</span></label>
-        <textarea class="input" id="voterCommentInput" rows="2" placeholder="Chúc thí sinh tỏa sáng!" style="resize:vertical; min-height:60px;"></textarea>
-      </div>
-      <div style="display:flex;gap:.5rem;margin-top:.75rem">
-        <button class="btn btn-gold btn-full" id="confirmVoteBtn">Xác nhận Bình chọn</button>
-        <button class="btn btn-ghost" onclick="closeVoteModal()">Hủy</button>
-      </div>
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Khoa <span style="color:#dc2626;font-weight:700">*</span></label>
+      <input class="form-input" id="voterFacultyInput" placeholder="Ví dụ: Khoa Xây dựng" required />
+    </div>
+
+    <div class="form-group">
+      <label class="form-label">Lời chúc / Bình luận <span style="color:#94a3b8;font-size:0.75rem">(tùy chọn)</span></label>
+      <textarea class="form-input" id="voterCommentInput" rows="2" placeholder="Chúc bạn tỏa sáng và đạt giải cao nhất!" style="resize:vertical;min-height:55px;"></textarea>
+    </div>
+
+    <div style="display:flex;gap:.65rem;margin-top:1.25rem;">
+      <button class="vote-action-btn btn-default" id="confirmVoteBtn" style="flex:1;">
+        Xác nhận Bình chọn
+      </button>
+      <button class="vote-action-btn" onclick="closeVoteModal()" style="background:#f1f5f9;color:#475569;width:auto;">
+        Hủy
+      </button>
     </div>
   </div>
 </div>
 
+<!-- ═══════════════════ FOOTER ═══════════════════ -->
+<footer style="background:#242e3d; color:#cbd5e1; margin-top:4rem;">
+  <div style="text-align:center; padding:1.2rem 1rem; background:#f1f5f9; color:#64748b; font-size:.84rem; border-top:1px solid #e2e8f0; border-bottom:1px solid #e2e8f0;">
+    Mỗi sinh viên được bình chọn theo tỉ lệ quy định · Kết quả cập nhật theo thời gian thực
+  </div>
+  <div style="background:#0060ad; color:#ffffff; padding:2rem 1rem;">
+    <div style="max-width:1240px; margin:0 auto; display:grid; grid-template-columns:repeat(auto-fit, minmax(280px, 1fr)); gap:1.5rem; text-align:center;">
+      <div>
+        <div style="font-weight:800; font-size:.9rem; margin-bottom:.4rem; text-transform:uppercase;">TRỤ SỞ CHÍNH (KHU A)</div>
+        <div style="font-size:.78rem; opacity:.92; line-height:1.6;">24 Nguyễn Du, phường Tuy Hòa, tỉnh Đắk Lắk<br>ĐT: 0257 3823 371</div>
+      </div>
+      <div>
+        <div style="font-weight:800; font-size:.9rem; margin-bottom:.4rem; text-transform:uppercase;">TRỤ SỞ CHÍNH (KHU B)</div>
+        <div style="font-size:.78rem; opacity:.92; line-height:1.6;">Khu B, 195 Hà Huy Tập, phường Bình Kiến, tỉnh Đắk Lắk<br>ĐT: (0257) 3827618 – 0962 244 195</div>
+      </div>
+      <div>
+        <div style="font-weight:800; font-size:.9rem; margin-bottom:.4rem; text-transform:uppercase;">PHÂN HIỆU ĐÀ NẴNG</div>
+        <div style="font-size:.78rem; opacity:.92; line-height:1.6;">Số 544B Nguyễn Lương Bằng, phường Hải Vân, TP. Đà Nẵng<br>ĐT: 0236 3845 102 – 0935 081 799</div>
+      </div>
+    </div>
+  </div>
+  <div style="background:#258ad4; color:#ffffff; padding:.85rem 1rem; text-align:center; font-size:.8rem;">
+    Copyright © MUCE 2019 Trường Đại học Xây dựng Miền Trung · <a href="admin.html" style="color:#ffffff; font-weight:700; text-decoration:none;">Admin Quản Trị</a>
+  </div>
+</footer>
 
 <!-- ═══════════════════ SCRIPT ═══════════════════ -->
 <script>
 "use strict";
 
-/* ─── VOTER FINGERPRINT ─────────────────────────────────── */
-// Tạo fingerprint đơn giản dựa trên browser để kết hợp với IP nhận diện voter
+/* ─── DEFAULT COMPETITIONS (SAVED EVENTS FROM ADMIN) ─── */
+const DEFAULT_SAVED_EVENTS = [
+  {
+    id: 'evt_hoakhoi_2026',
+    title: "Bình Chọn Hoa Khôi",
+    sub: "Chạm để trao vương miện cho thí sinh bạn yêu thích nhất",
+    year: "✦ NĂM HỌC 2025 – 2026 ✦",
+    tag: "# HOA KHÔI 2026",
+    location: "Hội trường A – Trường ĐH Xây dựng Miền Trung",
+    event_time: "08:00 - 22:00",
+    creator: "Đoàn TN – Hội Sinh viên MUCE",
+    checked_in_count: 245,
+    icon: "👑"
+  },
+  {
+    id: 'evt_namvuong_2026',
+    title: "Bình Chọn Nam Vương",
+    sub: "Bình chọn nam sinh tài năng, phong cách và ưu tú nhất",
+    year: "✦ NĂM HỌC 2025 – 2026 ✦",
+    tag: "# NAM VƯƠNG 2026",
+    location: "Hội trường A – Trường ĐH Xây dựng Miền Trung",
+    event_time: "08:00 - 22:00",
+    creator: "Đoàn TN – Hội Sinh viên MUCE",
+    checked_in_count: 182,
+    icon: "🏆"
+  },
+  {
+    id: 'evt_tienghat_2026',
+    title: "Bình Chọn Tiếng Hát Sinh Viên",
+    sub: "Bình chọn tiết mục và giọng ca vàng xuất sắc nhất",
+    year: "✦ HỘI THI 2026 ✦",
+    tag: "# TIẾNG HÁT 2026",
+    location: "Hội trường Khu B – Trường ĐH Xây dựng Miền Trung",
+    event_time: "18:00 - 22:00",
+    creator: "Đoàn TN – Hội Sinh viên MUCE",
+    checked_in_count: 310,
+    icon: "🎤"
+  },
+  {
+    id: 'evt_daisu_2026',
+    title: "Bình Chọn Gương Mặt Đại Sứ",
+    sub: "Tôn vinh gương mặt đại diện và nét đẹp sinh viên tiêu biểu",
+    year: "✦ NHIỆM KỲ 2026 – 2027 ✦",
+    tag: "# ĐẠI SỨ 2026",
+    location: "Trụ sở chính – Trường ĐH Xây dựng Miền Trung",
+    event_time: "08:00 - 22:00",
+    creator: "Đoàn TN – Hội Sinh viên MUCE",
+    checked_in_count: 156,
+    icon: "⭐"
+  }
+];
+
+/* ─── DEFAULT CONTESTANTS PER THEME ─── */
+const CONTESTANTS_BY_THEME = {
+  evt_hoakhoi_2026: [
+    { id: "hk_01", name: "Nguyễn Thảo Nhi", subtitle: "Khoa Xây dựng · SBD 01", color: "#0057a8" },
+    { id: "hk_02", name: "Trần Bảo Ngọc", subtitle: "Khoa Kiến trúc · SBD 02", color: "#003d7a" },
+    { id: "hk_03", name: "Lê Hoàng Yến", subtitle: "Khoa Kinh tế & QTKD · SBD 03", color: "#005299" },
+    { id: "hk_04", name: "Phạm Quỳnh Anh", subtitle: "Khoa Công nghệ thông tin · SBD 04", color: "#0057a8" },
+    { id: "hk_05", name: "Đặng Mai Phương", subtitle: "Khoa Kỹ thuật Hạ tầng · SBD 05", color: "#003d7a" },
+    { id: "hk_06", name: "Vũ Minh Hằng", subtitle: "Khoa Cầu đường · SBD 06", color: "#005299" }
+  ],
+  evt_namvuong_2026: [
+    { id: "nv_01", name: "Nguyễn Tuấn Kiệt", subtitle: "Khoa Xây dựng · SBD 01", color: "#1e3a8a" },
+    { id: "nv_02", name: "Trần Hải Đăng", subtitle: "Khoa Kiến trúc · SBD 02", color: "#0369a1" },
+    { id: "nv_03", name: "Lê Đức Phúc", subtitle: "Khoa CNTT · SBD 03", color: "#0f766e" },
+    { id: "nv_04", name: "Phạm Minh Khang", subtitle: "Khoa Kinh tế · SBD 04", color: "#1d4ed8" },
+    { id: "nv_05", name: "Đỗ Quốc Bảo", subtitle: "Khoa Cầu đường · SBD 05", color: "#0284c7" },
+    { id: "nv_06", name: "Hoàng Gia Huy", subtitle: "Khoa Cơ khí · SBD 06", color: "#0f172a" }
+  ],
+  evt_tienghat_2026: [
+    { id: "th_01", name: "Tiết mục: Khát Vọng Tuổi Trẻ", subtitle: "CLB Âm Nhạc MUCE · SBD 01", color: "#7c3aed" },
+    { id: "th_02", name: "Tiết mục: Bài Ca Sinh Viên Xây Dựng", subtitle: "Khoa Xây dựng · SBD 02", color: "#9333ea" },
+    { id: "th_03", name: "Tiết mục: Nơi Đảo Xa", subtitle: "Khoa Công nghệ thông tin · SBD 03", color: "#6366f1" },
+    { id: "th_04", name: "Tiết mục: Chiều Lên Bản Thượng", subtitle: "Khoa Kiến trúc · SBD 04", color: "#4f46e5" },
+    { id: "th_05", name: "Tiết mục: Tự Hào MUCE", subtitle: "Liên quân Đoàn khoa · SBD 05", color: "#2563eb" },
+    { id: "th_06", name: "Tiết mục: Ước Mơ Xanh", subtitle: "Khoa Kinh tế · SBD 06", color: "#0284c7" }
+  ],
+  evt_daisu_2026: [
+    { id: "ds_01", name: "Nguyễn Hoàng Long", subtitle: "Đại sứ Học tập & NCKH · SBD 01", color: "#d97706" },
+    { id: "ds_02", name: "Trần Thu Trang", subtitle: "Đại sứ Hoạt động Phong trào · SBD 02", color: "#b45309" },
+    { id: "ds_03", name: "Lê Thanh Tùng", subtitle: "Đại sứ Thể thao & Nghệ thuật · SBD 03", color: "#ea580c" },
+    { id: "ds_04", name: "Phạm Ngọc Linh", subtitle: "Đại sứ Tình nguyện Vì cộng đồng · SBD 04", color: "#ca8a04" },
+    { id: "ds_05", name: "Vũ Đức Trọng", subtitle: "Đại sứ Đổi mới Sáng tạo · SBD 05", color: "#0284c7" },
+    { id: "ds_06", name: "Đặng Thanh Tâm", subtitle: "Đại sứ Hội nhập Quốc tế · SBD 06", color: "#059669" }
+  ]
+};
+
+/* ─── STATE ─── */
+let state = {
+  currentView: 'portal', // 'portal' or 'topic'
+  activeEventId: null,
+  events: [],
+  contestants: [],
+  votes: {},
+  votedIds: [],
+  voteRatio: 80,
+  maxAllowed: 8,
+  searchQuery: ''
+};
+
+/* ─── FINGERPRINT ─── */
 function getVoterFingerprint() {
   let fp = localStorage.getItem('hh:voter_fp');
   if (fp) return fp;
-  // Tạo fingerprint mới từ các thuộc tính trình duyệt
-  const raw = [
-    navigator.userAgent,
-    navigator.language,
-    screen.width + 'x' + screen.height,
-    screen.colorDepth,
-    new Date().getTimezoneOffset(),
-    navigator.hardwareConcurrency || 'na',
-    navigator.platform || 'na'
-  ].join('|');
-  // Simple hash
+  const raw = [navigator.userAgent, navigator.language, screen.width + 'x' + screen.height, new Date().getTimezoneOffset()].join('|');
   let hash = 0;
-  for (let i = 0; i < raw.length; i++) {
-    const c = raw.charCodeAt(i);
-    hash = ((hash << 5) - hash) + c;
-    hash |= 0;
-  }
+  for (let i = 0; i < raw.length; i++) { hash = ((hash << 5) - hash) + raw.charCodeAt(i); hash |= 0; }
   fp = 'fp_' + Math.abs(hash).toString(36);
   localStorage.setItem('hh:voter_fp', fp);
   return fp;
 }
 const VOTER_FP = getVoterFingerprint();
 
-/* ─── API HELPER ──────────────────────────────────────────── */
+/* ─── API HELPER ─── */
 const api = {
   async get(url) {
-    const res = await fetch(url);
-    return res.json();
+    try {
+      const res = await fetch(url);
+      if (!res.ok) throw new Error('API error');
+      return await res.json();
+    } catch (e) { return null; }
   },
   async post(url, body) {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    });
-    const data = await res.json();
-    // Đánh dấu nếu server trả về lỗi (status 4xx/5xx)
-    if (!res.ok) {
-      data._serverError = true;
-      data._status = res.status;
-    }
-    return data;
+    try {
+      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const data = await res.json();
+      if (!res.ok) data._error = true;
+      return data;
+    } catch (e) { return { _error: true, error: 'Lỗi kết nối' }; }
   }
 };
 
-/* ─── DEFAULT DATA ─────────────────────────────────────── */
-const DEFAULT_CONTESTANTS = [
-  { id: "01", name: "Thí sinh 01", subtitle: "Đến từ Hà Nội",    color: "#0057a8" },
-  { id: "02", name: "Thí sinh 02", subtitle: "Đến từ TP.HCM",    color: "#003d7a" },
-  { id: "03", name: "Thí sinh 03", subtitle: "Đến từ Đà Nẵng",   color: "#005299" },
-  { id: "04", name: "Thí sinh 04", subtitle: "Đến từ Cần Thơ",   color: "#0057a8" },
-  { id: "05", name: "Thí sinh 05", subtitle: "Đến từ Huế",       color: "#003d7a" },
-  { id: "06", name: "Thí sinh 06", subtitle: "Đến từ Nha Trang", color: "#005299" },
-];
-
-/* ─── STATE ────────────────────────────────────────────── */
-let state = {
-  contestants: [],
-  votes: {},
-  votedIds: [],
-  votedId: null,
-  voteRatio: 80,
-  maxAllowed: 8,
-  endTime: null,
-  isClosed: false,
-  loading: true,
-};
-
-/* ─── TOAST ────────────────────────────────────────────── */
-function toast(msg, type = 'info', duration = 3000) {
+/* ─── TOAST ─── */
+function toast(msg, type = 'info', duration = 3500) {
   const wrap = document.getElementById('toastWrap');
   const el = document.createElement('div');
   el.className = `toast toast-${type}`;
-  el.textContent = msg;
+  let icon = 'ℹ️';
+  if (type === 'success') icon = '🎉';
+  if (type === 'warning') icon = '⚠️';
+  if (type === 'error')   icon = '❌';
+  el.innerHTML = `<span>${icon}</span><span>${msg}</span>`;
   wrap.appendChild(el);
   setTimeout(() => el.remove(), duration);
 }
 
-/* ─── COUNTDOWN ────────────────────────────────────────── */
-function updateCountdown() {
-  const now = Date.now();
-  const diff = state.endTime - now;
-  if (diff <= 0) {
-    if (!state.isClosed) { state.isClosed = true; renderCards(); }
-    document.getElementById('countdownBanner').classList.add('hidden');
-    document.getElementById('closedBanner').classList.remove('hidden');
-    return;
+function esc(s) {
+  if (s === undefined || s === null) return '';
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+/* ─── SAKURA PETALS ─── */
+function initSakuraPetals() {
+  const container = document.getElementById('sakuraBg');
+  if (!container) return;
+  for (let i = 0; i < 18; i++) {
+    const petal = document.createElement('div');
+    petal.className = 'petal';
+    const size = Math.random() * 14 + 10;
+    petal.style.width = `${size}px`;
+    petal.style.height = `${size * 1.3}px`;
+    petal.style.left = `${Math.random() * 100}%`;
+    petal.style.top = `${Math.random() * -20}%`;
+    petal.style.animationDuration = `${Math.random() * 8 + 7}s`;
+    petal.style.animationDelay = `${Math.random() * 6}s`;
+    container.appendChild(petal);
   }
-  document.getElementById('countdownBanner').classList.remove('hidden');
-  document.getElementById('closedBanner').classList.add('hidden');
+}
 
-  const days  = Math.floor(diff / 86400000);
-  const hours = Math.floor((diff % 86400000) / 3600000);
-  const mins  = Math.floor((diff % 3600000)  / 60000);
-  const secs  = Math.floor((diff % 60000)    / 1000);
+/* ══════════════════════════════════════════════════════════
+   PORTAL LOGIC (VIEW 1): HIỂN THỊ DANH SÁCH CUỘC THI
+   ══════════════════════════════════════════════════════════ */
+function renderPortalEvents() {
+  const grid = document.getElementById('portalEventsGrid');
+  const query = (state.searchQuery || '').trim().toLowerCase();
 
-  const unitDays  = document.getElementById('unitDays');
-  const sepDays   = document.getElementById('sepDays');
-  const unitHours = document.getElementById('unitHours');
-  const sepHours  = document.getElementById('sepHours');
-  const unitMins  = document.getElementById('unitMins');
-  const sepMins   = document.getElementById('sepMins');
-  const cdSecsEl  = document.getElementById('cdSecs');
+  const filtered = state.events.filter(e => {
+    if (!query) return true;
+    const cleanTitle = (e.title || '').replace(/<[^>]*>?/gm, '').toLowerCase();
+    return cleanTitle.includes(query) ||
+           (e.tag && e.tag.toLowerCase().includes(query)) ||
+           (e.location && e.location.toLowerCase().includes(query));
+  });
 
-  if (days === 0 && hours === 0 && mins === 0) {
-    if (unitDays) unitDays.style.display = 'none';
-    if (sepDays) sepDays.style.display = 'none';
-    if (unitHours) unitHours.style.display = 'none';
-    if (sepHours) sepHours.style.display = 'none';
-    if (unitMins) unitMins.style.display = 'none';
-    if (sepMins) sepMins.style.display = 'none';
-    if (cdSecsEl) { cdSecsEl.style.fontSize = '2.2rem'; cdSecsEl.style.color = '#ef4444'; }
-  } else if (days === 0 && hours === 0) {
-    if (unitDays) unitDays.style.display = 'none';
-    if (sepDays) sepDays.style.display = 'none';
-    if (unitHours) unitHours.style.display = 'none';
-    if (sepHours) sepHours.style.display = 'none';
-    if (unitMins) unitMins.style.display = '';
-    if (sepMins) sepMins.style.display = '';
-    if (cdSecsEl) { cdSecsEl.style.fontSize = ''; cdSecsEl.style.color = ''; }
-  } else if (days === 0) {
-    if (unitDays) unitDays.style.display = 'none';
-    if (sepDays) sepDays.style.display = 'none';
-    if (unitHours) unitHours.style.display = '';
-    if (sepHours) sepHours.style.display = '';
-    if (unitMins) unitMins.style.display = '';
-    if (sepMins) sepMins.style.display = '';
-    if (cdSecsEl) { cdSecsEl.style.fontSize = ''; cdSecsEl.style.color = ''; }
+  document.getElementById('portalEventCountBadge').textContent = `${filtered.length} cuộc thi`;
+
+  grid.innerHTML = filtered.map(e => {
+    const cleanTitle = (e.title || '').replace(/<[^>]*>?/gm, '');
+    const count = parseInt(e.total_attendees || e.checked_in_count || 120);
+
+    return `
+    <div class="event-card" onclick="goToTopic('${e.id}')">
+      <div>
+        <!-- Top Tags Row -->
+        <div class="event-tags-row">
+          <span class="tag-code">${esc(e.tag || '# CUỘC THI')}</span>
+          <span class="tag-status">🟢 ĐANG MỞ BÌNH CHỌN</span>
+          <span class="tag-attendees">👥 ${count} LƯỢT</span>
+        </div>
+
+        <!-- Title & Subtitle -->
+        <h3 class="event-title">${cleanTitle}</h3>
+        <p class="event-desc">${esc(e.sub || e.description || 'Chạm để bình chọn.')}</p>
+
+        <!-- Detailed Info List -->
+        <div class="event-info-list">
+          <div class="event-info-item">
+            <span class="event-info-icon" style="color:#0284c7;">📍</span>
+            <div class="event-info-content">Địa điểm: <strong>${esc(e.location || 'Hội trường A – Trường ĐH Xây dựng Miền Trung')}</strong></div>
+          </div>
+          <div class="event-info-item">
+            <span class="event-info-icon" style="color:#0284c7;">🎯</span>
+            <div class="event-info-content">Quy mô: <strong>Toàn thể sinh viên MUCE</strong></div>
+          </div>
+          <div class="event-info-item">
+            <span class="event-info-icon" style="color:#0284c7;">🕒</span>
+            <div class="event-info-content">Thời gian bình chọn: <strong>${esc(e.event_time || e.year || '08:00 - 22:00')}</strong></div>
+          </div>
+          <div class="event-info-item">
+            <span class="event-info-icon" style="color:#0284c7;">👤</span>
+            <div class="event-info-content">Đơn vị tổ chức: <strong>${esc(e.creator || 'Đoàn - Hội MUCE')}</strong></div>
+          </div>
+          <div class="event-info-item">
+            <span class="event-info-icon" style="color:#0284c7;">👥</span>
+            <div class="event-info-content">Đã bình chọn: <span class="attendee-highlight">${count} sinh viên</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Button: "Bình chọn ngay" (như yêu cầu của người dùng) -->
+      <div>
+        <button class="btn-vote-now" onclick="event.stopPropagation(); goToTopic('${e.id}')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+            <polyline points="10 17 15 12 10 7"></polyline>
+            <line x1="15" y1="12" x2="3" y2="12"></line>
+          </svg>
+          <span>Bình chọn ngay</span>
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+
+  // Update Hero for Portal
+  document.getElementById('heroBadge').innerHTML = '<span>✦ CỔNG BÌNH CHỌN TRỰC TUYẾN CHÍNH THỨC ✦</span>';
+  document.getElementById('heroTitle').innerHTML = 'CÁC CUỘC THI <span class="hero-title-accent">BÌNH CHỌN TRỰC TUYẾN</span>';
+  document.getElementById('heroSub').textContent = 'Chọn cuộc thi bên dưới và nhấn "Bình chọn ngay" để vào trang bình chọn thí sinh & tiết mục yêu thích của bạn!';
+  document.getElementById('quickNavPortal').style.display = 'none';
+
+  const totalVotesCount = state.events.reduce((sum, e) => sum + parseInt(e.total_attendees || e.checked_in_count || 100), 0);
+  document.getElementById('heroStatEvents').textContent = `Đang mở: ${state.events.length} cuộc thi`;
+  document.getElementById('heroStatVotes').textContent = `${totalVotesCount.toLocaleString('vi-VN')} lượt sinh viên đã bình chọn`;
+}
+
+function filterPortalEvents(val) {
+  state.searchQuery = val;
+  renderPortalEvents();
+}
+
+/* ══════════════════════════════════════════════════════════
+   NAVIGATION: CHUYỂN VÀO TRANG BÌNH CHỌN CỦA CHỦ ĐỀ ĐÓ
+   ══════════════════════════════════════════════════════════ */
+async function goToTopic(eventId) {
+  const ev = state.events.find(e => e.id === eventId);
+  if (!ev) return;
+
+  state.activeEventId = eventId;
+  state.currentView = 'topic';
+
+  // Update URL query parameter
+  const url = new URL(window.location);
+  url.searchParams.set('event', eventId);
+  window.history.pushState({}, '', url);
+
+  // Switch view containers
+  document.getElementById('portalView').style.display = 'none';
+  document.getElementById('topicView').style.display = 'block';
+  document.getElementById('quickNavPortal').style.display = 'block';
+
+  // Update Hero Section for this topic
+  const cleanTitle = (ev.title || '').replace(/<[^>]*>?/gm, '');
+  document.getElementById('heroBadge').innerHTML = `<span>✦ ${esc(ev.year || 'NĂM HỌC 2025 – 2026')} ✦</span>`;
+  document.getElementById('heroTitle').innerHTML = `${cleanTitle}`;
+  document.getElementById('heroSub').textContent = ev.sub || 'Chạm để bình chọn cho thí sinh bạn yêu thích nhất';
+
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // Load contestants & votes for this topic
+  await loadTopicContestantsAndVotes(eventId);
+}
+
+function backToPortal() {
+  state.activeEventId = null;
+  state.currentView = 'portal';
+
+  // Remove URL query parameter
+  const url = new URL(window.location);
+  url.searchParams.delete('event');
+  window.history.pushState({}, '', url);
+
+  // Switch views
+  document.getElementById('topicView').style.display = 'none';
+  document.getElementById('portalView').style.display = 'block';
+
+  renderPortalEvents();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Handle Browser Back / Forward buttons
+window.addEventListener('popstate', () => {
+  const params = new URLSearchParams(window.location.search);
+  const evParam = params.get('event');
+  if (evParam) {
+    goToTopic(evParam);
   } else {
-    if (unitDays) unitDays.style.display = '';
-    if (sepDays) sepDays.style.display = '';
-    if (unitHours) unitHours.style.display = '';
-    if (sepHours) sepHours.style.display = '';
-    if (unitMins) unitMins.style.display = '';
-    if (sepMins) sepMins.style.display = '';
-    if (cdSecsEl) { cdSecsEl.style.fontSize = ''; cdSecsEl.style.color = ''; }
+    backToPortal();
   }
-
-  const set = (id, val) => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const str = String(val).padStart(2, '0');
-    if (el.textContent !== str) {
-      el.textContent = str;
-      el.classList.remove('tick');
-      void el.offsetWidth;
-      el.classList.add('tick');
-    }
-  };
-  set('cdDays',  days);
-  set('cdHours', hours);
-  set('cdMins',  mins);
-  set('cdSecs',  secs);
-}
-
-/* ─── FACEBOOK SHARE ───────────────────────────────────── */
-async function shareOnFacebook(id) {
-  const c = state.contestants.find(item => item.id === id);
-  const rawShare = localStorage.getItem('hh:share_url');
-  const shareUrl = (rawShare && rawShare.trim() !== '') ? rawShare : window.location.href;
-  const voterName = localStorage.getItem('hh:voter_name') || 'Người dùng ẩn danh';
-
-  // Tracking lượt chia sẻ ở client
-  const totalShares = parseInt(localStorage.getItem('hh:total_shares') || '0') + 1;
-  localStorage.setItem('hh:total_shares', String(totalShares));
-  if (id) {
-    const cShares = parseInt(localStorage.getItem(`hh:shares:${id}`) || '0') + 1;
-    localStorage.setItem(`hh:shares:${id}`, String(cShares));
-  }
-  updateShareBadge();
-
-  // Gửi thông tin chia sẻ về server backend
-  try {
-    await api.post('/api/share', {
-      contestant_id: id || null,
-      sharer_name: voterName,
-      platform: 'facebook'
-    });
-  } catch (e) {}
-
-  // Mở trực tiếp trang chia sẻ của Facebook ở tab mới
-  const fbShareUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
-  window.open(fbShareUrl, '_blank', 'noopener,noreferrer');
-}
-
-function updateShareBadge() {
-  const total = parseInt(localStorage.getItem('hh:total_shares') || '0');
-  const el = document.getElementById('totalSharesBadge');
-  if (el) el.textContent = `${total.toLocaleString('vi-VN')} lượt chia sẻ`;
-}
-
-
-/* ─── VOTE HANDLER ─────────────────────────────────────── */
-let pendingVoteId = null;
-
-function openVoteModal(id) {
-  if (state.isClosed) return;
-  if (!state.votedIds) state.votedIds = [];
-  if (state.votedIds.includes(id)) {
-    toast('Bạn đã bình chọn cho thí sinh này rồi, không thể bình chọn lần 2!', 'info');
-    return;
-  }
-  const maxAllowed = state.maxAllowed || Math.max(1, Math.round(((state.contestants.length || 1) * (state.voteRatio || 80)) / 100));
-  if (state.votedIds.length >= maxAllowed) {
-    toast(`Bạn đã sử dụng hết ${maxAllowed} lượt bình chọn (${state.voteRatio || 80}%)!`, 'warning');
-    return;
-  }
-  const contestant = state.contestants.find(c => c.id === id);
-  if (!contestant) return;
-  pendingVoteId = id;
-  document.getElementById('voteModalContestantName').textContent = `${contestant.name} – SBD ${contestant.id}`;
-  document.getElementById('voterNameInput').value = localStorage.getItem('hh:voter_name') || '';
-  document.getElementById('voterStudentIdInput').value = localStorage.getItem('hh:student_id') || '';
-  document.getElementById('voterClassInput').value = localStorage.getItem('hh:student_class') || '';
-  document.getElementById('voterFacultyInput').value = localStorage.getItem('hh:faculty') || '';
-  document.getElementById('voterCommentInput').value = '';
-  document.getElementById('voteModal').classList.remove('hidden');
-}
-
-function closeVoteModal() {
-  document.getElementById('voteModal').classList.add('hidden');
-  pendingVoteId = null;
-}
-
-document.getElementById('voteModal').addEventListener('click', function(e) {
-  if (e.target === this) closeVoteModal();
 });
 
-document.getElementById('confirmVoteBtn').onclick = async () => {
-  if (!pendingVoteId) return;
-  const id = pendingVoteId;
-  const voterName = document.getElementById('voterNameInput').value.trim();
-  const studentId = document.getElementById('voterStudentIdInput').value.trim();
-  const studentClass = document.getElementById('voterClassInput').value.trim();
-  const faculty = document.getElementById('voterFacultyInput').value.trim();
-  const comment = document.getElementById('voterCommentInput').value.trim() || 'Ủng hộ thí sinh!';
-  
-  // BẮT BUỘC ĐIỀN ĐẦY ĐỦ THÔNG TIN
-  if (!voterName) {
-    toast('⚠️ Vui lòng nhập Họ và tên của bạn!', 'warning');
-    document.getElementById('voterNameInput').focus();
-    return;
+/* ══════════════════════════════════════════════════════════
+   TOPIC VIEW (VIEW 2): BÌNH CHỌN THÍ SINH CỦA CHỦ ĐỀ ĐÓ
+   ══════════════════════════════════════════════════════════ */
+async function loadTopicContestantsAndVotes(eventId) {
+  // 1. Contestants
+  let contestants = [];
+  const cRes = await api.get(`/api/contestants?event=${encodeURIComponent(eventId)}`);
+  if (cRes && Array.isArray(cRes.contestants) && cRes.contestants.length > 0) {
+    contestants = cRes.contestants;
+  } else {
+    // Check theme fallback or localStorage
+    contestants = CONTESTANTS_BY_THEME[eventId] || CONTESTANTS_BY_THEME.evt_hoakhoi_2026;
   }
-  if (!studentId) {
-    toast('⚠️ Vui lòng nhập Mã sinh viên (MSSV)!', 'warning');
-    document.getElementById('voterStudentIdInput').focus();
-    return;
-  }
-  if (!studentClass) {
-    toast('⚠️ Vui lòng nhập Lớp của bạn!', 'warning');
-    document.getElementById('voterClassInput').focus();
-    return;
-  }
-  if (!faculty) {
-    toast('⚠️ Vui lòng nhập Khoa của bạn!', 'warning');
-    document.getElementById('voterFacultyInput').focus();
-    return;
+  state.contestants = contestants;
+
+  // 2. Votes
+  const vRes = await api.get(`/api/votes?event=${encodeURIComponent(eventId)}`);
+  state.votes = (vRes && vRes.votes) ? vRes.votes : {};
+
+  // 3. My Votes for this event
+  const studentId = localStorage.getItem('hh:student_id') || '';
+  const myVRes = await api.get(`/api/my-votes?event=${encodeURIComponent(eventId)}&fp=${encodeURIComponent(VOTER_FP)}&student_id=${encodeURIComponent(studentId)}`);
+  if (myVRes && myVRes.votedIds) {
+    state.votedIds = myVRes.votedIds;
+    state.maxAllowed = myVRes.maxAllowed || Math.max(1, Math.round((contestants.length * 80) / 100));
+  } else {
+    // LocalStorage fallback
+    try {
+      const saved = JSON.parse(localStorage.getItem(`hh:voted:${eventId}`) || '[]');
+      state.votedIds = Array.isArray(saved) ? saved : [];
+    } catch(e) { state.votedIds = []; }
+    state.maxAllowed = Math.max(1, Math.round((contestants.length * 80) / 100));
   }
 
-  localStorage.setItem('hh:voter_name', voterName);
-  localStorage.setItem('hh:student_id', studentId);
-  localStorage.setItem('hh:student_class', studentClass);
-  localStorage.setItem('hh:faculty', faculty);
-  
-  closeVoteModal();
-  await submitVote(id, voterName, studentId, studentClass, faculty, comment);
-};
+  // Update Hero Stats for Topic
+  const totalVotesTopic = Object.values(state.votes).reduce((a, b) => a + b, 0);
+  document.getElementById('heroStatEvents').textContent = `Số thí sinh: ${contestants.length} bạn`;
+  document.getElementById('heroStatVotes').textContent = `${totalVotesTopic.toLocaleString('vi-VN')} lượt bình chọn`;
 
-async function handleVote(id) {
-  if (state.isClosed) {
-    toast('Cuộc bình chọn đã kết thúc!', 'error');
-    return;
-  }
-  if (!state.votedIds) state.votedIds = [];
-  if (state.votedIds.includes(id)) {
-    toast('Bạn đã bình chọn cho thí sinh này rồi, không thể bình chọn lần 2!', 'info');
-    return;
-  }
-  const maxAllowed = state.maxAllowed || Math.max(1, Math.round(((state.contestants.length || 1) * (state.voteRatio || 80)) / 100));
-  if (state.votedIds.length >= maxAllowed) {
-    toast(`Bạn đã sử dụng hết ${maxAllowed} lượt bình chọn (${state.voteRatio || 80}%)!`, 'warning');
-    return;
-  }
-  openVoteModal(id);
+  renderTopicContestants();
+  await loadTopicComments(eventId);
 }
 
-async function submitVote(id, voterName, studentId, studentClass, faculty, comment) {
-  if (state.isClosed) return;
-  if (!state.votedIds) state.votedIds = [];
-  if (state.votedIds.includes(id)) {
-    toast('Bạn đã bình chọn cho thí sinh này rồi, không thể bình chọn lần 2!', 'warning');
-    return;
-  }
-
-  const maxAllowed = state.maxAllowed || Math.max(1, Math.round(((state.contestants.length || 1) * (state.voteRatio || 80)) / 100));
-  if (state.votedIds.length >= maxAllowed) {
-    toast(`Bạn đã sử dụng hết ${maxAllowed} lượt bình chọn (${state.voteRatio || 80}%)!`, 'warning');
-    return;
-  }
-
-  const contestant = state.contestants.find(c => c.id === id);
-  if (!contestant) return;
-
-  const prevVotes = { ...state.votes };
-  const prevVotedIds = [...state.votedIds];
-
-  // Optimistic update
-  state.votes[id] = (state.votes[id] || 0) + 1;
-  state.votedIds.push(id);
-  state.votedId = id;
-  localStorage.setItem('hh:voter_name', voterName);
-  localStorage.setItem('hh:voted_ids', JSON.stringify(state.votedIds));
-  localStorage.setItem('hh:voted_by', id);
-  renderCards();
-
-  try {
-    const result = await api.post('/api/vote', {
-      contestant_id: id,
-      voter_name: voterName,
-      student_id: studentId,
-      student_class: studentClass,
-      faculty: faculty,
-      comment: comment,
-      voter_fingerprint: VOTER_FP
-    });
-
-    // Server trả về lỗi (duplicate hoặc quota exceeded)
-    if (result._serverError || !result.success) {
-      // Rollback optimistic update
-      state.votes = prevVotes;
-      state.votedIds = prevVotedIds;
-      localStorage.setItem('hh:voted_ids', JSON.stringify(state.votedIds));
-      renderCards();
-
-      if (result.code === 'DUPLICATE_VOTE') {
-        toast('Bạn đã bình chọn cho thí sinh này rồi, không thể bình chọn lần 2!', 'warning');
-      } else if (result.code === 'QUOTA_EXCEEDED') {
-        // Cập nhật maxAllowed từ server
-        if (result.maxAllowed) state.maxAllowed = result.maxAllowed;
-        if (result.voteRatio) state.voteRatio = result.voteRatio;
-        toast(result.error || `Bạn đã hết lượt bình chọn!`, 'warning');
-      } else {
-        toast(result.error || 'Bình chọn thất bại.', 'error');
-      }
-      // Reload trạng thái vote từ server để đồng bộ
-      await syncMyVotes();
-      return;
-    }
-
-    // Cập nhật thông tin từ server response
-    if (result.maxAllowed) state.maxAllowed = result.maxAllowed;
-    if (result.voteRatio) state.voteRatio = result.voteRatio;
-
-    const remaining = result.remaining !== undefined ? result.remaining : (maxAllowed - state.votedIds.length);
-    if (remaining > 0) {
-      toast(`✓ Đã bình chọn cho ${contestant.name}! Bạn còn ${remaining} lượt bình chọn cho thí sinh khác.`, 'success');
-    } else {
-      toast(`✓ Đã bình chọn cho ${contestant.name}! Bạn đã dùng đủ ${state.maxAllowed} lượt bình chọn (${state.voteRatio}%).`, 'success');
-    }
-    await loadComments();
-
-  } catch (e) {
-    state.votes = prevVotes;
-    state.votedIds = prevVotedIds;
-    localStorage.setItem('hh:voted_ids', JSON.stringify(state.votedIds));
-    renderCards();
-    toast('Bình chọn thất bại, vui lòng thử lại.', 'error');
-  }
-}
-
-/* ─── RENDER CARDS ─────────────────────────────────────── */
-function renderCards() {
-  const grid = document.getElementById('contestantGrid');
-  const totalVotes = Object.values(state.votes).reduce((a,b) => a+b, 0);
-  const maxVotes   = Math.max(1, ...Object.values(state.votes));
-  const totalC     = state.contestants.length || 1;
-  const maxAllowed = state.maxAllowed || Math.max(1, Math.round((totalC * (state.voteRatio || 80)) / 100));
+function renderTopicContestants() {
+  const grid = document.getElementById('contestantsGrid');
+  const totalVotes = Object.values(state.votes).reduce((a, b) => a + b, 0);
+  const maxVotes = Math.max(1, ...Object.values(state.votes));
   const myVotesCount = (state.votedIds || []).length;
-  const reachedQuota = myVotesCount >= maxAllowed;
+  const reachedQuota = myVotesCount >= state.maxAllowed;
 
-  grid.innerHTML = state.contestants.map((c, i) => {
-    const count   = state.votes[c.id] || 0;
-    const pct     = totalVotes ? Math.round((count / totalVotes) * 100) : 0;
-    const barPct  = Math.round((count / maxVotes) * 100);
-    const isMine  = (state.votedIds || []).includes(c.id);
+  grid.innerHTML = state.contestants.map(c => {
+    const count = state.votes[c.id] || 0;
+    const pct = totalVotes ? Math.round((count / totalVotes) * 100) : 0;
+    const barPct = Math.round((count / maxVotes) * 100);
+    const isMine = (state.votedIds || []).includes(c.id);
 
-    let btnClass = 'vote-btn btn btn-full';
-    let btnText  = 'Bình chọn';
+    let btnClass = 'vote-action-btn btn-default';
+    let btnText = 'Bình chọn cho thí sinh này';
     let disabled = false;
 
-    if (state.isClosed) {
-      btnClass += ' state-closed';
-      btnText = '🔒 Đã kết thúc';
-      disabled = true;
-    } else if (isMine) {
-      btnClass += ' state-mine';
+    if (isMine) {
+      btnClass = 'vote-action-btn btn-voted';
       btnText = '✓ Đã bình chọn';
       disabled = true;
     } else if (reachedQuota) {
-      btnClass += ' state-other';
-      btnText = `Hết lượt (${myVotesCount}/${maxAllowed})`;
+      btnClass = 'vote-action-btn btn-disabled';
+      btnText = `Hết lượt (${myVotesCount}/${state.maxAllowed})`;
       disabled = true;
-    } else {
-      btnClass += ' state-default';
     }
 
     const photoHtml = c.photo
-      ? `<img class="c-card-photo" src="${c.photo}" alt="${escHtml(c.name)}" loading="lazy" />`
+      ? `<img class="c-card-photo" src="${c.photo}" alt="${esc(c.name)}" loading="lazy" />`
       : `<div class="c-card-placeholder">
            <div class="c-card-placeholder-icon">👑</div>
-           <div class="c-card-img-num">SBD ${c.id}</div>
+           <div class="c-card-img-num">${esc(c.id)}</div>
          </div>`;
 
     return `
-    <div class="c-card card-hover fade-up ${isMine ? 'voted-card' : ''}" style="animation-delay:${i*60}ms">
-      <div class="sbd-badge">SBD ${c.id}</div>
+    <div class="c-card ${isMine ? 'voted-card' : ''}">
+      <div class="sbd-badge">SBD ${esc(c.id)}</div>
       <div class="c-card-img" style="background:linear-gradient(135deg, ${c.color || '#1e293b'} 0%, #0f172a 100%)">
-        <div class="c-card-img-overlay"></div>
         ${photoHtml}
       </div>
       <div class="c-card-body">
-        <div class="c-card-name">${escHtml(c.name)}</div>
-        <div class="c-card-sub">📍 ${escHtml(c.subtitle)}</div>
+        <div class="c-card-name">${esc(c.name)}</div>
+        <div class="c-card-sub">📍 ${esc(c.subtitle)}</div>
         <div class="c-card-bar">
           <div class="c-card-bar-header">
-            <span>${count.toLocaleString('vi-VN')} phiếu</span>
+            <span><strong>${count.toLocaleString('vi-VN')}</strong> phiếu</span>
             <span>${pct}%</span>
           </div>
-          <div class="progress"><div class="progress-fill" style="width:${barPct}%"></div></div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${barPct}%"></div></div>
         </div>
         <div class="c-card-actions">
-          <button class="${btnClass}" ${disabled ? 'disabled' : ''}
-            onclick="handleVote('${c.id}')">${btnText}</button>
-          <button class="btn btn-full share-btn" onclick="shareOnFacebook('${c.id}')">
-            <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+          <button class="${btnClass}" ${disabled ? 'disabled' : ''} onclick="openVoteModal('${c.id}')">
+            ${btnText}
+          </button>
+          <button class="share-btn" onclick="shareOnFacebook('${c.id}')">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
               <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
             </svg>
-            Chia sẻ Facebook
+            <span>Chia sẻ Facebook</span>
           </button>
         </div>
       </div>
     </div>`;
   }).join('');
+}
 
-  const voteBadge = document.getElementById('totalVotesBadge');
-  if (voteBadge) {
-    let text = `${totalVotes.toLocaleString('vi-VN')} lượt bình chọn`;
-    if (myVotesCount > 0) {
-      text += ` · Đã chọn ${myVotesCount}/${maxAllowed}`;
-    }
-    voteBadge.textContent = text;
+/* ─── VOTE MODAL ACTIONS ─── */
+let pendingContestantId = null;
+
+function openVoteModal(id) {
+  if ((state.votedIds || []).includes(id)) {
+    toast('Bạn đã bình chọn cho thí sinh này rồi!', 'info');
+    return;
   }
-
-  const noticeEl = document.getElementById('footerNotice');
-  if (noticeEl) {
-    noticeEl.textContent = `Tỉ lệ bình chọn: Mỗi người được bình chọn tối đa ${maxAllowed}/${totalC} thí sinh (${state.voteRatio || 80}%) · Mỗi thí sinh chỉ nhận tối đa 1 phiếu · Cập nhật theo thời gian thực`;
+  if ((state.votedIds || []).length >= state.maxAllowed) {
+    toast(`Bạn đã sử dụng hết ${state.maxAllowed} lượt bình chọn cho cuộc thi này!`, 'warning');
+    return;
   }
+  const c = state.contestants.find(x => x.id === id);
+  if (!c) return;
+
+  pendingContestantId = id;
+  document.getElementById('voteModalCandidateName').textContent = `${c.name} – SBD ${c.id}`;
+  document.getElementById('voterNameInput').value = localStorage.getItem('hh:voter_name') || '';
+  document.getElementById('voterStudentIdInput').value = localStorage.getItem('hh:student_id') || '';
+  document.getElementById('voterClassInput').value = localStorage.getItem('hh:student_class') || '';
+  document.getElementById('voterFacultyInput').value = localStorage.getItem('hh:faculty') || '';
+  document.getElementById('voterCommentInput').value = '';
+
+  document.getElementById('voteModal').classList.remove('hidden');
 }
 
-/* ─── HELPERS ──────────────────────────────────────────── */
-function escHtml(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-function getDefaultEndTime() {
-  const d = new Date(); d.setDate(d.getDate() + 7); return d;
+function closeVoteModal() {
+  document.getElementById('voteModal').classList.add('hidden');
+  pendingContestantId = null;
 }
 
-/* ─── INIT ─────────────────────────────────────────────── */
-/* ─── SYNC MY VOTES FROM SERVER ────────────────────────── */
-async function syncMyVotes() {
-  try {
-    const studentId = localStorage.getItem('hh:student_id') || '';
-    const myVotesData = await api.get(`/api/my-votes?fp=${encodeURIComponent(VOTER_FP)}&student_id=${encodeURIComponent(studentId)}`);
-    if (myVotesData && myVotesData.votedIds) {
-      state.votedIds = myVotesData.votedIds;
-      state.maxAllowed = myVotesData.maxAllowed || state.maxAllowed;
-      state.voteRatio = myVotesData.voteRatio || state.voteRatio;
-      localStorage.setItem('hh:voted_ids', JSON.stringify(state.votedIds));
-      state.votedId = state.votedIds[0] || null;
-      renderCards();
-    }
-  } catch (e) {
-    console.warn('Không thể đồng bộ trạng thái vote từ server:', e);
-  }
-}
+document.getElementById('confirmVoteBtn').addEventListener('click', async () => {
+  if (!pendingContestantId) return;
+  const cId = pendingContestantId;
+  const eventId = state.activeEventId;
 
-async function init() {
-  try {
-    // Load contestants from API
-    const contestantData = await api.get('/api/contestants');
-    state.contestants = contestantData.contestants.length ? contestantData.contestants : DEFAULT_CONTESTANTS;
+  const name = document.getElementById('voterNameInput').value.trim();
+  const studentId = document.getElementById('voterStudentIdInput').value.trim();
+  const studentClass = document.getElementById('voterClassInput').value.trim();
+  const faculty = document.getElementById('voterFacultyInput').value.trim();
+  const comment = document.getElementById('voterCommentInput').value.trim();
 
-    // Load settings (end_time, titles, logo)
-    const settings = await api.get('/api/settings');
-    state.endTime = settings.end_time ? new Date(settings.end_time) : getDefaultEndTime();
-    state.isClosed = Date.now() >= state.endTime.getTime();
+  if (!name) { toast('Vui lòng nhập Họ và tên!', 'warning'); return; }
+  if (!studentId) { toast('Vui lòng nhập Mã sinh viên (MSSV)!', 'warning'); return; }
+  if (!studentClass) { toast('Vui lòng nhập Lớp của bạn!', 'warning'); return; }
+  if (!faculty) { toast('Vui lòng nhập Khoa của bạn!', 'warning'); return; }
 
-    if (settings.event_title) {
-      const titleEl = document.getElementById('heroTitle');
-      if (titleEl) titleEl.innerHTML = settings.event_title;
-    }
-    if (settings.event_sub) {
-      const subEl = document.getElementById('heroSub');
-      if (subEl) subEl.textContent = settings.event_sub;
-    }
-    if (settings.event_year) {
-      const yearEl = document.getElementById('heroYear');
-      if (yearEl) yearEl.textContent = settings.event_year;
-    }
-    const logoEl = document.getElementById('headerLogoImg');
-    if (logoEl) logoEl.src = (settings && settings.logo_url) ? settings.logo_url : 'logo-muce.png';
+  localStorage.setItem('hh:voter_name', name);
+  localStorage.setItem('hh:student_id', studentId);
+  localStorage.setItem('hh:student_class', studentClass);
+  localStorage.setItem('hh:faculty', faculty);
 
-    // Load vote counts
-    const voteData = await api.get('/api/votes');
-    state.votes = voteData.votes || {};
+  // Optimistic vote update
+  state.votes[cId] = (state.votes[cId] || 0) + 1;
+  state.votedIds.push(cId);
+  localStorage.setItem(`hh:voted:${eventId}`, JSON.stringify(state.votedIds));
+  renderTopicContestants();
+  closeVoteModal();
 
-    // Đồng bộ số lượt chia sẻ từ SQL Server
-    try {
-      const shareData = await api.get('/api/shares');
-      if (shareData && shareData.total !== undefined) {
-        localStorage.setItem('hh:total_shares', String(shareData.total));
-        if (shareData.total === 0) {
-          Object.keys(localStorage).forEach(k => {
-            if (k.startsWith('hh:shares:')) localStorage.removeItem(k);
-          });
-        }
-      }
-    } catch {}
+  toast(`🎉 Đã bình chọn thành công cho thí sinh!`, 'success');
 
-    // Load vote ratio from settings
-    state.voteRatio = (settings && settings.vote_ratio) ? parseInt(settings.vote_ratio) : 80;
+  // Submit to Server API
+  await api.post('/api/vote', {
+    contestant_id: cId,
+    event_id: eventId,
+    voter_name: name,
+    student_id: studentId,
+    student_class: studentClass,
+    faculty: faculty,
+    comment: comment || 'Ủng hộ thí sinh!',
+    voter_fingerprint: VOTER_FP
+  });
 
-    // Tính maxAllowed ban đầu
-    const totalC = state.contestants.length || 1;
-    state.maxAllowed = Math.max(1, Math.round((totalC * state.voteRatio) / 100));
+  await loadTopicComments(eventId);
+});
 
-    // Load trạng thái vote từ SERVER (ưu tiên hơn localStorage)
-    try {
-      const studentId = localStorage.getItem('hh:student_id') || '';
-      const myVotesData = await api.get(`/api/my-votes?fp=${encodeURIComponent(VOTER_FP)}&student_id=${encodeURIComponent(studentId)}`);
-      if (myVotesData && myVotesData.votedIds) {
-        state.votedIds = myVotesData.votedIds;
-        state.maxAllowed = myVotesData.maxAllowed || state.maxAllowed;
-        state.voteRatio = myVotesData.voteRatio || state.voteRatio;
-        localStorage.setItem('hh:voted_ids', JSON.stringify(state.votedIds));
-        state.votedId = state.votedIds[0] || null;
-      }
-    } catch {
-      // Fallback: dùng localStorage nếu không gọi được server
-      let savedVoted = [];
-      try {
-        savedVoted = JSON.parse(localStorage.getItem('hh:voted_ids') || '[]');
-      } catch {}
-      if (!Array.isArray(savedVoted)) savedVoted = [];
-      const legacyVoted = localStorage.getItem('hh:voted_by');
-      if (legacyVoted && !savedVoted.includes(legacyVoted)) {
-        savedVoted.push(legacyVoted);
-      }
-      state.votedIds = savedVoted;
-      state.votedId = savedVoted[0] || null;
-    }
-  } catch (e) {
-    toast('Không tải được dữ liệu. Vui lòng thử lại.', 'error');
-  }
+/* ─── TOPIC COMMENTS FEED ─── */
+async function loadTopicComments(eventId) {
+  const list = document.getElementById('topicCommentsList');
+  const empty = document.getElementById('topicCommentsEmpty');
 
-  document.getElementById('loadingWrap').classList.add('hidden');
-  document.getElementById('contestantGrid').classList.remove('hidden');
-  renderCards();
-  updateCountdown();
-  updateShareBadge();
-  if (!state.isClosed) setInterval(updateCountdown, 1000);
-  await loadComments();
-}
-
-/* ─── LOAD COMMENTS ────────────────────────────────────── */
-async function loadComments() {
-  const section  = document.getElementById('commentsSection');
-  const divider  = document.getElementById('commentsDivider');
-  const list     = document.getElementById('commentsList');
-  const empty    = document.getElementById('commentsEmpty');
-
-  let log = [];
-  try {
-    const data = await api.get('/api/vote-log');
-    log = data.log || [];
-  } catch {}
-
-  const comments = log.filter(c => c.comment && c.comment.trim() !== '').reverse();
+  const data = await api.get(`/api/vote-log?event=${encodeURIComponent(eventId)}`);
+  const logs = (data && data.log) ? data.log : [];
+  const comments = logs.filter(l => l.comment && l.comment.trim() !== '');
 
   if (comments.length === 0) {
     list.innerHTML = '';
-    empty.classList.remove('hidden');
-    section.classList.remove('hidden');
-    divider.classList.remove('hidden');
+    empty.style.display = 'block';
     return;
   }
-  empty.classList.add('hidden');
-  section.classList.remove('hidden');
-  divider.classList.remove('hidden');
 
-  list.innerHTML = comments.slice(0, 100).map(c => {
-    const voter  = escHtml(c.voterName || 'Người ẩn danh');
-    const msg    = escHtml(c.comment || 'Ủng hộ thí sinh!');
-    const target = escHtml(c.name || 'Thí sinh');
-    const timeStr = formatTimeAgo(c.ts);
-    return `
+  empty.style.display = 'none';
+  list.innerHTML = comments.slice(0, 50).map(c => `
     <div class="comment-card">
       <div class="comment-meta">
-        <span class="comment-voter">${voter}</span>
-        <span class="comment-badge">Bình chọn cho ${target}</span>
-        <span class="comment-time">${timeStr}</span>
+        <span class="comment-voter">${esc(c.voterName || 'Sinh viên')}</span>
+        <span class="comment-badge">Bình chọn cho ${esc(c.name || 'Thí sinh')}</span>
+        <span class="comment-time">${formatTimeAgo(c.ts)}</span>
       </div>
-      <div class="comment-text">"${msg}"</div>
-    </div>`;
-  }).join('');
+      <div class="comment-text">"${esc(c.comment)}"</div>
+    </div>
+  `).join('');
+}
+
+function shareOnFacebook(id) {
+  const shareUrl = window.location.href;
+  window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`, '_blank', 'noopener,noreferrer');
 }
 
 function formatTimeAgo(ts) {
-  if (!ts) return 'Vài ngày trước';
-  const diff = Date.now() - ts;
+  if (!ts) return 'Vừa xong';
+  const diff = Date.now() - new Date(ts).getTime();
   if (diff < 60000) return 'Vừa xong';
   const mins = Math.floor(diff / 60000);
   if (mins < 60) return `${mins} phút trước`;
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours} giờ trước`;
   return `${Math.floor(hours / 24)} ngày trước`;
+}
+
+/* ══════════════════════════════════════════════════════════
+   INITIALIZATION
+   ══════════════════════════════════════════════════════════ */
+async function init() {
+  initSakuraPetals();
+
+  // 1. Load competitions list (from API or settings or localStorage or defaults)
+  let eventsList = [];
+  const evRes = await api.get('/api/events');
+  if (evRes && Array.isArray(evRes.events) && evRes.events.length > 0) {
+    eventsList = evRes.events;
+  } else {
+    // Check saved events from settings
+    const settings = await api.get('/api/settings');
+    if (settings && settings.saved_events) {
+      try { eventsList = JSON.parse(settings.saved_events); } catch(e){}
+    }
+    if (!eventsList || !eventsList.length) {
+      const local = localStorage.getItem('hh:saved_events') || localStorage.getItem('hh:events');
+      if (local) {
+        try { eventsList = JSON.parse(local); } catch(e){}
+      }
+    }
+    if (!eventsList || !eventsList.length) {
+      eventsList = DEFAULT_SAVED_EVENTS;
+    }
+  }
+
+  // Filter out any stale attendance events (PHƯỜNG, NCTXH, Chuyển đổi số, Hiến máu)
+  eventsList = eventsList.filter(e => {
+    const text = ((e.title || '') + ' ' + (e.tag || '') + ' ' + (e.description || '')).toLowerCase();
+    return !text.includes('phường') && !text.includes('nctxh') && !text.includes('chuyển đổi số') && !text.includes('hiến máu');
+  });
+  if (!eventsList || !eventsList.length) {
+    eventsList = DEFAULT_SAVED_EVENTS;
+  }
+
+  // Ensure each event has full tags and data for competitions
+  state.events = eventsList.map((e, idx) => ({
+    id: e.id || `evt_${idx}`,
+    title: e.title || 'Cuộc thi sinh viên',
+    sub: e.sub || e.description || 'Chạm để bình chọn',
+    year: e.year || '✦ NĂM HỌC 2025 – 2026 ✦',
+    tag: e.tag || `# CUỘC THI 0${idx + 1}`,
+    location: e.location || 'Hội trường A – Trường ĐH Xây dựng Miền Trung',
+    event_time: e.event_time || '08:00 - 22:00',
+    creator: e.creator || 'Đoàn TN – Hội Sinh viên MUCE',
+    checked_in_count: e.checked_in_count || (150 + idx * 45)
+  }));
+
+  // 2. Check URL for direct event link (e.g. index.html?event=evt_hoakhoi_2026)
+  const params = new URLSearchParams(window.location.search);
+  const directEventId = params.get('event');
+
+  if (directEventId && state.events.some(e => e.id === directEventId)) {
+    goToTopic(directEventId);
+  } else {
+    renderPortalEvents();
+  }
 }
 
 init();
