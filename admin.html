@@ -1602,11 +1602,13 @@ const auth = firebase.auth();
 const db = firebase.firestore();
 const googleProvider = new firebase.auth.GoogleAuthProvider();
 
-let SUPERADMIN_EMAIL = 'thenhat7789@gmail.com';
+let SUPERADMIN_EMAIL = 'hongnhung2050py@gmail.com';
 function getSuperAdminEmail() {
   if (appData?.settings?.superadmin_email) {
     return appData.settings.superadmin_email.toLowerCase();
   }
+  const local = localStorage.getItem('hh:superadmin_email');
+  if (local) return local.toLowerCase();
   return SUPERADMIN_EMAIL.toLowerCase();
 }
 
@@ -1979,24 +1981,35 @@ async function loadAdminList() {
       return;
     }
 
+    const ownerEmail = getSuperAdminEmail().toLowerCase();
+    const currentEmail = (currentUser?.email || '').toLowerCase();
+    const currentIsOwner = currentEmail === ownerEmail;
+    const currentIsSuper = currentAdminDoc?.role === 'superadmin' || currentIsOwner;
+
     listEl.innerHTML = snap.docs.map(doc => {
       const d = doc.data();
-      const isSuper = d.role === 'superadmin';
+      const dEmail = (d.email || '').toLowerCase();
+      const isOwner = dEmail === ownerEmail;
+      const isSuper = isOwner || d.role === 'superadmin';
       const isMe = currentUser && doc.id === currentUser.uid;
       const initial = (d.name || d.email || '?').charAt(0).toUpperCase();
       const pw = d.password || '';
 
       return `
-      <div class="admin-item" style="display:flex;align-items:center;justify-content:space-between;padding:.85rem 1rem;gap:.75rem;border-radius:8px;background:#fff;border:1px solid #e2e8f0;margin-bottom:.65rem;flex-wrap:wrap;">
+      <div class="admin-item" style="display:flex;align-items:center;justify-content:space-between;padding:.85rem 1rem;gap:.75rem;border-radius:12px;background:#fff;border:${isOwner ? '2px solid #f59e0b' : '1px solid #e2e8f0'};margin-bottom:.65rem;flex-wrap:wrap;box-shadow:${isOwner ? '0 4px 15px rgba(245,158,11,0.15)' : 'none'};">
         <div style="display:flex;align-items:center;gap:.75rem;min-width:200px;">
-          <div class="admin-avatar">${initial}</div>
+          <div class="admin-avatar" style="${isOwner ? 'background:linear-gradient(135deg, #f59e0b, #d97706);color:#fff;font-weight:900;' : ''}">${isOwner ? '👑' : initial}</div>
           <div class="admin-info">
-            <div class="admin-name" style="font-weight:700;color:#0f172a;">${esc(d.name || 'Admin')} ${isMe ? '<span style="color:#2563eb;font-size:.78rem;">(Bạn)</span>' : ''}</div>
+            <div class="admin-name" style="font-weight:700;color:#0f172a;">
+              ${esc(d.name || (isOwner ? 'Chủ Hệ Thống' : 'Admin'))} 
+              ${isMe ? '<span style="color:#2563eb;font-size:.78rem;font-weight:800;">(Bạn)</span>' : ''}
+              ${isOwner ? '<span style="color:#b45309;font-size:.75rem;font-weight:800;background:#fef3c7;padding:2px 6px;border-radius:4px;margin-left:4px;">Chủ Tối Cao</span>' : ''}
+            </div>
             <div class="admin-email" style="font-size:.8rem;color:#64748b;">${esc(d.email || '')}</div>
           </div>
         </div>
 
-        ${currentAdminDoc?.role === 'superadmin' ? `
+        ${currentIsSuper ? `
           <div style="display:flex;align-items:center;gap:.35rem;background:#f8fafc;border:1px solid #cbd5e1;padding:4px 10px;border-radius:6px;font-family:monospace;font-size:.85rem;">
             <span style="color:#64748b;" title="Mật khẩu tài khoản">🔑</span>
             <span id="pw_val_${doc.id}" style="font-weight:700;color:#0f172a;letter-spacing:1.5px;">••••••••</span>
@@ -2005,20 +2018,21 @@ async function loadAdminList() {
           </div>
         ` : ''}
 
-        <span class="admin-badge ${isSuper ? 'admin-badge-super' : 'admin-badge-admin'}">
-          ${isSuper ? '👑 SUPER ADMIN' : '🛡 ADMIN'}
+        <span class="admin-badge" style="${isOwner ? 'background:linear-gradient(135deg, #f59e0b 0%, #b45309 100%);color:#fff;font-weight:900;padding:4px 12px;border-radius:999px;box-shadow:0 2px 6px rgba(245,158,11,0.35);border:none;' : (isSuper ? 'background:#fef3c7;color:#b45309;font-weight:800;padding:3px 10px;border-radius:999px;border:1px solid #fde68a;' : 'background:#f1f5f9;color:#475569;font-weight:700;padding:3px 10px;border-radius:999px;border:1px solid #cbd5e1;')}">
+          ${isOwner ? '👑 CHỦ HỆ THỐNG' : (isSuper ? '⭐ SUPER ADMIN' : '🛡 ADMIN')}
         </span>
 
-        ${currentAdminDoc?.role === 'superadmin' ? `
+        ${currentIsSuper ? `
           <div style="display:flex;gap:.35rem;align-items:center;">
             <button class="btn btn-outline-gold btn-sm" onclick="openEditAdmin('${doc.id}', '${esc(d.name || '')}', '${esc(d.email || '')}', '${esc(pw)}', '${d.role || 'admin'}')" title="Chỉnh sửa thông tin & đổi mật khẩu">
               ✏️ Sửa & Đổi MK
             </button>
-            ${!isSuper
-              ? `<button class="btn btn-ghost btn-sm" onclick="transferSuperAdmin('${doc.id}','${esc(d.email)}')" title="Thăng cấp Super Admin" style="border:1px solid #cbd5e1;">👑 Cấp Super</button>`
-              : (!isMe ? `<button class="btn btn-ghost btn-sm" onclick="demoteSuperAdmin('${doc.id}','${esc(d.email)}')" title="Hạ quyền xuống Admin">Hạ quyền</button>` : '')
-            }
-            ${!isMe ? `<button class="btn btn-danger btn-sm" onclick="removeAdmin('${doc.id}','${esc(d.email)}')" title="Xóa tài khoản">✕</button>` : ''}
+            ${!isOwner ? (
+              !isSuper
+                ? `<button class="btn btn-ghost btn-sm" onclick="transferSuperAdmin('${doc.id}','${esc(d.email)}')" title="Thăng cấp Chủ Hệ Thống" style="border:1.5px solid #f59e0b;color:#b45309;font-weight:700;">👑 Chuyển Chủ Hệ Thống</button>`
+                : (currentIsOwner && !isMe ? `<button class="btn btn-ghost btn-sm" onclick="demoteSuperAdmin('${doc.id}','${esc(d.email)}')" title="Hạ quyền xuống Admin">Hạ quyền</button>` : '')
+            ) : ''}
+            ${(!isOwner && (currentIsOwner || (!isMe && !isSuper))) ? `<button class="btn btn-danger btn-sm" onclick="removeAdmin('${doc.id}','${esc(d.email)}')" title="Xóa tài khoản">✕</button>` : ''}
           </div>
         ` : ''}
       </div>`;
@@ -2068,8 +2082,11 @@ async function inviteAdmin() {
 /* ─── TRANSFER & DEMOTE SUPER ADMIN ──────────────────── */
 async function transferSuperAdmin(targetUid, targetEmail) {
   if (!targetEmail) return;
-  const c = confirm(`XÁC NHẬN CẤP QUYỀN SUPER ADMIN:\n\nBạn có chắc chắn muốn cấp quyền SUPER ADMIN (Toàn quyền cao nhất) cho tài khoản:\n${targetEmail} không?`);
+  const targetLower = targetEmail.trim().toLowerCase();
+  const c = confirm(`XÁC NHẬN CHUYỂN GIAO CHỦ HỆ THỐNG:\n\nBạn có chắc chắn muốn chuyển giao TOÀN QUYỀN CHỦ HỆ THỐNG (Quyền lực tối cao nhất) cho tài khoản:\n${targetLower} không?`);
   if (!c) return;
+
+  const demoteSelf = confirm(`Bạn có muốn hạ quyền tài khoản hiện tại của bạn (${currentUser?.email}) xuống Quản Trị Viên thông thường (Admin) để nhường quyền Chủ Hệ Thống độc tôn cho ${targetLower} không?\n\n• Bấm OK: Hạ tài khoản của bạn xuống Admin thường.\n• Bấm Cancel: Vẫn giữ Super Admin phụ.`);
 
   try {
     if (targetUid) {
@@ -2079,12 +2096,21 @@ async function transferSuperAdmin(targetUid, targetEmail) {
       });
     }
 
-    await api.post('/api/settings', { superadmin_email: targetEmail.toLowerCase() });
-    if (!appData.settings) appData.settings = {};
-    appData.settings.superadmin_email = targetEmail.toLowerCase();
-    SUPERADMIN_EMAIL = targetEmail.toLowerCase();
+    if (demoteSelf && currentUser && currentUser.uid && currentUser.uid !== targetUid) {
+      await db.collection('admins').doc(currentUser.uid).update({
+        role: 'admin',
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      if (currentAdminDoc) currentAdminDoc.role = 'admin';
+    }
 
-    toast(`👑 Đã cấp quyền Super Admin cho ${targetEmail} thành công!`, 'success');
+    await api.post('/api/settings', { superadmin_email: targetLower });
+    localStorage.setItem('hh:superadmin_email', targetLower);
+    if (!appData.settings) appData.settings = {};
+    appData.settings.superadmin_email = targetLower;
+    SUPERADMIN_EMAIL = targetLower;
+
+    toast(`👑 Đã chuyển quyền CHỦ HỆ THỐNG cho ${targetLower} thành công!`, 'success');
     loadAdminList();
   } catch (e) {
     toast('Lỗi khi chuyển quyền: ' + e.message, 'error');
@@ -2099,8 +2125,10 @@ async function transferSuperAdminByEmail() {
     return;
   }
 
-  const c = confirm(`XÁC NHẬN:\n\nBạn có chắc chắn muốn chuyển giao/đặt ${email} làm SUPER ADMIN mới của hệ thống?`);
+  const c = confirm(`XÁC NHẬN CHUYỂN GIAO CHỦ HỆ THỐNG:\n\nBạn có chắc chắn muốn chuyển giao TOÀN QUYỀN CHỦ HỆ THỐNG cho email:\n${email} không?`);
   if (!c) return;
+
+  const demoteSelf = confirm(`Bạn có muốn hạ tài khoản hiện tại của bạn (${currentUser?.email}) xuống Quản Trị Viên thông thường (Admin) không?`);
 
   try {
     const snap = await db.collection('admins').where('email', '==', email).limit(1).get();
@@ -2118,13 +2146,22 @@ async function transferSuperAdminByEmail() {
       });
     }
 
+    if (demoteSelf && currentUser && currentUser.uid) {
+      await db.collection('admins').doc(currentUser.uid).update({
+        role: 'admin',
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      if (currentAdminDoc) currentAdminDoc.role = 'admin';
+    }
+
     await api.post('/api/settings', { superadmin_email: email });
+    localStorage.setItem('hh:superadmin_email', email);
     if (!appData.settings) appData.settings = {};
     appData.settings.superadmin_email = email;
     SUPERADMIN_EMAIL = email;
 
     if (input) input.value = '';
-    toast(`👑 Đã thiết lập ${email} làm Super Admin thành công!`, 'success');
+    toast(`👑 Đã thiết lập ${email} làm CHỦ HỆ THỐNG thành công!`, 'success');
     loadAdminList();
   } catch (e) {
     toast('Lỗi: ' + e.message, 'error');
