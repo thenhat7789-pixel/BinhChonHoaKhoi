@@ -94,12 +94,19 @@ async function initDB() {
       ALTER TABLE events ADD COLUMN IF NOT EXISTS end_time VARCHAR(100);
       ALTER TABLE events ADD COLUMN IF NOT EXISTS vote_ratio INT DEFAULT 80;
       ALTER TABLE events ADD COLUMN IF NOT EXISTS short_url VARCHAR(255);
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS slug VARCHAR(100);
       ALTER TABLE contestants ADD COLUMN IF NOT EXISTS event_id VARCHAR(50) DEFAULT 'evt_hoakhoi_2026';
       ALTER TABLE votes ADD COLUMN IF NOT EXISTS event_id VARCHAR(50) DEFAULT 'evt_hoakhoi_2026';
       ALTER TABLE votes ADD COLUMN IF NOT EXISTS voter_ip VARCHAR(255) DEFAULT '';
       ALTER TABLE votes ADD COLUMN IF NOT EXISTS student_id VARCHAR(50) DEFAULT '';
       ALTER TABLE votes ADD COLUMN IF NOT EXISTS student_class VARCHAR(100) DEFAULT '';
       ALTER TABLE votes ADD COLUMN IF NOT EXISTS faculty VARCHAR(100) DEFAULT '';
+
+      -- Gán slug mặc định cho 4 cuộc thi chính nếu chưa có
+      UPDATE events SET slug = 'hoakhoi' WHERE id = 'evt_hoakhoi_2026' AND (slug IS NULL OR slug = '');
+      UPDATE events SET slug = 'namvuong' WHERE id = 'evt_namvuong_2026' AND (slug IS NULL OR slug = '');
+      UPDATE events SET slug = 'tienghat' WHERE id = 'evt_tienghat_2026' AND (slug IS NULL OR slug = '');
+      UPDATE events SET slug = 'daisu' WHERE id = 'evt_daisu_2026' AND (slug IS NULL OR slug = '');
 
       -- Xóa bỏ TinyURL để người dùng vào thẳng trang web siêu tốc 0s, không qua trang trung gian quảng cáo
       UPDATE events SET short_url = NULL WHERE short_url ILIKE '%tinyurl.com%';

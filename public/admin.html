@@ -674,11 +674,16 @@
       </div>
       <div class="form-group">
         <label class="form-label" style="display:flex;justify-content:space-between;align-items:center;">
-          <span>Link rút gọn che tên miền (TinyURL / Tùy chỉnh)</span>
-          <button type="button" class="btn btn-ghost btn-sm" onclick="autoGenerateTinyUrlForEvent()" style="color:#0284c7;font-size:11px;padding:3px 9px;border:1.5px solid #38bdf8;border-radius:6px;background:#f0f9ff;font-weight:700;cursor:pointer;">⚡ Tự tạo TinyURL</button>
+          <span>Đuôi đường dẫn cuộc thi (Đuôi Link / Slug)</span>
+          <span style="font-size:11px;color:#0284c7;font-weight:700;">⚡ Vào thẳng ngay 0 giây</span>
         </label>
-        <input class="input" id="adminEventShortUrl" placeholder="https://tinyurl.com/... (để trống = dùng link hệ thống)" />
-        <div style="font-size:11px;color:#64748b;margin-top:3px;">Nếu điền link này, mã QR và nút Copy Link sẽ dùng link này để không lộ chữ 'binhchonhoakhoi'.</div>
+        <div style="display:flex;align-items:center;background:#f8fafc;border:1.5px solid #cbd5e1;border-radius:10px;padding:0 .75rem;">
+          <span style="font-size:12.5px;color:#64748b;font-weight:700;white-space:nowrap;" id="adminEventDomainPrefix">...onrender.com/</span>
+          <input class="input" id="adminEventSlug" placeholder="aodai (tự tạo theo tên nếu để trống)" style="border:none;background:transparent;padding-left:4px;font-weight:800;color:#0284c7;box-shadow:none;" />
+        </div>
+        <div style="font-size:11px;color:#64748b;margin-top:4px;">
+          💡 Ví dụ: gõ <strong>aodai</strong> ➜ Link sẽ là <strong>...onrender.com/aodai</strong>. Quét QR hoặc bấm link là vào thẳng ngay cuộc thi này!
+        </div>
       </div>
       <div style="display:flex;gap:.5rem;margin-top:.75rem">
         <button class="btn btn-gold btn-full" onclick="saveAdminEvent()">Lưu cuộc thi</button>
@@ -2528,14 +2533,26 @@ function renderAdminEvents() {
   }).join('');
 }
 
+function toSlug(str) {
+  if (!str) return '';
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, 'd')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
 function getAdminEventSlug(ev) {
-  if (!ev || !ev.id) return '';
+  if (!ev) return '';
+  if (ev.slug) return ev.slug;
   if (ev.id === 'evt_hoakhoi_2026') return 'hoakhoi';
   if (ev.id === 'evt_namvuong_2026') return 'namvuong';
-  if (ev.id === 'evt_tienghat_2026') return 'tienghat';
+  if (ev.id === 'tienghat' || ev.id === 'evt_tienghat_2026') return 'tienghat';
   if (ev.id === 'evt_daisu_2026') return 'daisu';
-  const clean = ev.id.replace(/^evt_/, '').replace(/_\d+$/, '');
-  return clean || 'cuoc-thi';
+  const clean = (ev.id || '').replace(/^evt_/, '').replace(/_\d+$/, '');
+  return clean || toSlug(ev.title || 'cuoc-thi');
 }
 
 function openEventQr(eventId) {
@@ -2979,7 +2996,16 @@ function openAddAdminEvent() {
   document.getElementById('adminEventTime').value = '08:00 - 22:00';
   document.getElementById('adminEventCreator').value = 'Đoàn TN – Hội Sinh viên MUCE';
   document.getElementById('adminEventCount').value = '100';
-  document.getElementById('adminEventShortUrl').value = '';
+  
+  const slugInput = document.getElementById('adminEventSlug');
+  if (slugInput) {
+    slugInput.value = '';
+    slugInput.dataset.manual = '';
+  }
+  const baseUrl = (appData && appData.settings && appData.settings.share_url) ? appData.settings.share_url : window.location.origin;
+  const prefixEl = document.getElementById('adminEventDomainPrefix');
+  if (prefixEl) prefixEl.textContent = `${baseUrl.replace(/\/admin\.html.*$/, '')}/`;
+
   document.getElementById('adminEventModal').classList.remove('hidden');
 }
 
@@ -2997,7 +3023,16 @@ function openEditAdminEvent(id) {
   document.getElementById('adminEventTime').value = ev.event_time || '08:00 - 22:00';
   document.getElementById('adminEventCreator').value = ev.creator || 'Đoàn TN – Hội Sinh viên MUCE';
   document.getElementById('adminEventCount').value = ev.checked_in_count || 0;
-  document.getElementById('adminEventShortUrl').value = ev.short_url || '';
+
+  const slugInput = document.getElementById('adminEventSlug');
+  if (slugInput) {
+    slugInput.value = ev.slug || getAdminEventSlug(ev);
+    slugInput.dataset.manual = 'true';
+  }
+  const baseUrl = (appData && appData.settings && appData.settings.share_url) ? appData.settings.share_url : window.location.origin;
+  const prefixEl = document.getElementById('adminEventDomainPrefix');
+  if (prefixEl) prefixEl.textContent = `${baseUrl.replace(/\/admin\.html.*$/, '')}/`;
+
   document.getElementById('adminEventModal').classList.remove('hidden');
 }
 
@@ -3006,37 +3041,34 @@ function closeAdminEventModal() {
   editingEventId = null;
 }
 
-async function autoGenerateTinyUrlForEvent() {
-  const evId = editingEventId || document.getElementById('adminEventId').value.trim() || ('evt_' + Date.now());
-  let slug = evId.replace(/^evt_/, '').replace(/_\d+$/, '');
-  if (evId === 'evt_hoakhoi_2026') slug = 'hoakhoi';
-  else if (evId === 'evt_namvuong_2026') slug = 'namvuong';
-  else if (evId === 'evt_tienghat_2026') slug = 'tienghat';
-  else if (evId === 'evt_daisu_2026') slug = 'daisu';
-
-  const baseUrl = (appData && appData.settings && appData.settings.share_url) ? appData.settings.share_url : window.location.origin;
-  const targetUrl = `${baseUrl.replace(/\/admin\.html.*$/, '')}/${slug}`;
-
-  toast('⏳ Đang tạo link TinyURL...', 'info');
-  try {
-    const res = await api.get(`/api/create-short-url?url=${encodeURIComponent(targetUrl)}`);
-    if (res && res.shortUrl) {
-      document.getElementById('adminEventShortUrl').value = res.shortUrl;
-      toast(`✓ Đã tạo link TinyURL: ${res.shortUrl}`, 'success');
-    } else {
-      toast('Không thể tạo tự động, bạn có thể tự dán link rút gọn.', 'warning');
-    }
-  } catch (e) {
-    toast('Lỗi khi gọi API tạo link rút gọn', 'error');
+// Tự động tạo slug khi gõ tên cuộc thi
+document.addEventListener('DOMContentLoaded', () => {
+  const titleEl = document.getElementById('adminEventTitle');
+  if (titleEl) {
+    titleEl.addEventListener('input', (e) => {
+      const slugInput = document.getElementById('adminEventSlug');
+      if (!editingEventId && slugInput && (!slugInput.dataset.manual || slugInput.value === '')) {
+        slugInput.value = toSlug(e.target.value);
+      }
+    });
   }
-}
+  const slugEl = document.getElementById('adminEventSlug');
+  if (slugEl) {
+    slugEl.addEventListener('input', function() {
+      this.dataset.manual = 'true';
+    });
+  }
+});
 
 async function saveAdminEvent() {
   const title = document.getElementById('adminEventTitle').value.trim();
   if (!title) { toast('Vui lòng nhập tên cuộc thi!', 'error'); return; }
 
+  const rawSlug = (document.getElementById('adminEventSlug')?.value || '').trim();
+  const slug = rawSlug ? toSlug(rawSlug) : toSlug(title);
+
   const evData = {
-    id: editingEventId || ('evt_' + Date.now()),
+    id: editingEventId || ('evt_' + (slug ? slug.replace(/-/g, '_') : Date.now())),
     tag: document.getElementById('adminEventTag').value.trim() || '# CUỘC THI',
     year: document.getElementById('adminEventYear').value.trim() || '✦ NĂM HỌC 2025 – 2026 ✦',
     title: title,
@@ -3045,7 +3077,8 @@ async function saveAdminEvent() {
     event_time: document.getElementById('adminEventTime').value.trim() || '08:00 - 22:00',
     creator: document.getElementById('adminEventCreator').value.trim() || 'Đoàn TN – Hội Sinh viên MUCE',
     checked_in_count: parseInt(document.getElementById('adminEventCount').value) || 0,
-    short_url: document.getElementById('adminEventShortUrl').value.trim() || null
+    slug: slug,
+    short_url: null
   };
 
   if (editingEventId) {
@@ -3063,7 +3096,9 @@ async function saveAdminEvent() {
     await api.post('/api/events', { event: evData });
   } catch(e){}
 
-  toast('🎉 Đã lưu cuộc thi thành công!', 'success');
+  const baseUrl = (appData && appData.settings && appData.settings.share_url) ? appData.settings.share_url : window.location.origin;
+  const fullLink = `${baseUrl.replace(/\/admin\.html.*$/, '')}/${slug}`;
+  toast(`🎉 Đã lưu cuộc thi! Link vào ngay 0s: ${fullLink}`, 'success');
 }
 
 async function deleteAdminEvent(id) {

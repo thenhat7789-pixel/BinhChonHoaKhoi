@@ -1727,6 +1727,7 @@ function closeVoteModal() {
 /* ─── PUBLIC QR CODE & LINK HELPERS ─────────────────────── */
 function getEventSlug(ev) {
   if (!ev || !ev.id) return '';
+  if (ev.slug) return ev.slug;
   if (ev.id === 'evt_hoakhoi_2026') return 'hoakhoi';
   if (ev.id === 'evt_namvuong_2026') return 'namvuong';
   if (ev.id === 'evt_tienghat_2026') return 'tienghat';
@@ -2006,6 +2007,7 @@ async function init() {
     start_time: e.start_time || null,
     end_time: e.end_time || null,
     vote_ratio: parseInt(e.vote_ratio) || 80,
+    slug: e.slug || null,
     short_url: e.short_url || null
   }));
 
@@ -2038,7 +2040,11 @@ function findEventByQuery(q) {
   let found = (state.events || []).find(e => e.id.toLowerCase() === cleanQ);
   if (found) return found;
 
-  // 2. Map nhanh các slug quen thuộc
+  // 2. Khớp chính xác theo slug nếu có (ví dụ: 'aodai', 'videoclip')
+  found = (state.events || []).find(e => e.slug && e.slug.toLowerCase() === cleanQ);
+  if (found) return found;
+
+  // 3. Map nhanh các slug quen thuộc
   const quickMap = {
     'tienghat': 'evt_tienghat_2026',
     'tieng-hat': 'evt_tienghat_2026',

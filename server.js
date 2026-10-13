@@ -61,8 +61,8 @@ app.post('/api/events', async (req, res) => {
       const item = list[i];
       const id = item.id || ('evt_' + Date.now() + '_' + i);
       await client.query(`
-        INSERT INTO events (id, tag, benefit_badge, title, description, location, radius, event_time, benefit, creator, checked_in_count, sort_order, start_time, end_time, vote_ratio, short_url)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+        INSERT INTO events (id, tag, benefit_badge, title, description, location, radius, event_time, benefit, creator, checked_in_count, sort_order, start_time, end_time, vote_ratio, short_url, slug)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
         ON CONFLICT (id) DO UPDATE SET
           tag = EXCLUDED.tag,
           benefit_badge = EXCLUDED.benefit_badge,
@@ -78,7 +78,8 @@ app.post('/api/events', async (req, res) => {
           start_time = COALESCE(EXCLUDED.start_time, events.start_time),
           end_time = COALESCE(EXCLUDED.end_time, events.end_time),
           vote_ratio = COALESCE(EXCLUDED.vote_ratio, events.vote_ratio),
-          short_url = COALESCE(EXCLUDED.short_url, events.short_url)
+          short_url = COALESCE(EXCLUDED.short_url, events.short_url),
+          slug = COALESCE(EXCLUDED.slug, events.slug)
       `, [
         id,
         item.tag || '# CUỘC THI',
@@ -95,7 +96,8 @@ app.post('/api/events', async (req, res) => {
         item.start_time || null,
         item.end_time || null,
         parseInt(item.vote_ratio) || 80,
-        item.short_url || null
+        item.short_url || null,
+        item.slug || null
       ]);
     }
     await client.query('COMMIT');
