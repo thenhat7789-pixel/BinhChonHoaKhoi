@@ -101,11 +101,8 @@ async function initDB() {
       ALTER TABLE votes ADD COLUMN IF NOT EXISTS student_class VARCHAR(100) DEFAULT '';
       ALTER TABLE votes ADD COLUMN IF NOT EXISTS faculty VARCHAR(100) DEFAULT '';
 
-      -- Cập nhật TinyURL che domain cho các cuộc thi mặc định nếu chưa có
-      UPDATE events SET short_url = 'https://tinyurl.com/289cdkb2' WHERE id = 'evt_tienghat_2026' AND (short_url IS NULL OR short_url = '');
-      UPDATE events SET short_url = 'https://tinyurl.com/2yxzgchb' WHERE id = 'evt_hoakhoi_2026' AND (short_url IS NULL OR short_url = '');
-      UPDATE events SET short_url = 'https://tinyurl.com/28ztof2b' WHERE id = 'evt_namvuong_2026' AND (short_url IS NULL OR short_url = '');
-      UPDATE events SET short_url = 'https://tinyurl.com/2yzrgtgx' WHERE id = 'evt_daisu_2026' AND (short_url IS NULL OR short_url = '');
+      -- Xóa bỏ TinyURL để người dùng vào thẳng trang web siêu tốc 0s, không qua trang trung gian quảng cáo
+      UPDATE events SET short_url = NULL WHERE short_url ILIKE '%tinyurl.com%';
 
       -- Xóa bỏ tàn dư NCTXH và bán kính điểm danh cũ trong DB
       UPDATE events SET benefit_badge = '', benefit = '' WHERE benefit_badge ILIKE '%nctxh%' OR benefit ILIKE '%nctxh%';
@@ -181,8 +178,7 @@ async function initDB() {
           benefit: 'Vương miện Hoa khôi & Kỷ niệm chương',
           creator: 'Đoàn TN – Hội Sinh viên MUCE',
           checked_in_count: 245,
-          sort_order: 1,
-          short_url: 'https://tinyurl.com/2yxzgchb'
+          sort_order: 1
         },
         {
           id: 'evt_namvuong_2026',
@@ -196,8 +192,7 @@ async function initDB() {
           benefit: 'Danh hiệu Nam Vương & Cúp Vàng',
           creator: 'Đoàn TN – Hội Sinh viên MUCE',
           checked_in_count: 182,
-          sort_order: 2,
-          short_url: 'https://tinyurl.com/28ztof2b'
+          sort_order: 2
         },
         {
           id: 'evt_tienghat_2026',
@@ -211,8 +206,7 @@ async function initDB() {
           benefit: 'Giải thưởng Giọng ca vàng',
           creator: 'Đoàn TN – Hội Sinh viên MUCE',
           checked_in_count: 310,
-          sort_order: 3,
-          short_url: 'https://tinyurl.com/289cdkb2'
+          sort_order: 3
         },
         {
           id: 'evt_daisu_2026',
@@ -226,16 +220,15 @@ async function initDB() {
           benefit: 'Gương mặt đại diện MUCE',
           creator: 'Đoàn TN – Hội Sinh viên MUCE',
           checked_in_count: 156,
-          sort_order: 4,
-          short_url: 'https://tinyurl.com/2yzrgtgx'
+          sort_order: 4
         }
       ];
       for (const e of defaultEvents) {
         await client.query(`
-          INSERT INTO events (id, tag, benefit_badge, title, description, location, radius, event_time, benefit, creator, checked_in_count, sort_order, short_url)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+          INSERT INTO events (id, tag, benefit_badge, title, description, location, radius, event_time, benefit, creator, checked_in_count, sort_order)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
           ON CONFLICT (id) DO NOTHING
-        `, [e.id, e.tag, e.benefit_badge, e.title, e.description, e.location, e.radius, e.event_time, e.benefit, e.creator, e.checked_in_count, e.sort_order, e.short_url]);
+        `, [e.id, e.tag, e.benefit_badge, e.title, e.description, e.location, e.radius, e.event_time, e.benefit, e.creator, e.checked_in_count, e.sort_order]);
       }
       console.log('✅ Seeded default competition events');
     }
