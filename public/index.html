@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Cổng Bình Chọn Trực Tuyến – Trường Đại Học Xây Dựng Miền Trung</title>
-  <link rel="icon" type="image/png" href="app-icon-192.png" />
+  <link rel="icon" type="image/png" href="/app-icon-192.png" />
   <meta name="description" content="Cổng bình chọn trực tiếp các cuộc thi Hoa Khôi, Nam Vương, Tiếng Hát Sinh Viên, Gương Mặt Đại Sứ – Đoàn TNCS Hồ Chí Minh & Hội Sinh Viên MUCE" />
   <meta property="og:title" content="Cổng Bình Chọn Trực Tuyến MUCE 2026" />
   <meta property="og:description" content="Tham gia bình chọn cho các thí sinh & tiết mục bạn yêu thích nhất!" />
@@ -12,15 +12,15 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;0,900;1,400&family=Inter:wght@400;500;600;700;800&family=Outfit:wght@600;700;800&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=20261012" />
-  <link rel="manifest" href="manifest.json" />
+  <link rel="stylesheet" href="/style.css?v=20261012" />
+  <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#0057a8" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Bình Chọn MUCE" />
-  <link rel="apple-touch-icon" href="app-icon-512.png" />
-  <link rel="stylesheet" href="pwa-install.css?v=1.0" />
+  <link rel="apple-touch-icon" href="/app-icon-512.png" />
+  <link rel="stylesheet" href="/pwa-install.css?v=1.0" />
   <style>
     /* ── BASE & SAKURA BACKGROUND ── */
     body {
@@ -805,7 +805,7 @@
 <div class="hero-top-bar">
   <div class="hero-top-bar-inner">
     <div class="hero-brand">
-      <img id="headerLogoImg" src="logo-muce.png" alt="Logo MUCE" onerror="this.style.display='none'" />
+      <img id="headerLogoImg" src="/logo-muce.png" alt="Logo MUCE" onerror="this.style.display='none'" />
       <div class="hero-brand-info">
         <div class="hero-brand-ministry">BỘ XÂY DỰNG</div>
         <div class="hero-brand-name">TRƯỜNG ĐẠI HỌC XÂY DỰNG MIỀN TRUNG</div>
@@ -815,6 +815,9 @@
     <div id="quickNavPortal" style="display:none;align-items:center;gap:8px;">
       <button class="btn-back-portal" onclick="backToPortal()">
         ← Danh Sách Cuộc Thi
+      </button>
+      <button type="button" class="btn-back-portal" onclick="copyDirectEventLink(state.activeEventId)" style="background:#f0fdf4;color:#16a34a;border-color:#bbf7d0;font-weight:700;">
+        🔗 Sao Chép Link
       </button>
       <button type="button" class="btn-back-portal" onclick="openPublicQrModal(state.activeEventId)" style="background:#eff6ff;color:#0284c7;border-color:#bfdbfe;font-weight:700;">
         📱 Mã QR
@@ -1029,11 +1032,15 @@
 
       <!-- Bottom URL Box matching screenshot -->
       <div style="background:#f8fafc;border:1.5px solid #e2e8f0;border-radius:14px;padding:12px 14px;text-align:left;width:100%;box-sizing:border-box;margin-bottom:18px;">
-        <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:4px;">Đường dẫn bình chọn:</div>
-        <div id="publicQrUrl" style="font-size:12px;color:#0284c7;font-weight:600;word-break:break-all;line-height:1.45;margin-bottom:10px;"></div>
-        <div style="display:flex;justify-content:flex-end;">
-          <button type="button" class="btn btn-sm" onclick="copyPublicQrLink()" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 6px rgba(2,132,199,0.25);">
-            <span>📋</span> Sao chép link bình chọn
+        <div style="font-size:12px;font-weight:700;color:#334155;margin-bottom:4px;">Đường dẫn bình chọn trực tiếp:</div>
+        <div id="publicQrUrl" style="font-size:12px;color:#0284c7;font-weight:600;word-break:break-all;line-height:1.45;margin-bottom:8px;"></div>
+        <div style="font-size:11.5px;color:#64748b;margin-bottom:10px;">Link rút gọn: <span id="publicQrShortUrl" style="color:#059669;font-weight:700;word-break:break-all;"></span></div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;flex-wrap:wrap;">
+          <button type="button" class="btn btn-sm" onclick="copyPublicQrLink('short')" style="background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:5px;">
+            <span>⚡</span> Copy link ngắn
+          </button>
+          <button type="button" class="btn btn-sm" onclick="copyPublicQrLink('full')" style="background:#0284c7;color:#fff;border:none;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;display:inline-flex;align-items:center;gap:6px;box-shadow:0 2px 6px rgba(2,132,199,0.25);">
+            <span>📋</span> Sao chép link chuẩn
           </button>
         </div>
       </div>
@@ -1323,9 +1330,9 @@ function renderPortalEvents() {
         </div>
       </div>
 
-      <!-- Action Buttons: "Bình chọn ngay" & "Mã QR" -->
-      <div style="display:flex;gap:8px;align-items:center;">
-        <button class="btn-vote-now" style="flex:1;" onclick="event.stopPropagation(); goToTopic('${e.id}')">
+      <!-- Action Buttons: "Bình chọn ngay", "Sao chép link" & "Mã QR" -->
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button class="btn-vote-now" style="flex:1;min-width:140px;" onclick="event.stopPropagation(); goToTopic('${e.id}')">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
             <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
             <polyline points="10 17 15 12 10 7"></polyline>
@@ -1333,7 +1340,14 @@ function renderPortalEvents() {
           </svg>
           <span>Bình chọn ngay</span>
         </button>
-        <button type="button" onclick="event.stopPropagation(); openPublicQrModal('${e.id}')" title="Xem mã QR để quét" style="background:#eff6ff;border:1.5px solid #0284c7;color:#0284c7;border-radius:12px;padding:.75rem .95rem;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all .2s;" onmouseover="this.style.background='#0284c7';this.style.color='#fff'" onmouseout="this.style.background='#eff6ff';this.style.color='#0284c7'">
+        <button type="button" onclick="event.stopPropagation(); copyDirectEventLink('${e.id}')" title="Sao chép link bình chọn chủ đề này" style="background:#f0fdf4;border:1.5px solid #16a34a;color:#16a34a;border-radius:12px;padding:.72rem .95rem;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;gap:6px;font-weight:700;font-size:.82rem;transition:all .2s;white-space:nowrap;" onmouseover="this.style.background='#16a34a';this.style.color='#fff'" onmouseout="this.style.background='#f0fdf4';this.style.color='#16a34a'">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+          </svg>
+          <span>Sao chép link</span>
+        </button>
+        <button type="button" onclick="event.stopPropagation(); openPublicQrModal('${e.id}')" title="Xem mã QR để quét" style="background:#eff6ff;border:1.5px solid #0284c7;color:#0284c7;border-radius:12px;padding:.72rem .85rem;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;transition:all .2s;" onmouseover="this.style.background='#0284c7';this.style.color='#fff'" onmouseout="this.style.background='#eff6ff';this.style.color='#0284c7'">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect>
           </svg>
@@ -1361,7 +1375,7 @@ function filterPortalEvents(val) {
 /* ══════════════════════════════════════════════════════════
    NAVIGATION: CHUYỂN VÀO TRANG BÌNH CHỌN CỦA CHỦ ĐỀ ĐÓ
    ══════════════════════════════════════════════════════════ */
-async function goToTopic(eventId) {
+async function goToTopic(eventId, updateUrl = true) {
   const ev = state.events.find(e => e.id === eventId);
   if (!ev) return;
 
@@ -1369,9 +1383,11 @@ async function goToTopic(eventId) {
   state.currentView = 'topic';
 
   // Update URL query parameter
-  const url = new URL(window.location);
-  url.searchParams.set('event', eventId);
-  window.history.pushState({}, '', url);
+  if (updateUrl) {
+    const url = new URL(window.location);
+    url.searchParams.set('event', eventId);
+    window.history.pushState({}, '', url);
+  }
 
   // Switch view containers
   document.getElementById('portalView').style.display = 'none';
@@ -1493,7 +1509,7 @@ function startTopicCountdown(endTimeStr) {
   countdownInterval = setInterval(update, 1000);
 }
 
-function backToPortal() {
+function backToPortal(updateUrl = true) {
   if (countdownInterval) {
     clearInterval(countdownInterval);
     countdownInterval = null;
@@ -1502,14 +1518,16 @@ function backToPortal() {
   state.activeEventId = null;
   state.currentView = 'portal';
 
-  // Remove URL query parameter
-  const url = new URL(window.location);
-  url.searchParams.delete('event');
-  window.history.pushState({}, '', url);
+  // Clean URL: return to /index.html without event parameter
+  if (updateUrl) {
+    const url = new URL(window.location.origin + '/index.html');
+    window.history.pushState({}, '', url);
+  }
 
   // Switch views
   document.getElementById('topicView').style.display = 'none';
   document.getElementById('portalView').style.display = 'block';
+  document.getElementById('quickNavPortal').style.display = 'none';
 
   renderPortalEvents();
   window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1517,12 +1535,11 @@ function backToPortal() {
 
 // Handle Browser Back / Forward buttons
 window.addEventListener('popstate', () => {
-  const params = new URLSearchParams(window.location.search);
-  const evParam = params.get('event');
-  if (evParam) {
-    goToTopic(evParam);
+  const targetId = detectTargetEventId();
+  if (targetId) {
+    goToTopic(targetId, false);
   } else {
-    backToPortal();
+    backToPortal(false);
   }
 });
 
@@ -1711,12 +1728,46 @@ function closeVoteModal() {
   pendingContestantId = null;
 }
 
-/* ─── PUBLIC QR CODE MODAL ──────────────────────────────── */
+/* ─── PUBLIC QR CODE & LINK HELPERS ─────────────────────── */
+function getEventSlug(ev) {
+  if (!ev || !ev.id) return '';
+  if (ev.id === 'evt_hoakhoi_2026') return 'hoakhoi';
+  if (ev.id === 'evt_namvuong_2026') return 'namvuong';
+  if (ev.id === 'evt_tienghat_2026') return 'tienghat';
+  if (ev.id === 'evt_daisu_2026') return 'daisu';
+  const clean = ev.id.replace(/^evt_/, '').replace(/_\d+$/, '');
+  return clean || toSlug(ev.title || 'cuoc-thi');
+}
+
+function getEventDirectUrl(eventId) {
+  return `${window.location.origin}/index.html?event=${encodeURIComponent(eventId)}`;
+}
+
+function getEventShortUrl(eventId) {
+  const ev = (state.events || []).find(e => e.id === eventId);
+  const slug = getEventSlug(ev || { id: eventId });
+  return `${window.location.origin}/${slug}`;
+}
+
+function copyDirectEventLink(eventId) {
+  const ev = (state.events || []).find(e => e.id === eventId);
+  const cleanTitle = ev ? (ev.title || '').replace(/<[^>]*>?/gm, '') : 'cuộc thi';
+  const voteUrl = getEventDirectUrl(eventId);
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(voteUrl).then(() => {
+      toast(`📋 Đã sao chép link bình chọn "${cleanTitle}"!`, 'success');
+    }).catch(() => fallbackCopyPublic(voteUrl, cleanTitle));
+  } else {
+    fallbackCopyPublic(voteUrl, cleanTitle);
+  }
+}
+
 function openPublicQrModal(eventId) {
   const targetId = eventId || state.activeEventId || (state.events && state.events[0] && state.events[0].id) || 'evt_hoakhoi_2026';
   const ev = (state.events || []).find(e => e.id === targetId) || (state.events && state.events[0]) || { id: targetId, title: 'Bình Chọn Hoa Khôi', tag: '# HOA KHÔI 2026' };
-  const baseUrl = window.location.origin + window.location.pathname;
-  const voteUrl = `${baseUrl.replace(/\/index\.html.*$/, '')}/index.html?event=${encodeURIComponent(ev.id)}`;
+  const voteUrl = getEventDirectUrl(ev.id);
+  const shortUrl = getEventShortUrl(ev.id);
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=450x450&data=${encodeURIComponent(voteUrl)}`;
 
   const cleanTitle = (ev.title || 'Bình Chọn Hoa Khôi').replace(/<[^>]*>?/gm, '');
@@ -1730,6 +1781,8 @@ function openPublicQrModal(eventId) {
   if (imgEl) imgEl.src = qrUrl;
   const urlEl = document.getElementById('publicQrUrl');
   if (urlEl) urlEl.textContent = voteUrl;
+  const shortUrlEl = document.getElementById('publicQrShortUrl');
+  if (shortUrlEl) shortUrlEl.textContent = shortUrl;
 
   const modal = document.getElementById('publicQrModal');
   if (modal) {
@@ -1746,33 +1799,36 @@ function closePublicQrModal() {
   }
 }
 
-function copyPublicQrLink() {
-  const urlEl = document.getElementById('publicQrUrl');
-  const url = urlEl ? urlEl.textContent.trim() : '';
+function copyPublicQrLink(type = 'full') {
+  let url = document.getElementById('publicQrUrl')?.textContent?.trim() || '';
+  if (type === 'short') {
+    url = document.getElementById('publicQrShortUrl')?.textContent?.trim() || url;
+  }
   if (!url) return;
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(url).then(() => {
-      toast('📋 Đã sao chép liên kết bình chọn!', 'success');
+      toast(`📋 Đã sao chép ${type === 'short' ? 'link ngắn' : 'link bình chọn'}!`, 'success');
     }).catch(() => fallbackCopyPublic(url));
   } else {
     fallbackCopyPublic(url);
   }
-  function fallbackCopyPublic(text) {
-    const t = document.createElement('textarea');
-    t.value = text;
-    t.style.position = 'fixed';
-    t.style.opacity = '0';
-    document.body.appendChild(t);
-    t.focus();
-    t.select();
-    try {
-      document.execCommand('copy');
-      toast('📋 Đã sao chép liên kết bình chọn!', 'success');
-    } catch (e) {
-      toast('Không thể sao chép tự động, vui lòng sao chép thủ công.', 'error');
-    }
-    document.body.removeChild(t);
+}
+
+function fallbackCopyPublic(text, title) {
+  const t = document.createElement('textarea');
+  t.value = text;
+  t.style.position = 'fixed';
+  t.style.opacity = '0';
+  document.body.appendChild(t);
+  t.focus();
+  t.select();
+  try {
+    document.execCommand('copy');
+    toast(`📋 Đã sao chép liên kết ${title ? `"${title}"` : ''}!`, 'success');
+  } catch (e) {
+    toast('Không thể sao chép tự động, vui lòng sao chép thủ công.', 'error');
   }
+  document.body.removeChild(t);
 }
 
 async function downloadPublicQrPng() {
@@ -1960,19 +2016,91 @@ async function init() {
     vote_ratio: parseInt(e.vote_ratio) || 80
   }));
 
-  // 2. Check URL for direct event link (e.g. index.html?event=evt_hoakhoi_2026)
-  const params = new URLSearchParams(window.location.search);
-  const directEventId = params.get('event');
-
-  if (directEventId && state.events.some(e => e.id === directEventId)) {
-    goToTopic(directEventId);
+  // 2. Tự động nhận diện cuộc thi từ URL (?event=... hoặc đường dẫn ngắn /tienghat, /hoakhoi, ...)
+  const targetEventId = detectTargetEventId();
+  if (targetEventId) {
+    goToTopic(targetEventId, false);
   } else {
     renderPortalEvents();
   }
 }
 
+function toSlug(str) {
+  if (!str) return '';
+  return str
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[đĐ]/g, 'd')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function findEventByQuery(q) {
+  if (!q) return null;
+  const cleanQ = String(q).trim().toLowerCase().replace(/^\/+|\/+$/g, '');
+  if (!cleanQ) return null;
+
+  // 1. Khớp chính xác ID (ví dụ: 'evt_tienghat_2026')
+  let found = (state.events || []).find(e => e.id.toLowerCase() === cleanQ);
+  if (found) return found;
+
+  // 2. Map nhanh các slug quen thuộc
+  const quickMap = {
+    'tienghat': 'evt_tienghat_2026',
+    'tieng-hat': 'evt_tienghat_2026',
+    'tien-ghat': 'evt_tienghat_2026',
+    'tieng-hat-sinh-vien': 'evt_tienghat_2026',
+    'hoakhoi': 'evt_hoakhoi_2026',
+    'hoa-khoi': 'evt_hoakhoi_2026',
+    'namvuong': 'evt_namvuong_2026',
+    'nam-vuong': 'evt_namvuong_2026',
+    'daisu': 'evt_daisu_2026',
+    'dai-su': 'evt_daisu_2026',
+    'guong-mat-dai-su': 'evt_daisu_2026'
+  };
+  if (quickMap[cleanQ]) {
+    found = state.events.find(e => e.id === quickMap[cleanQ]);
+    if (found) return found;
+  }
+
+  // 3. Chuẩn hóa ID (bỏ prefix evt_, bỏ _2026, bỏ gạch nối)
+  const normQ = cleanQ.replace(/^evt[_-]?/, '').replace(/[_-]/g, '').replace(/2026$/, '');
+  found = (state.events || []).find(e => {
+    const normId = e.id.toLowerCase().replace(/^evt[_-]?/, '').replace(/[_-]/g, '').replace(/2026$/, '');
+    return normId === normQ;
+  });
+  if (found) return found;
+
+  // 4. Khớp theo slug title hoặc tag
+  found = (state.events || []).find(e => {
+    const sTitle = toSlug(e.title || '');
+    const sTag = toSlug(e.tag || '');
+    return sTitle === cleanQ || sTitle.includes(cleanQ) || sTag.includes(cleanQ);
+  });
+  return found || null;
+}
+
+function detectTargetEventId() {
+  const params = new URLSearchParams(window.location.search);
+  const q = params.get('event') || params.get('topic') || params.get('chude') || params.get('e') || params.get('id');
+  if (q) {
+    const matched = findEventByQuery(q);
+    if (matched) return matched.id;
+  }
+
+  // Kiểm tra pathname (ví dụ: /tienghat, /tieng-hat, /hoakhoi, /namvuong, /daisu)
+  const path = window.location.pathname.replace(/^\/+|\/+$/g, '');
+  if (path && !path.endsWith('.html') && path !== 'index' && !path.startsWith('api/')) {
+    const matched = findEventByQuery(path);
+    if (matched) return matched.id;
+  }
+
+  return null;
+}
+
 init();
 </script>
-<script src="pwa-install.js?v=1.0"></script>
+<script src="/pwa-install.js?v=1.0"></script>
 </body>
 </html>

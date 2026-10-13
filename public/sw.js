@@ -1,5 +1,5 @@
 // Service Worker for PWA - Bình Chọn Hoa Khôi
-const CACHE_NAME = 'muce-hoakhoi-v3';
+const CACHE_NAME = 'muce-hoakhoi-v4';
 const ASSETS_TO_CACHE = [
   './',
   './index.html',

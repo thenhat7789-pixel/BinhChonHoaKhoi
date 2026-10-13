@@ -2468,6 +2468,15 @@ function renderAdminEvents() {
           <span>In QR</span>
         </button>
 
+        <!-- Button 2.5: Sao chép link -->
+        <button class="btn btn-ghost btn-sm" onclick="copyAdminEventLink('${ev.id}')" title="Sao chép link bình chọn chủ đề này" style="border:1.5px solid #16a34a;color:#16a34a;background:#fff;font-weight:600;border-radius:8px;padding:.52rem .85rem;display:inline-flex;align-items:center;gap:.35rem;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path>
+            <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path>
+          </svg>
+          <span>Link</span>
+        </button>
+
         <!-- Button 3: Tải Excel matching screenshot -->
         <button class="btn btn-ghost btn-sm" onclick="exportEventExcel('${ev.id}')" style="border:1.5px solid #16a34a;color:#16a34a;background:#fff;font-weight:600;border-radius:8px;padding:.52rem .85rem;display:inline-flex;align-items:center;gap:.35rem;">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -2561,6 +2570,37 @@ function copyEventQrLink() {
     try {
       document.execCommand('copy');
       toast('📋 Đã sao chép liên kết bình chọn!', 'success');
+    } catch (e) {
+      toast('Không thể sao chép tự động, vui lòng sao chép thủ công.', 'error');
+    }
+    document.body.removeChild(t);
+  }
+}
+
+function copyAdminEventLink(eventId) {
+  const ev = (adminEvents || []).find(e => e.id === eventId);
+  const cleanTitle = ev ? (ev.title || '').replace(/<[^>]*>?/gm, '') : 'cuộc thi';
+  const baseUrl = (appData && appData.settings && appData.settings.share_url) ? appData.settings.share_url : window.location.origin;
+  const voteUrl = `${baseUrl.replace(/\/admin\.html.*$/, '')}/index.html?event=${encodeURIComponent(eventId)}`;
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(voteUrl).then(() => {
+      toast(`📋 Đã sao chép link bình chọn "${cleanTitle}"!`, 'success');
+    }).catch(() => fallbackCopyAdmin(voteUrl, cleanTitle));
+  } else {
+    fallbackCopyAdmin(voteUrl, cleanTitle);
+  }
+  function fallbackCopyAdmin(text, title) {
+    const t = document.createElement('textarea');
+    t.value = text;
+    t.style.position = 'fixed';
+    t.style.opacity = '0';
+    document.body.appendChild(t);
+    t.focus();
+    t.select();
+    try {
+      document.execCommand('copy');
+      toast(`📋 Đã sao chép link bình chọn "${title}"!`, 'success');
     } catch (e) {
       toast('Không thể sao chép tự động, vui lòng sao chép thủ công.', 'error');
     }
