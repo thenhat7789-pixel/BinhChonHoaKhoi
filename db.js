@@ -93,12 +93,19 @@ async function initDB() {
       ALTER TABLE events ADD COLUMN IF NOT EXISTS start_time VARCHAR(100);
       ALTER TABLE events ADD COLUMN IF NOT EXISTS end_time VARCHAR(100);
       ALTER TABLE events ADD COLUMN IF NOT EXISTS vote_ratio INT DEFAULT 80;
+      ALTER TABLE events ADD COLUMN IF NOT EXISTS short_url VARCHAR(255);
       ALTER TABLE contestants ADD COLUMN IF NOT EXISTS event_id VARCHAR(50) DEFAULT 'evt_hoakhoi_2026';
       ALTER TABLE votes ADD COLUMN IF NOT EXISTS event_id VARCHAR(50) DEFAULT 'evt_hoakhoi_2026';
       ALTER TABLE votes ADD COLUMN IF NOT EXISTS voter_ip VARCHAR(255) DEFAULT '';
       ALTER TABLE votes ADD COLUMN IF NOT EXISTS student_id VARCHAR(50) DEFAULT '';
       ALTER TABLE votes ADD COLUMN IF NOT EXISTS student_class VARCHAR(100) DEFAULT '';
       ALTER TABLE votes ADD COLUMN IF NOT EXISTS faculty VARCHAR(100) DEFAULT '';
+
+      -- Cập nhật TinyURL che domain cho các cuộc thi mặc định nếu chưa có
+      UPDATE events SET short_url = 'https://tinyurl.com/289cdkb2' WHERE id = 'evt_tienghat_2026' AND (short_url IS NULL OR short_url = '');
+      UPDATE events SET short_url = 'https://tinyurl.com/2yxzgchb' WHERE id = 'evt_hoakhoi_2026' AND (short_url IS NULL OR short_url = '');
+      UPDATE events SET short_url = 'https://tinyurl.com/28ztof2b' WHERE id = 'evt_namvuong_2026' AND (short_url IS NULL OR short_url = '');
+      UPDATE events SET short_url = 'https://tinyurl.com/2yzrgtgx' WHERE id = 'evt_daisu_2026' AND (short_url IS NULL OR short_url = '');
 
       -- Xóa bỏ tàn dư NCTXH và bán kính điểm danh cũ trong DB
       UPDATE events SET benefit_badge = '', benefit = '' WHERE benefit_badge ILIKE '%nctxh%' OR benefit ILIKE '%nctxh%';
@@ -174,7 +181,8 @@ async function initDB() {
           benefit: 'Vương miện Hoa khôi & Kỷ niệm chương',
           creator: 'Đoàn TN – Hội Sinh viên MUCE',
           checked_in_count: 245,
-          sort_order: 1
+          sort_order: 1,
+          short_url: 'https://tinyurl.com/2yxzgchb'
         },
         {
           id: 'evt_namvuong_2026',
@@ -188,7 +196,8 @@ async function initDB() {
           benefit: 'Danh hiệu Nam Vương & Cúp Vàng',
           creator: 'Đoàn TN – Hội Sinh viên MUCE',
           checked_in_count: 182,
-          sort_order: 2
+          sort_order: 2,
+          short_url: 'https://tinyurl.com/28ztof2b'
         },
         {
           id: 'evt_tienghat_2026',
@@ -202,7 +211,8 @@ async function initDB() {
           benefit: 'Giải thưởng Giọng ca vàng',
           creator: 'Đoàn TN – Hội Sinh viên MUCE',
           checked_in_count: 310,
-          sort_order: 3
+          sort_order: 3,
+          short_url: 'https://tinyurl.com/289cdkb2'
         },
         {
           id: 'evt_daisu_2026',
@@ -216,15 +226,16 @@ async function initDB() {
           benefit: 'Gương mặt đại diện MUCE',
           creator: 'Đoàn TN – Hội Sinh viên MUCE',
           checked_in_count: 156,
-          sort_order: 4
+          sort_order: 4,
+          short_url: 'https://tinyurl.com/2yzrgtgx'
         }
       ];
       for (const e of defaultEvents) {
         await client.query(`
-          INSERT INTO events (id, tag, benefit_badge, title, description, location, radius, event_time, benefit, creator, checked_in_count, sort_order)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+          INSERT INTO events (id, tag, benefit_badge, title, description, location, radius, event_time, benefit, creator, checked_in_count, sort_order, short_url)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
           ON CONFLICT (id) DO NOTHING
-        `, [e.id, e.tag, e.benefit_badge, e.title, e.description, e.location, e.radius, e.event_time, e.benefit, e.creator, e.checked_in_count, e.sort_order]);
+        `, [e.id, e.tag, e.benefit_badge, e.title, e.description, e.location, e.radius, e.event_time, e.benefit, e.creator, e.checked_in_count, e.sort_order, e.short_url]);
       }
       console.log('✅ Seeded default competition events');
     }

@@ -61,8 +61,8 @@ app.post('/api/events', async (req, res) => {
       const item = list[i];
       const id = item.id || ('evt_' + Date.now() + '_' + i);
       await client.query(`
-        INSERT INTO events (id, tag, benefit_badge, title, description, location, radius, event_time, benefit, creator, checked_in_count, sort_order, start_time, end_time, vote_ratio)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+        INSERT INTO events (id, tag, benefit_badge, title, description, location, radius, event_time, benefit, creator, checked_in_count, sort_order, start_time, end_time, vote_ratio, short_url)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
         ON CONFLICT (id) DO UPDATE SET
           tag = EXCLUDED.tag,
           benefit_badge = EXCLUDED.benefit_badge,
@@ -77,7 +77,8 @@ app.post('/api/events', async (req, res) => {
           sort_order = EXCLUDED.sort_order,
           start_time = COALESCE(EXCLUDED.start_time, events.start_time),
           end_time = COALESCE(EXCLUDED.end_time, events.end_time),
-          vote_ratio = COALESCE(EXCLUDED.vote_ratio, events.vote_ratio)
+          vote_ratio = COALESCE(EXCLUDED.vote_ratio, events.vote_ratio),
+          short_url = COALESCE(EXCLUDED.short_url, events.short_url)
       `, [
         id,
         item.tag || '# CUỘC THI',
@@ -93,7 +94,8 @@ app.post('/api/events', async (req, res) => {
         item.sort_order !== undefined ? item.sort_order : i,
         item.start_time || null,
         item.end_time || null,
-        parseInt(item.vote_ratio) || 80
+        parseInt(item.vote_ratio) || 80,
+        item.short_url || null
       ]);
     }
     await client.query('COMMIT');
@@ -104,6 +106,21 @@ app.post('/api/events', async (req, res) => {
     res.status(500).json({ error: 'Lỗi server' });
   } finally {
     client.release();
+  }
+});
+
+// ─── GET /api/create-short-url ────────────────────
+app.get('/api/create-short-url', async (req, res) => {
+  const targetUrl = req.query.url;
+  if (!targetUrl) return res.status(400).json({ error: 'Thiếu url' });
+  try {
+    const tinyRes = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(targetUrl)}`);
+    if (!tinyRes.ok) throw new Error('TinyURL API error');
+    const shortUrl = (await tinyRes.text()).trim();
+    res.json({ success: true, shortUrl });
+  } catch (e) {
+    console.error('GET /api/create-short-url error:', e);
+    res.status(500).json({ error: 'Lỗi tạo link rút gọn TinyURL' });
   }
 });
 

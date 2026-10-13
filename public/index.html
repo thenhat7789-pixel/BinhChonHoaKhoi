@@ -1100,7 +1100,8 @@ const DEFAULT_SAVED_EVENTS = [
     event_time: "08:00 - 22:00",
     creator: "Đoàn TN – Hội Sinh viên MUCE",
     checked_in_count: 245,
-    icon: "👑"
+    icon: "👑",
+    short_url: "https://tinyurl.com/2yxzgchb"
   },
   {
     id: 'evt_namvuong_2026',
@@ -1112,7 +1113,8 @@ const DEFAULT_SAVED_EVENTS = [
     event_time: "08:00 - 22:00",
     creator: "Đoàn TN – Hội Sinh viên MUCE",
     checked_in_count: 182,
-    icon: "🏆"
+    icon: "🏆",
+    short_url: "https://tinyurl.com/28ztof2b"
   },
   {
     id: 'evt_tienghat_2026',
@@ -1124,7 +1126,8 @@ const DEFAULT_SAVED_EVENTS = [
     event_time: "18:00 - 22:00",
     creator: "Đoàn TN – Hội Sinh viên MUCE",
     checked_in_count: 310,
-    icon: "🎤"
+    icon: "🎤",
+    short_url: "https://tinyurl.com/289cdkb2"
   },
   {
     id: 'evt_daisu_2026',
@@ -1136,7 +1139,8 @@ const DEFAULT_SAVED_EVENTS = [
     event_time: "08:00 - 22:00",
     creator: "Đoàn TN – Hội Sinh viên MUCE",
     checked_in_count: 156,
-    icon: "⭐"
+    icon: "⭐",
+    short_url: "https://tinyurl.com/2yzrgtgx"
   }
 ];
 
@@ -1740,11 +1744,18 @@ function getEventSlug(ev) {
 }
 
 function getEventDirectUrl(eventId) {
+  const ev = (state.events || []).find(e => e.id === eventId);
+  if (ev && ev.short_url) {
+    return ev.short_url;
+  }
   return `${window.location.origin}/index.html?event=${encodeURIComponent(eventId)}`;
 }
 
 function getEventShortUrl(eventId) {
   const ev = (state.events || []).find(e => e.id === eventId);
+  if (ev && ev.short_url) {
+    return ev.short_url;
+  }
   const slug = getEventSlug(ev || { id: eventId });
   return `${window.location.origin}/${slug}`;
 }
@@ -2013,7 +2024,8 @@ async function init() {
     checked_in_count: e.checked_in_count || (150 + idx * 45),
     start_time: e.start_time || null,
     end_time: e.end_time || null,
-    vote_ratio: parseInt(e.vote_ratio) || 80
+    vote_ratio: parseInt(e.vote_ratio) || 80,
+    short_url: e.short_url || null
   }));
 
   // 2. Tự động nhận diện cuộc thi từ URL (?event=... hoặc đường dẫn ngắn /tienghat, /hoakhoi, ...)

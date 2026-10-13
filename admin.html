@@ -672,6 +672,14 @@
         <label class="form-label">Số lượt bình chọn ban đầu</label>
         <input class="input" type="number" id="adminEventCount" placeholder="100" />
       </div>
+      <div class="form-group">
+        <label class="form-label" style="display:flex;justify-content:space-between;align-items:center;">
+          <span>Link rút gọn che tên miền (TinyURL / Tùy chỉnh)</span>
+          <button type="button" class="btn btn-ghost btn-sm" onclick="autoGenerateTinyUrlForEvent()" style="color:#0284c7;font-size:11px;padding:3px 9px;border:1.5px solid #38bdf8;border-radius:6px;background:#f0f9ff;font-weight:700;cursor:pointer;">⚡ Tự tạo TinyURL</button>
+        </label>
+        <input class="input" id="adminEventShortUrl" placeholder="https://tinyurl.com/... (để trống = dùng link hệ thống)" />
+        <div style="font-size:11px;color:#64748b;margin-top:3px;">Nếu điền link này, mã QR và nút Copy Link sẽ dùng link này để không lộ chữ 'binhchonhoakhoi'.</div>
+      </div>
       <div style="display:flex;gap:.5rem;margin-top:.75rem">
         <button class="btn btn-gold btn-full" onclick="saveAdminEvent()">Lưu cuộc thi</button>
         <button class="btn btn-ghost" onclick="closeAdminEventModal()">Hủy</button>
@@ -2311,7 +2319,8 @@ const DEFAULT_ADMIN_EVENTS = [
     location: 'Trường Đại học Xây dựng Miền Trung',
     event_time: '08:00 - 22:00',
     creator: 'hongnhung',
-    checked_in_count: 245
+    checked_in_count: 245,
+    short_url: 'https://tinyurl.com/2yxzgchb'
   },
   {
     id: 'evt_namvuong_2026',
@@ -2322,7 +2331,8 @@ const DEFAULT_ADMIN_EVENTS = [
     location: 'Trường Đại học Xây dựng Miền Trung',
     event_time: '08:00 - 22:00',
     creator: 'hongnhung',
-    checked_in_count: 182
+    checked_in_count: 182,
+    short_url: 'https://tinyurl.com/28ztof2b'
   },
   {
     id: 'evt_tienghat_2026',
@@ -2333,7 +2343,8 @@ const DEFAULT_ADMIN_EVENTS = [
     location: 'Trường Đại học Xây dựng Miền Trung',
     event_time: '18:00 - 22:00',
     creator: 'hongnhung',
-    checked_in_count: 310
+    checked_in_count: 310,
+    short_url: 'https://tinyurl.com/289cdkb2'
   },
   {
     id: 'evt_daisu_2026',
@@ -2344,7 +2355,8 @@ const DEFAULT_ADMIN_EVENTS = [
     location: 'Trường Đại học Xây dựng Miền Trung',
     event_time: '08:00 - 22:00',
     creator: 'hongnhung',
-    checked_in_count: 156
+    checked_in_count: 156,
+    short_url: 'https://tinyurl.com/2yzrgtgx'
   }
 ];
 
@@ -2376,6 +2388,14 @@ async function loadAdminEvents() {
   if (!adminEvents || !adminEvents.length) {
     adminEvents = DEFAULT_ADMIN_EVENTS;
     localStorage.setItem('hh:events', JSON.stringify(DEFAULT_ADMIN_EVENTS));
+  } else {
+    adminEvents = adminEvents.map(e => {
+      if (!e.short_url) {
+        const def = DEFAULT_ADMIN_EVENTS.find(d => d.id === e.id);
+        if (def && def.short_url) e.short_url = def.short_url;
+      }
+      return e;
+    });
   }
 
   renderAdminEvents();
@@ -2516,7 +2536,8 @@ function openEventQr(eventId) {
   const targetId = eventId || currentActiveEventId || 'evt_hoakhoi_2026';
   const ev = (adminEvents || []).find(e => e.id === targetId) || (adminEvents && adminEvents[0]) || { id: targetId, title: 'Bình Chọn Hoa Khôi', tag: '# HOA KHÔI 2026' };
   const baseUrl = (appData && appData.settings && appData.settings.share_url) ? appData.settings.share_url : window.location.origin;
-  const voteUrl = `${baseUrl.replace(/\/admin\.html.*$/, '')}/index.html?event=${encodeURIComponent(ev.id)}`;
+  const directVoteUrl = `${baseUrl.replace(/\/admin\.html.*$/, '')}/index.html?event=${encodeURIComponent(ev.id)}`;
+  const voteUrl = ev.short_url || directVoteUrl;
   const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=450x450&data=${encodeURIComponent(voteUrl)}`;
 
   const cleanTitle = (ev.title || 'Bình Chọn Hoa Khôi').replace(/<[^>]*>?/gm, '');
@@ -2581,7 +2602,8 @@ function copyAdminEventLink(eventId) {
   const ev = (adminEvents || []).find(e => e.id === eventId);
   const cleanTitle = ev ? (ev.title || '').replace(/<[^>]*>?/gm, '') : 'cuộc thi';
   const baseUrl = (appData && appData.settings && appData.settings.share_url) ? appData.settings.share_url : window.location.origin;
-  const voteUrl = `${baseUrl.replace(/\/admin\.html.*$/, '')}/index.html?event=${encodeURIComponent(eventId)}`;
+  const directVoteUrl = `${baseUrl.replace(/\/admin\.html.*$/, '')}/index.html?event=${encodeURIComponent(eventId)}`;
+  const voteUrl = (ev && ev.short_url) ? ev.short_url : directVoteUrl;
 
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(voteUrl).then(() => {
@@ -2951,6 +2973,7 @@ function openAddAdminEvent() {
   document.getElementById('adminEventTime').value = '08:00 - 22:00';
   document.getElementById('adminEventCreator').value = 'Đoàn TN – Hội Sinh viên MUCE';
   document.getElementById('adminEventCount').value = '100';
+  document.getElementById('adminEventShortUrl').value = '';
   document.getElementById('adminEventModal').classList.remove('hidden');
 }
 
@@ -2968,12 +2991,38 @@ function openEditAdminEvent(id) {
   document.getElementById('adminEventTime').value = ev.event_time || '08:00 - 22:00';
   document.getElementById('adminEventCreator').value = ev.creator || 'Đoàn TN – Hội Sinh viên MUCE';
   document.getElementById('adminEventCount').value = ev.checked_in_count || 0;
+  document.getElementById('adminEventShortUrl').value = ev.short_url || '';
   document.getElementById('adminEventModal').classList.remove('hidden');
 }
 
 function closeAdminEventModal() {
   document.getElementById('adminEventModal').classList.add('hidden');
   editingEventId = null;
+}
+
+async function autoGenerateTinyUrlForEvent() {
+  const evId = editingEventId || document.getElementById('adminEventId').value.trim() || ('evt_' + Date.now());
+  let slug = evId.replace(/^evt_/, '').replace(/_\d+$/, '');
+  if (evId === 'evt_hoakhoi_2026') slug = 'hoakhoi';
+  else if (evId === 'evt_namvuong_2026') slug = 'namvuong';
+  else if (evId === 'evt_tienghat_2026') slug = 'tienghat';
+  else if (evId === 'evt_daisu_2026') slug = 'daisu';
+
+  const baseUrl = (appData && appData.settings && appData.settings.share_url) ? appData.settings.share_url : window.location.origin;
+  const targetUrl = `${baseUrl.replace(/\/admin\.html.*$/, '')}/${slug}`;
+
+  toast('⏳ Đang tạo link TinyURL...', 'info');
+  try {
+    const res = await api.get(`/api/create-short-url?url=${encodeURIComponent(targetUrl)}`);
+    if (res && res.shortUrl) {
+      document.getElementById('adminEventShortUrl').value = res.shortUrl;
+      toast(`✓ Đã tạo link TinyURL: ${res.shortUrl}`, 'success');
+    } else {
+      toast('Không thể tạo tự động, bạn có thể tự dán link rút gọn.', 'warning');
+    }
+  } catch (e) {
+    toast('Lỗi khi gọi API tạo link rút gọn', 'error');
+  }
 }
 
 async function saveAdminEvent() {
@@ -2989,7 +3038,8 @@ async function saveAdminEvent() {
     location: document.getElementById('adminEventLocation').value.trim() || 'Hội trường A – Trường ĐH Xây dựng Miền Trung',
     event_time: document.getElementById('adminEventTime').value.trim() || '08:00 - 22:00',
     creator: document.getElementById('adminEventCreator').value.trim() || 'Đoàn TN – Hội Sinh viên MUCE',
-    checked_in_count: parseInt(document.getElementById('adminEventCount').value) || 0
+    checked_in_count: parseInt(document.getElementById('adminEventCount').value) || 0,
+    short_url: document.getElementById('adminEventShortUrl').value.trim() || null
   };
 
   if (editingEventId) {
