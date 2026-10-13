@@ -1687,6 +1687,7 @@ function firebaseErrorMsg(e) {
     'auth/popup-closed-by-user': 'Đã đóng cửa sổ đăng nhập.',
     'auth/popup-blocked': 'Trình duyệt chặn popup. Hãy cho phép popup.',
     'auth/network-request-failed': 'Lỗi kết nối mạng.',
+    'auth/unauthorized-domain': 'Tên miền mới chưa được cấp quyền trên Firebase. Hãy thêm "binhchonmuce.onrender.com" vào Firebase Authorized Domains.',
   };
   return map[code] || (e.message || 'Đã xảy ra lỗi. Vui lòng thử lại.');
 }
@@ -1746,7 +1747,7 @@ async function doEmailLogin() {
     errEl.textContent = firebaseErrorMsg(e);
     errEl.classList.remove('hidden');
     btn.classList.remove('btn-loading');
-    btn.textContent = 'Đăng nhập';
+    btn.textContent = 'Đang nhập';
   }
 }
 
@@ -1761,7 +1762,11 @@ async function doGoogleLogin() {
     // Check/create admin doc
     await ensureAdminDoc(user);
   } catch (e) {
-    if (e.code !== 'auth/popup-closed-by-user') {
+    if (e.code === 'auth/unauthorized-domain') {
+      const msg = 'Lỗi tên miền mới: Tên miền "binhchonmuce.onrender.com" chưa được thêm vào Firebase Console.\n\nCách khắc phục (15 giây):\n1. Mở https://console.firebase.google.com\n2. Chọn dự án "hoakhoi-vote"\n3. Vào Authentication > Settings > Authorized domains\n4. Bấm "Add domain" và dán: binhchonmuce.onrender.com';
+      toast('Tên miền mới chưa được thêm vào Firebase Authorized Domains!', 'error', 6000);
+      alert(msg);
+    } else if (e.code !== 'auth/popup-closed-by-user') {
       toast(firebaseErrorMsg(e), 'error');
     }
     btn?.classList.remove('btn-loading');
