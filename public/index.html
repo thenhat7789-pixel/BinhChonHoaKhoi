@@ -949,9 +949,9 @@
     </div>
     <p class="modal-subtitle" id="voteModalCandidateName">Thí sinh – SBD 01</p>
 
-    <div style="font-size:0.8rem;color:#b91c1c;background:#fef2f2;border:1px solid #fecaca;padding:7px 10px;border-radius:8px;margin-bottom:1rem;display:flex;align-items:center;gap:6px;">
-      <span>⚠️</span>
-      <span>Vui lòng điền <strong>đầy đủ thông tin</strong> để hoàn tất bình chọn!</span>
+    <div style="font-size:0.8rem;color:#0369a1;background:#eff6ff;border:1px solid #bfdbfe;padding:8px 12px;border-radius:10px;margin-bottom:1rem;display:flex;align-items:center;gap:8px;">
+      <span>💖</span>
+      <span>Nhập họ tên của bạn và gửi lời chúc để tiếp thêm động lực cho thí sinh nhé!</span>
     </div>
 
     <div class="form-group">
@@ -959,37 +959,9 @@
       <input class="form-input" id="voterNameInput" placeholder="Ví dụ: Nguyễn Văn A" required />
     </div>
 
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;">
-      <div class="form-group">
-        <label class="form-label">Mã sinh viên (MSSV) <span style="color:#dc2626;font-weight:700">*</span></label>
-        <input class="form-input" id="voterStudentIdInput" placeholder="Ví dụ: 65KDD12345" required />
-      </div>
-      <div class="form-group">
-        <label class="form-label">Lớp <span style="color:#dc2626;font-weight:700">*</span></label>
-        <input class="form-input" id="voterClassInput" placeholder="Ví dụ: 65KDD1" required />
-      </div>
-    </div>
-
-    <div class="form-group">
-      <label class="form-label">Khoa <span style="color:#dc2626;font-weight:700">*</span></label>
-      <input class="form-input" id="voterFacultyInput" list="voterFacultyList" placeholder="Chọn hoặc nhập khoa..." required autocomplete="off" />
-      <datalist id="voterFacultyList">
-        <option value="Khoa Kinh tế">
-        <option value="Khoa Kiến trúc">
-        <option value="Khoa Xây dựng">
-        <option value="Khoa Kĩ thuật công nghệ">
-      </datalist>
-      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;">
-        <span style="cursor:pointer;font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(96,165,250,0.3);font-weight:600;" onclick="document.getElementById('voterFacultyInput').value='Khoa Kinh tế'">Kinh tế</span>
-        <span style="cursor:pointer;font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(96,165,250,0.3);font-weight:600;" onclick="document.getElementById('voterFacultyInput').value='Khoa Kiến trúc'">Kiến trúc</span>
-        <span style="cursor:pointer;font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(96,165,250,0.3);font-weight:600;" onclick="document.getElementById('voterFacultyInput').value='Khoa Xây dựng'">Xây dựng</span>
-        <span style="cursor:pointer;font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(96,165,250,0.3);font-weight:600;" onclick="document.getElementById('voterFacultyInput').value='Khoa Kĩ thuật công nghệ'">Kĩ thuật công nghệ</span>
-      </div>
-    </div>
-
     <div class="form-group">
       <label class="form-label">Lời chúc / Bình luận <span style="color:#94a3b8;font-size:0.75rem">(tùy chọn)</span></label>
-      <textarea class="form-input" id="voterCommentInput" rows="2" placeholder="Chúc bạn tỏa sáng và đạt giải cao nhất!" style="resize:vertical;min-height:55px;"></textarea>
+      <textarea class="form-input" id="voterCommentInput" rows="3" placeholder="Chúc bạn tỏa sáng và đạt giải cao nhất!" style="resize:vertical;min-height:75px;"></textarea>
     </div>
 
     <div style="display:flex;gap:.65rem;margin-top:1.25rem;">
@@ -1751,9 +1723,6 @@ function openVoteModal(id) {
   const sbd = getContestantSbd(c.id);
   document.getElementById('voteModalCandidateName').textContent = `${c.name} – SBD ${sbd}`;
   document.getElementById('voterNameInput').value = localStorage.getItem('hh:voter_name') || '';
-  document.getElementById('voterStudentIdInput').value = localStorage.getItem('hh:student_id') || '';
-  document.getElementById('voterClassInput').value = localStorage.getItem('hh:student_class') || '';
-  document.getElementById('voterFacultyInput').value = localStorage.getItem('hh:faculty') || '';
   document.getElementById('voterCommentInput').value = '';
 
   document.getElementById('voteModal').classList.remove('hidden');
@@ -1898,20 +1867,11 @@ document.getElementById('confirmVoteBtn').addEventListener('click', async () => 
   }
 
   const name = document.getElementById('voterNameInput').value.trim();
-  const studentId = document.getElementById('voterStudentIdInput').value.trim();
-  const studentClass = document.getElementById('voterClassInput').value.trim();
-  const faculty = document.getElementById('voterFacultyInput').value.trim();
   const comment = document.getElementById('voterCommentInput').value.trim();
 
-  if (!name) { toast('Vui lòng nhập Họ và tên!', 'warning'); return; }
-  if (!studentId) { toast('Vui lòng nhập Mã sinh viên (MSSV)!', 'warning'); return; }
-  if (!studentClass) { toast('Vui lòng nhập Lớp của bạn!', 'warning'); return; }
-  if (!faculty) { toast('Vui lòng nhập Khoa của bạn!', 'warning'); return; }
+  if (!name) { toast('Vui lòng nhập Họ và tên của bạn!', 'warning'); return; }
 
   localStorage.setItem('hh:voter_name', name);
-  localStorage.setItem('hh:student_id', studentId);
-  localStorage.setItem('hh:student_class', studentClass);
-  localStorage.setItem('hh:faculty', faculty);
 
   const confirmBtn = document.getElementById('confirmVoteBtn');
   const originalBtnText = confirmBtn.innerHTML;
@@ -1923,9 +1883,9 @@ document.getElementById('confirmVoteBtn').addEventListener('click', async () => 
     contestant_id: cId,
     event_id: eventId,
     voter_name: name,
-    student_id: studentId,
-    student_class: studentClass,
-    faculty: faculty,
+    student_id: '',
+    student_class: '',
+    faculty: '',
     comment: comment || 'Ủng hộ thí sinh!',
     voter_fingerprint: VOTER_FP
   });
