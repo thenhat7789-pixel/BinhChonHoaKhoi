@@ -376,16 +376,20 @@ app.post('/api/votes/adjust', async (req, res) => {
 
     if (delta > 0) {
       // Tăng vote: chèn delta phiếu với người bình chọn Việt Nam & lời chúc ngẫu nhiên (không còn MSSV, Lớp, Khoa)
+      // Giãn cách thời gian mỗi lượt bình chọn cách nhau 2 giây (tổng 10 giây cho 5 phiếu) để tự nhiên
+      const baseNow = Date.now();
       for (let i = 0; i < delta; i++) {
-        const vote_id = 'v_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6) + '_' + i;
+        // Mỗi lượt cách nhau 2 giây (lượt cuối cùng là hiện tại, các lượt trước lùi 2s, 4s, 6s, 8s...)
+        const voteTs = new Date(baseNow - (delta - 1 - i) * 2000);
+        const vote_id = 'v_' + voteTs.getTime() + '_' + Math.random().toString(36).substr(2, 6) + '_' + i;
         const voterName = getRandomVietnameseName();
         const comment = getRandomVietnameseComment();
         const voterIp = getRandomVoterIp();
 
         await client.query(
-          `INSERT INTO votes (vote_id, contestant_id, event_id, voter_name, student_id, student_class, faculty, comment, voter_ip) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [vote_id, contestant_id, currentEventId, voterName, '', '', '', comment, voterIp]
+          `INSERT INTO votes (vote_id, contestant_id, event_id, voter_name, student_id, student_class, faculty, comment, voter_ip, created_at) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+          [vote_id, contestant_id, currentEventId, voterName, '', '', '', comment, voterIp, voteTs]
         );
       }
     } else {
