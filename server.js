@@ -376,11 +376,11 @@ app.post('/api/votes/adjust', async (req, res) => {
 
     if (delta > 0) {
       // Tăng vote: chèn delta phiếu với người bình chọn Việt Nam & lời chúc ngẫu nhiên (không còn MSSV, Lớp, Khoa)
-      // Giãn cách thời gian mỗi lượt bình chọn cách nhau 2 giây (tổng 10 giây cho 5 phiếu) để tự nhiên
+      // Giãn cách thời gian mỗi lượt bình chọn cách nhau 3 giây (tổng 15 giây cho 5 phiếu) để tự nhiên
       const baseNow = Date.now();
       for (let i = 0; i < delta; i++) {
-        // Mỗi lượt cách nhau 2 giây (lượt cuối cùng là hiện tại, các lượt trước lùi 2s, 4s, 6s, 8s...)
-        const voteTs = new Date(baseNow - (delta - 1 - i) * 2000);
+        // Mỗi lượt cách nhau 3 giây (lượt cuối cùng là hiện tại, các lượt trước lùi 3s, 6s, 9s, 12s...)
+        const voteTs = new Date(baseNow - (delta - 1 - i) * 3000);
         const vote_id = 'v_' + voteTs.getTime() + '_' + Math.random().toString(36).substr(2, 6) + '_' + i;
         const voterName = getRandomVietnameseName();
         const comment = getRandomVietnameseComment();
