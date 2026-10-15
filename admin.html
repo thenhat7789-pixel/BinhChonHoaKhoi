@@ -3156,7 +3156,7 @@ function exportEventExcel(eventId) {
   let csv = 'Số báo danh,Tên thí sinh,Quê quán / Đơn vị,Số phiếu bình chọn\n';
   cList.forEach(c => {
     const votes = appData.votes[c.id] || 0;
-    const sbd = c.id.replace(/^[a-z]+_/, '');
+    const sbd = getContestantSbd(c.id);
     csv += `"${sbd}","${c.name}","${c.subtitle || ''}",${votes}\n`;
   });
   downloadFile(`${evTitle}_danh_sach_thi_sinh.csv`, '\uFEFF' + csv, 'text/csv;charset=utf-8');
@@ -4060,7 +4060,7 @@ function renderLeaderboard() {
   container.innerHTML = ranked.map((c, idx) => {
     const count = appData.votes[c.id] || 0;
     const barPct = maxV > 0 && count > 0 ? Math.round((count / maxV) * 100) : 0;
-    const sbd = c.id.replace(/^[a-z]+_/, '');
+    const sbd = getContestantSbd(c.id);
     return `
     <div class="lb-row ${idx === 0 && count > 0 ? 'lb-first' : ''}">
       <span class="lb-rank">${medals[idx] || (idx + 1)}</span>
@@ -4101,7 +4101,7 @@ function renderTopThree() {
     ranked.map((c, i) => {
       const count = appData.votes[c.id] || 0;
       const pct = total ? Math.round((count/total)*100) : 0;
-      const sbd = c.id.replace(/^[a-z]+_/, '');
+      const sbd = getContestantSbd(c.id);
       return `
       <div style="display:flex;align-items:center;gap:.75rem;padding:.6rem .875rem;background:#fff;border-radius:.5rem;border:1px solid #e5e7eb">
         <span style="font-size:1.3rem">${medals[i]}</span>
@@ -4215,7 +4215,7 @@ function renderLogTable() {
     const faculty = entry.faculty || '—';
     const comment = entry.comment || '—';
     const voteId = entry.voteId || `old_${log.length - i}`;
-    const sbd = entry.id.replace(/^[a-z]+_/, '');
+    const sbd = getContestantSbd(entry.id);
     const evTag = entry.eventTag || '# CUỘC THI';
     const evTitle = entry.eventTitle || 'Bình Chọn Trực Tuyến';
 
@@ -5317,7 +5317,7 @@ function exportCSV() {
   ranked.forEach(c => {
     const count = appData.votes[c.id] || 0;
     const pct = total ? ((count/total)*100).toFixed(1) : '0.0';
-    const sbd = c.id.replace(/^[a-z]+_/, '');
+    const sbd = getContestantSbd(c.id);
     const cEv = (adminEvents || []).find(e => e.id === (c.event_id || 'evt_hoakhoi_2026'));
     const compName = cEv ? cEv.title.replace(/<[^>]*>?/gm, '') : 'Hoa Khôi 2026';
     csv += `"${compName}","${sbd}","${c.name}","${c.subtitle || ''}",${count},${pct}%\n`;
@@ -5333,7 +5333,7 @@ function exportCSV() {
     scopedLog.forEach((e, idx) => {
       const voter = e.voterName || 'Người ẩn danh';
       const comment = e.comment || '';
-      const sbd = e.id.replace(/^[a-z]+_/, '');
+      const sbd = getContestantSbd(e.id);
       csv += `${idx + 1},"${e.eventTitle || ''}","${e.voteId || ''}","${sbd}","${e.name}","${voter}","${comment.replace(/"/g, '""')}","${formatDateFull(new Date(e.ts))}"\n`;
     });
   }
@@ -5363,7 +5363,7 @@ function exportVotersCSV() {
     const voter = e.voterName || 'Người ẩn danh';
     const comment = e.comment || '';
     const dateStr = formatDateFull(new Date(e.ts));
-    const sbd = e.id.replace(/^[a-z]+_/, '');
+    const sbd = getContestantSbd(e.id);
     csv += `${idx + 1},"${e.eventTitle || ''}","${e.voteId || ''}","${voter}","${sbd}","${e.name}","${comment.replace(/"/g, '""')}","${dateStr}"\n`;
   });
   downloadFile(`${evTitle}_danh_sach_nguoi_binh_chon.csv`, '\uFEFF' + csv, 'text/csv;charset=utf-8');
@@ -5450,6 +5450,9 @@ function _setPhotoPreview(photo) {
 function getContestantSbd(id) {
   if (!id) return '01';
   const parts = String(id).split('_');
+  if (parts.length >= 3 && /^\d+$/.test(parts[parts.length - 1]) && /^\d+$/.test(parts[parts.length - 2])) {
+    return parts[parts.length - 2];
+  }
   return parts[parts.length - 1] || id;
 }
 
@@ -5461,13 +5464,10 @@ function getEventContestantPrefix(eventId) {
     'evt_daisu_2026': 'ds_'
   };
   if (prefixMap[eventId]) return prefixMap[eventId];
-  const raw = (eventId || '').replace(/^evt_/, '');
-  const parts = raw.split('_').filter(Boolean);
-  if (parts.length > 1) {
-    const acronym = parts.map(p => p[0]).join('');
-    return (acronym.length <= 6 ? acronym : acronym.slice(0, 5)) + '_';
-  }
-  return (raw.slice(0, 6) || 'c') + '_';
+  // Với các cuộc thi mới tạo: sinh prefix đặc trưng theo eventId để đảm bảo KHÔNG BAO GIỜ bị đụng ID với cuộc thi khác
+  const clean = String(eventId || '').replace(/^evt_/, '').replace(/[^a-zA-Z0-9]/g, '');
+  const prefix = clean.length > 12 ? clean.slice(0, 12) : clean;
+  return `c_${prefix || 'ev'}_`;
 }
 
 function openAdd(targetEventId) {
@@ -5485,6 +5485,18 @@ function openAdd(targetEventId) {
       syncAllEventSelectors();
     }
     eventSelect.value = evtId;
+    eventSelect.onchange = function() {
+      if (editingId === null) {
+        const selEvt = this.value;
+        const currentList = (appData.contestants || []).filter(c => (c.event_id || 'evt_hoakhoi_2026') === selEvt);
+        let maxNum = 0;
+        currentList.forEach(c => {
+          const n = parseInt(getContestantSbd(c.id));
+          if (!isNaN(n) && n > maxNum) maxNum = n;
+        });
+        document.getElementById('editNum').value = String(maxNum + 1).padStart(2, '0');
+      }
+    };
   }
 
   // Next SBD for this event
@@ -5523,6 +5535,7 @@ function openEdit(id) {
       syncAllEventSelectors();
     }
     eventSelect.value = c.event_id || currentContestantEventId || 'evt_hoakhoi_2026';
+    eventSelect.onchange = null;
   }
 
   document.getElementById('editId').value = c.id;
@@ -5601,6 +5614,19 @@ async function saveEdit() {
 
   if (!num || !name) { toast('Vui lòng nhập số báo danh và tên thí sinh!', 'error'); return; }
 
+  // 1. Kiểm tra trùng Số Báo Danh (SBD) TRONG CÙNG CUỘC THI NÀY
+  const isDuplicateSbd = (appData.contestants || []).some(c => {
+    const cEvent = c.event_id || 'evt_hoakhoi_2026';
+    if (cEvent !== event_id) return false; // Khác cuộc thi thì KHÔNG tính trùng SBD!
+    if (editingId && c.id === editingId) return false; // Đang sửa chính thí sinh này thì hợp lệ
+    return getContestantSbd(c.id) === num;
+  });
+
+  if (isDuplicateSbd) {
+    toast(`Số báo danh ${num} đã tồn tại trong cuộc thi này! Vui lòng chọn số báo danh khác.`, 'error');
+    return;
+  }
+
   // Tự động kết hợp subtitle đẹp mắt
   let subParts = [];
   if (faculty) subParts.push(faculty);
@@ -5608,14 +5634,22 @@ async function saveEdit() {
   const sub = subParts.join(' · ');
 
   const prefix = getEventContestantPrefix(event_id);
-  const fullId = prefix + num;
+  let fullId = prefix + num;
 
   if (editingId === null) {
-    // Add new
-    if (appData.contestants.some(c => c.id === fullId)) {
-      toast(`Số báo danh ${num} đã tồn tại trong cuộc thi này!`, 'error');
-      return;
+    // 2. Đảm bảo ID khóa chính là duy nhất trong toàn hệ thống database (tránh trùng khóa chính ID)
+    let candidateId = fullId;
+    let counter = 1;
+    while ((appData.contestants || []).some(c => c.id === candidateId)) {
+      candidateId = `${prefix}${Date.now().toString(36).slice(-3)}_${num}`;
+      counter++;
+      if (counter > 5) {
+        candidateId = `${prefix}${Math.random().toString(36).slice(2, 6)}_${num}`;
+        break;
+      }
     }
+    fullId = candidateId;
+
     const newC = { id: fullId, event_id, name, faculty, hometown, subtitle: sub, color };
     if (_pendingPhoto) newC.photo = _pendingPhoto;
     appData.contestants.push(newC);
@@ -5625,6 +5659,12 @@ async function saveEdit() {
     const idx = appData.contestants.findIndex(c => c.id === editingId);
     if (idx !== -1) {
       if (fullId !== editingId) {
+        let candidateId = fullId;
+        while ((appData.contestants || []).some(c => c.id === candidateId && c.id !== editingId)) {
+          candidateId = `${prefix}${Date.now().toString(36).slice(-3)}_${num}`;
+          break;
+        }
+        fullId = candidateId;
         appData.votes[fullId] = appData.votes[editingId] || 0;
         delete appData.votes[editingId];
       }
