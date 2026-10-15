@@ -3348,8 +3348,10 @@ async function saveAdminEvent() {
   const rawSlug = (document.getElementById('adminEventSlug')?.value || '').trim();
   const slug = rawSlug ? toSlug(rawSlug) : toSlug(title);
 
+  const newEventId = editingEventId || ('evt_' + (slug ? slug.replace(/-/g, '_') : 'event') + '_' + Date.now().toString(36));
+
   const evData = {
-    id: editingEventId || ('evt_' + (slug ? slug.replace(/-/g, '_') : Date.now())),
+    id: newEventId,
     tag: document.getElementById('adminEventTag').value.trim() || '# CUỘC THI',
     year: document.getElementById('adminEventYear').value.trim() || '✦ NĂM HỌC 2025 – 2026 ✦',
     title: title,
@@ -3369,8 +3371,14 @@ async function saveAdminEvent() {
     adminEvents.unshift(evData);
   }
 
+  // Tự động chuyển ngay sang sự kiện mới này để hiển thị danh sách trống (0 thí sinh)
+  currentContestantEventId = evData.id;
+  currentActiveEventId = evData.id;
+
   localStorage.setItem('hh:events', JSON.stringify(adminEvents));
+  syncAllEventSelectors();
   renderAdminEvents();
+  renderContestantList(currentContestantEventId);
   closeAdminEventModal();
 
   try {
@@ -4086,30 +4094,10 @@ function renderContestantList(targetEventId) {
     modalEventSelect.value = currentContestantEventId;
   }
 
-  // 3. Ensure appData.contestants has items; fallback if completely empty
-  if (!Array.isArray(appData.contestants) || appData.contestants.length === 0) {
-    appData.contestants = ALL_DEFAULT_CONTESTANTS.map(c => ({...c}));
-  }
-
-  // 4. Filter contestants for this specific event
-  let contestantsForEvent = appData.contestants.filter(c => {
-    if (c.event_id) return c.event_id === currentContestantEventId;
-    return currentContestantEventId === 'evt_hoakhoi_2026';
+  // 3. Filter contestants for this specific event (hoàn toàn không tự nạp mẫu)
+  let contestantsForEvent = (appData.contestants || []).filter(c => {
+    return c.event_id === currentContestantEventId || (!c.event_id && currentContestantEventId === 'evt_hoakhoi_2026');
   });
-
-  // If this event has 0 contestants, auto-populate from ALL_DEFAULT_CONTESTANTS
-  if (contestantsForEvent.length === 0) {
-    const defaults = ALL_DEFAULT_CONTESTANTS.filter(c => c.event_id === currentContestantEventId);
-    if (defaults.length > 0) {
-      defaults.forEach(d => {
-        if (!appData.contestants.some(c => c.id === d.id)) {
-          appData.contestants.push({...d});
-        }
-      });
-      contestantsForEvent = appData.contestants.filter(c => c.event_id === currentContestantEventId);
-      api.post('/api/contestants', { contestants: appData.contestants, event_id: currentContestantEventId }).catch(() => {});
-    }
-  }
 
   // Luôn sắp xếp thứ tự theo SBD (01, 02, 03...) để danh sách không bị lộn xộn
   contestantsForEvent.sort((a, b) => {

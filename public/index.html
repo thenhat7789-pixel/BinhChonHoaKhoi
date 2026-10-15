@@ -1591,12 +1591,10 @@ async function loadTopicContestantsAndVotes(eventId) {
   // 1. Contestants
   let contestants = [];
   const cRes = await api.get(`/api/contestants?event=${encodeURIComponent(eventId)}`);
-  if (cRes && Array.isArray(cRes.contestants) && cRes.contestants.length > 0) {
+  if (cRes && Array.isArray(cRes.contestants)) {
     contestants = cRes.contestants;
   } else if (CONTESTANTS_BY_THEME[eventId]) {
     contestants = CONTESTANTS_BY_THEME[eventId];
-  } else if (eventId === 'evt_hoakhoi_2026') {
-    contestants = CONTESTANTS_BY_THEME.evt_hoakhoi_2026;
   } else {
     contestants = [];
   }
