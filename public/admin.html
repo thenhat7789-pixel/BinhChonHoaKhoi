@@ -881,7 +881,27 @@
         <!-- Filled dynamically: Bình Chọn Hoa Khôi, Bình Chọn Nam Vương,... -->
       </select>
       <div style="font-size:.78rem;color:#64748b;margin-top:.35rem;">
-        💡 Chọn sự kiện để tải và tùy chỉnh thời gian đếm ngược cùng tỉ lệ bình chọn riêng cho sự kiện đó.
+        💡 Chọn sự kiện để tải và tùy chỉnh trạng thái Bật/Tắt, thời gian đếm ngược cùng tỉ lệ bình chọn riêng cho sự kiện đó.
+      </div>
+    </div>
+
+    <!-- 1.5 CÔNG TẮC BẬT / TẮT BÌNH CHỌN -->
+    <div style="background:linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);border:2px solid #cbd5e1;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:1rem;">
+      <div style="flex:1;min-width:250px;">
+        <div style="font-weight:800;font-size:1.02rem;color:#0f172a;display:flex;align-items:center;gap:.45rem;flex-wrap:wrap;">
+          <span>⚡ CỔNG BÌNH CHỌN:</span>
+          <span id="trModalStatusBadge" style="font-size:.85rem;font-weight:800;padding:.25rem .85rem;border-radius:999px;background:#dcfce7;color:#15803d;border:1.5px solid #86efac;">
+            🟢 ĐANG MỞ
+          </span>
+        </div>
+        <div style="font-size:.8rem;color:#64748b;margin-top:.3rem;" id="trModalStatusHint">
+          Khi tắt: Không ai bình chọn được. Khi bật: Người dùng bình chọn theo thời gian và tỉ lệ đã cấu hình.
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:.6rem;">
+        <button type="button" id="trModalToggleBtn" onclick="toggleCurrentModalEventStatus()" class="btn btn-sm" style="font-weight:800;border-radius:8px;padding:.55rem 1.15rem;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.08);">
+          🔴 Nhấn để TẮT
+        </button>
       </div>
     </div>
 
@@ -893,23 +913,25 @@
       
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-bottom:.75rem;">
         <div class="form-group" style="margin:0;">
-          <label class="form-label" style="font-size:.82rem;font-weight:600;color:#475569;">Thời điểm bắt đầu</label>
+          <label class="form-label" style="font-size:.82rem;font-weight:600;color:#475569;">Thời điểm BẮT ĐẦU (Hẹn giờ mở bình chọn)</label>
           <input class="input" type="datetime-local" step="1" id="trModalStartTime" />
+          <div style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;margin-top:.45rem;">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickStartTimeModal(0)" style="font-size:.74rem;padding:.25rem .55rem;border:1px solid #bfdbfe;background:#eff6ff;color:#1d4ed8;font-weight:700;">🟢 Mở ngay bây giờ</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickStartTimeModal(5)" style="font-size:.74rem;padding:.25rem .55rem;border:1px solid #cbd5e1;background:#f8fafc;">+5p</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickStartTimeModal(15)" style="font-size:.74rem;padding:.25rem .55rem;border:1px solid #cbd5e1;background:#f8fafc;">+15p</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickStartTimeModal(60)" style="font-size:.74rem;padding:.25rem .55rem;border:1px solid #cbd5e1;background:#f8fafc;">+1h</button>
+          </div>
         </div>
         <div class="form-group" style="margin:0;">
-          <label class="form-label" style="font-size:.82rem;font-weight:600;color:#475569;">Thời điểm kết thúc</label>
+          <label class="form-label" style="font-size:.82rem;font-weight:600;color:#475569;">Thời điểm KẾT THÚC (Khóa bình chọn)</label>
           <input class="input" type="datetime-local" step="1" id="trModalEndTime" />
+          <div style="display:flex;gap:.35rem;flex-wrap:wrap;align-items:center;margin-top:.45rem;">
+            <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickTimeModal(1)" style="font-size:.74rem;padding:.25rem .55rem;border:1px solid #cbd5e1;background:#f8fafc;">+1 ngày</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickTimeModal(3)" style="font-size:.74rem;padding:.25rem .55rem;border:1px solid #cbd5e1;background:#f8fafc;">+3 ngày</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickTimeModal(7)" style="font-size:.74rem;padding:.25rem .55rem;border:1px solid #cbd5e1;background:#f8fafc;">+7 ngày</button>
+            <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickTimeModal(30)" style="font-size:.74rem;padding:.25rem .55rem;border:1px solid #cbd5e1;background:#f8fafc;">+30 ngày</button>
+          </div>
         </div>
-      </div>
-
-      <div style="display:flex;gap:.45rem;flex-wrap:wrap;align-items:center;margin-bottom:.85rem;">
-        <button type="button" class="btn btn-gold btn-sm" onclick="saveEventTimeOnly()" style="font-weight:700;">
-          💾 Lưu thời gian
-        </button>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickTimeModal(1)" style="border:1px solid #cbd5e1;background:#f8fafc;">+1 ngày</button>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickTimeModal(3)" style="border:1px solid #cbd5e1;background:#f8fafc;">+3 ngày</button>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickTimeModal(7)" style="border:1px solid #cbd5e1;background:#f8fafc;">+7 ngày</button>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickTimeModal(30)" style="border:1px solid #cbd5e1;background:#f8fafc;">+30 ngày</button>
       </div>
 
       <!-- Cài đặt đếm ngược chỉ có GIÂY (hoặc phút) (Matching Screenshot 1) -->
@@ -979,11 +1001,14 @@
     </div>
 
     <!-- Actions -->
-    <div style="display:flex;gap:.65rem;margin-top:1.25rem;border-top:1px solid #e2e8f0;padding-top:1rem;">
-      <button class="btn btn-gold btn-full" onclick="saveAllTimeRatioConfig()" style="font-weight:700;padding:.75rem 1rem;font-size:.95rem;">
-        💾 Lưu Toàn Bộ Cấu Hình Cho Cuộc Thi Này
+    <div style="display:flex;gap:.65rem;margin-top:1.25rem;border-top:1px solid #e2e8f0;padding-top:1rem;flex-wrap:wrap;">
+      <button class="btn btn-gold" onclick="saveAllTimeRatioConfig(true)" style="flex:2;min-width:240px;font-weight:800;padding:.85rem 1.25rem;font-size:1rem;background:linear-gradient(135deg, #16a34a 0%, #15803d 100%);color:#fff;border:none;box-shadow:0 4px 15px rgba(22,163,74,0.35);cursor:pointer;display:flex;align-items:center;justify-content:center;gap:.5rem;border-radius:10px;">
+        🚀 BẬT BÌNH CHỌN & CHẠY THỜI GIAN + TỈ LỆ NGAY
       </button>
-      <button class="btn btn-ghost" onclick="closeAdminTimeRatioModal()" style="padding:.75rem 1.25rem;">
+      <button class="btn btn-ghost" onclick="saveAllTimeRatioConfig(false)" style="flex:1;min-width:160px;padding:.85rem 1.25rem;font-weight:700;border:1.5px solid #cbd5e1;background:#fff;color:#334155;border-radius:10px;">
+        💾 Chỉ lưu cấu hình
+      </button>
+      <button class="btn btn-ghost" onclick="closeAdminTimeRatioModal()" style="padding:.85rem 1.25rem;border-radius:10px;">
         Đóng
       </button>
     </div>
@@ -2561,18 +2586,41 @@ function renderAdminEvents() {
     const cList = (appData.contestants || []).filter(c => c.event_id === ev.id || (!c.event_id && ev.id === 'evt_hoakhoi_2026'));
     const contestantCount = cList.length > 0 ? cList.length : 6;
 
+    const isActive = ev.is_active !== false;
+    let statusToggleBtn = '';
+    if (isActive) {
+      statusToggleBtn = `
+        <button type="button" onclick="event.stopPropagation(); toggleAdminEventStatus('${ev.id}')" title="Cổng bình chọn đang MỞ. Nhấp để TẮT" style="background:#dcfce7;color:#15803d;border:1.5px solid #4ade80;font-size:.76rem;font-weight:800;padding:.24rem .7rem;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:.35rem;box-shadow:0 1px 3px rgba(22,163,74,0.15);transition:all .15s ease;">
+          <span style="width:8px;height:8px;border-radius:50%;background:#16a34a;box-shadow:0 0 6px #22c55e;display:inline-block;"></span>
+          <span>🟢 ĐANG MỞ</span>
+          <span style="font-size:.65rem;color:#166534;background:#bbf7d0;padding:.1rem .35rem;border-radius:4px;margin-left:2px;">Bấm để tắt</span>
+        </button>
+      `;
+    } else {
+      statusToggleBtn = `
+        <button type="button" onclick="event.stopPropagation(); toggleAdminEventStatus('${ev.id}')" title="Cổng bình chọn đang TẮT. Nhấp để BẬT hoặc hẹn giờ mở" style="background:#fee2e2;color:#b91c1c;border:1.5px solid #f87171;font-size:.76rem;font-weight:800;padding:.24rem .7rem;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:.35rem;box-shadow:0 1px 3px rgba(220,38,38,0.15);transition:all .15s ease;">
+          <span style="width:8px;height:8px;border-radius:50%;background:#dc2626;box-shadow:0 0 6px #ef4444;display:inline-block;"></span>
+          <span>🔴 ĐÃ TẮT</span>
+          <span style="font-size:.65rem;color:#991b1b;background:#fecaca;padding:.1rem .35rem;border-radius:4px;margin-left:2px;">Bấm để mở ↗</span>
+        </button>
+      `;
+    }
+
     let timeBadge = '';
+    if (ev.start_time && new Date(ev.start_time).getTime() > Date.now()) {
+      const startD = new Date(ev.start_time);
+      const timeStr = startD.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) + ' ' + startD.toLocaleDateString('vi-VN');
+      timeBadge += `<span style="background:#eff6ff;color:#1d4ed8;border:1px solid #93c5fd;font-size:.74rem;font-weight:800;padding:.2rem .65rem;border-radius:999px;">⏱️ Hẹn mở: ${timeStr}</span>`;
+    }
     if (ev.end_time) {
       const endD = new Date(ev.end_time);
       const isPast = endD.getTime() < Date.now();
       const timeStr = endD.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' ' + endD.toLocaleDateString('vi-VN');
       if (isPast) {
-        timeBadge = `<span style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;font-size:.74rem;font-weight:800;padding:.2rem .65rem;border-radius:999px;">⛔ HẾT GIỜ (${timeStr})</span>`;
+        timeBadge += `<span style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;font-size:.74rem;font-weight:800;padding:.2rem .65rem;border-radius:999px;margin-left:4px;">⛔ HẾT GIỜ (${timeStr})</span>`;
       } else {
-        timeBadge = `<span style="background:#fef3c7;color:#b45309;border:1px solid #fde68a;font-size:.74rem;font-weight:800;padding:.2rem .65rem;border-radius:999px;">⏱️ Hạn: ${timeStr}</span>`;
+        timeBadge += `<span style="background:#fef3c7;color:#b45309;border:1px solid #fde68a;font-size:.74rem;font-weight:800;padding:.2rem .65rem;border-radius:999px;margin-left:4px;">⏱️ Hạn: ${timeStr}</span>`;
       }
-    } else {
-      timeBadge = `<span style="background:#dcfce7;color:#15803d;border:1px solid #86efac;font-size:.74rem;font-weight:800;padding:.2rem .65rem;border-radius:999px;">🟢 ĐANG MỞ</span>`;
     }
 
     return `
@@ -2584,6 +2632,7 @@ function renderAdminEvents() {
           <span style="background:#0284c7;color:#fff;font-size:.74rem;font-weight:800;padding:.22rem .65rem;border-radius:999px;letter-spacing:.3px;">${esc(ev.tag || '# CUỘC THI')}</span>
           <span style="background:#dcfce7;color:#15803d;font-size:.74rem;font-weight:800;padding:.22rem .65rem;border-radius:999px;">👥 ${contestantCount} TS</span>
           <span style="background:#eff6ff;color:#0284c7;border:1px solid #bfdbfe;font-size:.74rem;font-weight:800;padding:.22rem .65rem;border-radius:999px;">📊 Tỉ lệ ${ratio}%</span>
+          ${statusToggleBtn}
           ${timeBadge}
         </div>
 
@@ -2895,6 +2944,80 @@ function exportEventExcel(eventId) {
 
 /* ─── TIME & RATIO MODAL CONTROLLER ─────────────────────── */
 let currentModalEventId = null;
+let modalEventIsActive = true;
+
+async function toggleAdminEventStatus(eventId) {
+  const ev = adminEvents.find(e => e.id === eventId);
+  if (!ev) return;
+
+  const isCurrentlyActive = ev.is_active !== false;
+
+  if (isCurrentlyActive) {
+    const choice = confirm(`⚠️ BẠN CÓ MUỐN TẮT CỔNG BÌNH CHỌN CHO CUỘC THI "${ev.title}" KHÔNG?\n\n- Khi TẮT: Không ai có thể bình chọn được cho đến khi bạn bật lại hoặc đến giờ hẹn mở.\n- Nhấn OK để TẮT NGAY LẬP TỨC.\n- Nhấn Cancel để mở bảng Cài đặt thời gian & tỉ lệ.`);
+    if (choice) {
+      ev.is_active = false;
+      localStorage.setItem('hh:events', JSON.stringify(adminEvents));
+      renderAdminEvents();
+      try {
+        await api.post(`/api/events/${eventId}/toggle`, { is_active: false });
+      } catch(e) { console.error(e); }
+      toast(`🔴 Đã TẮT cổng bình chọn cuộc thi "${ev.title}"!`, 'warning');
+    } else {
+      openAdminTimeRatioModal(eventId);
+    }
+  } else {
+    const choice = confirm(`🟢 BẬT LẠI CỔNG BÌNH CHỌN CHO CUỘC THI "${ev.title}"?\n\n- Nhấn OK để BẬT MỞ BÌNH CHỌN NGAY LẬP TỨC.\n- Nhấn Cancel để vào bảng Cài đặt chỉnh thời gian & tỉ lệ trước khi bật.`);
+    if (choice) {
+      ev.is_active = true;
+      localStorage.setItem('hh:events', JSON.stringify(adminEvents));
+      renderAdminEvents();
+      try {
+        await api.post(`/api/events/${eventId}/toggle`, { is_active: true });
+      } catch(e) { console.error(e); }
+      toast(`🟢 Đã BẬT cổng bình chọn cuộc thi "${ev.title}" thành công!`, 'success');
+    } else {
+      openAdminTimeRatioModal(eventId);
+    }
+  }
+}
+
+function syncModalStatusUI() {
+  const badge = document.getElementById('trModalStatusBadge');
+  const btn = document.getElementById('trModalToggleBtn');
+  const hint = document.getElementById('trModalStatusHint');
+  if (!badge || !btn) return;
+
+  if (modalEventIsActive) {
+    badge.textContent = '🟢 ĐANG MỞ BÌNH CHỌN';
+    badge.style.background = '#dcfce7';
+    badge.style.color = '#15803d';
+    badge.style.border = '1.5px solid #86efac';
+
+    btn.textContent = '🔴 Nhấn để TẮT';
+    btn.style.background = '#fee2e2';
+    btn.style.color = '#b91c1c';
+    btn.style.border = '1.5px solid #fca5a5';
+
+    if (hint) hint.innerHTML = 'Cổng bình chọn <strong>ĐANG MỞ</strong>. Người dùng trên trang chủ có thể bình chọn bình thường.';
+  } else {
+    badge.textContent = '🔴 ĐANG TẮT (TẠM ĐÓNG)';
+    badge.style.background = '#fee2e2';
+    badge.style.color = '#b91c1c';
+    badge.style.border = '1.5px solid #fca5a5';
+
+    btn.textContent = '🟢 Nhấn để BẬT';
+    btn.style.background = '#dcfce7';
+    btn.style.color = '#15803d';
+    btn.style.border = '1.5px solid #86efac';
+
+    if (hint) hint.innerHTML = 'Cổng bình chọn <strong>ĐANG TẮT</strong>. Không ai bình chọn được. Hãy chỉnh thời gian và tỉ lệ bên dưới rồi nhấn <strong>"🚀 BẬT BÌNH CHỌN & CHẠY THỜI GIAN + TỈ LỆ NGAY"</strong>.';
+  }
+}
+
+function toggleCurrentModalEventStatus() {
+  modalEventIsActive = !modalEventIsActive;
+  syncModalStatusUI();
+}
 
 function openAdminTimeRatioModal(eventId) {
   const select = document.getElementById('timeRatioEventSelect');
@@ -2931,6 +3054,9 @@ function onSelectEventForTimeRatio(eventId) {
   const ev = adminEvents.find(e => e.id === eventId);
   if (!ev) return;
 
+  modalEventIsActive = ev.is_active !== false;
+  syncModalStatusUI();
+
   // Start time
   let startVal = ev.start_time;
   if (!startVal) {
@@ -2965,6 +3091,13 @@ function onSelectEventForTimeRatio(eventId) {
   if (slider) slider.value = ratio;
 
   updateModalRatioDisplay();
+}
+
+function setQuickStartTimeModal(minutes) {
+  const d = new Date(Date.now() + minutes * 60 * 1000);
+  const val = toDatetimeLocal(d);
+  const startEl = document.getElementById('trModalStartTime');
+  if (startEl) startEl.value = val;
 }
 
 function setQuickTimeModal(days) {
@@ -3088,7 +3221,7 @@ async function saveEventRatioOnly() {
   toast(`📊 Đã lưu tỉ lệ bình chọn ${ratio}% cho cuộc thi "${ev ? ev.title : ''}"!`, 'success');
 }
 
-async function saveAllTimeRatioConfig() {
+async function saveAllTimeRatioConfig(autoActivate = false) {
   if (!currentModalEventId) {
     toast('Chưa chọn cuộc thi!', 'error');
     return;
@@ -3098,31 +3231,37 @@ async function saveAllTimeRatioConfig() {
   const slider = document.getElementById('trModalRatioSlider');
   const ratio = parseInt(slider?.value) || 80;
 
-  if (!endVal) {
-    toast('Vui lòng chọn thời gian kết thúc!', 'error');
-    return;
+  if (autoActivate) {
+    modalEventIsActive = true;
+    syncModalStatusUI();
   }
 
   const ev = adminEvents.find(e => e.id === currentModalEventId);
   if (ev) {
-    ev.start_time = startVal ? new Date(startVal).toISOString() : null;
-    ev.end_time = new Date(endVal).toISOString();
+    ev.start_time = startVal ? new Date(startVal).toISOString() : (autoActivate ? new Date().toISOString() : null);
+    ev.end_time = endVal ? new Date(endVal).toISOString() : null;
     ev.vote_ratio = ratio;
+    ev.is_active = modalEventIsActive;
   }
   localStorage.setItem('hh:events', JSON.stringify(adminEvents));
   renderAdminEvents();
 
   try {
     await api.post(`/api/events/${currentModalEventId}/time-ratio`, {
-      start_time: ev.start_time,
-      end_time: ev.end_time,
-      vote_ratio: ratio
+      start_time: ev ? ev.start_time : null,
+      end_time: ev ? ev.end_time : null,
+      vote_ratio: ratio,
+      is_active: modalEventIsActive
     });
   } catch(e) {
     console.error(e);
   }
 
-  toast(`🎉 Đã lưu toàn bộ thời gian & tỉ lệ bình chọn cho cuộc thi "${ev ? ev.title : ''}"!`, 'success');
+  if (autoActivate) {
+    toast(`🚀 Đã BẬT bình chọn và kích hoạt chạy thời gian + tỉ lệ ${ratio}% cho cuộc thi "${ev ? ev.title : ''}"!`, 'success');
+  } else {
+    toast(`💾 Đã lưu cấu hình thời gian & tỉ lệ cho cuộc thi "${ev ? ev.title : ''}" (Trạng thái: ${modalEventIsActive ? '🟢 BẬT' : '🔴 TẮT'})!`, 'success');
+  }
   closeAdminTimeRatioModal();
 }
 

@@ -1260,14 +1260,21 @@ function renderPortalEvents() {
     const count = parseInt(e.total_attendees || e.checked_in_count || 120);
     const ratio = e.vote_ratio || 80;
 
+    const isEventActive = e.is_active !== false;
     let timeBadge = '';
-    if (e.end_time) {
+    if (!isEventActive) {
+      timeBadge = '<span class="tag-status" style="background:#fee2e2;color:#b91c1c;border-color:#fca5a5;">🔴 TẠM ĐÓNG BÌNH CHỌN</span>';
+    } else if (e.start_time && new Date(e.start_time).getTime() > Date.now()) {
+      timeBadge = '<span class="tag-status" style="background:#eff6ff;color:#1d4ed8;border-color:#93c5fd;">⏱️ SẮP MỞ BÌNH CHỌN</span>';
+    } else if (e.end_time) {
       const endD = new Date(e.end_time);
       if (endD.getTime() < Date.now()) {
         timeBadge = '<span class="tag-status" style="background:#fee2e2;color:#b91c1c;border-color:#fca5a5;">⛔ ĐÃ HẾT GIỜ</span>';
       } else {
         timeBadge = '<span class="tag-status" style="background:#fef3c7;color:#b45309;border-color:#fde68a;">⏱️ ĐANG ĐẾM NGƯỢC</span>';
       }
+    } else {
+      timeBadge = '<span class="tag-status">🟢 ĐANG MỞ BÌNH CHỌN</span>';
     }
 
     return `
@@ -1276,7 +1283,7 @@ function renderPortalEvents() {
         <!-- Top Tags Row -->
         <div class="event-tags-row">
           <span class="tag-code">${esc(e.tag || '# CUỘC THI')}</span>
-          ${timeBadge ? timeBadge : '<span class="tag-status">🟢 ĐANG MỞ BÌNH CHỌN</span>'}
+          ${timeBadge}
           <span class="tag-code" style="background:#eff6ff;color:#2563eb;border-color:#bfdbfe;font-weight:800;">📊 TỈ LỆ ${ratio}%</span>
           <span class="tag-attendees">👥 ${count} LƯỢT</span>
         </div>
@@ -1388,7 +1395,7 @@ async function goToTopic(eventId, updateUrl = true) {
 
 let countdownInterval = null;
 
-function startTopicCountdown(endTimeStr) {
+function startTopicCountdown(startTimeStr, endTimeStr, isActive = true) {
   if (countdownInterval) {
     clearInterval(countdownInterval);
     countdownInterval = null;
@@ -1399,52 +1406,80 @@ function startTopicCountdown(endTimeStr) {
   const badgeEl = document.getElementById('topicActiveBadge');
   if (!displayEl) return;
 
-  if (!endTimeStr) {
-    displayEl.innerHTML = `<div style="font-size:1rem;color:#94a3b8;font-weight:600;">Đang mở bình chọn trực tiếp</div>`;
-    state.isExpired = false;
+  state.isActive = isActive;
+  state.isClosed = !isActive;
+  state.isNotStarted = false;
+  state.isExpired = false;
+
+  if (!isActive) {
+    if (titleEl) titleEl.textContent = 'Trạng thái cuộc thi';
+    if (badgeEl) {
+      badgeEl.textContent = '🔴 ĐÃ TẮT BÌNH CHỌN';
+      badgeEl.style.background = '#fee2e2';
+      badgeEl.style.color = '#b91c1c';
+      badgeEl.style.borderColor = '#fca5a5';
+    }
+    displayEl.innerHTML = `
+      <div style="background:#ef4444;color:#fff;padding:.45rem 1.15rem;border-radius:10px;font-weight:800;font-size:1.02rem;display:inline-flex;align-items:center;gap:.45rem;box-shadow:0 4px 15px rgba(239,68,68,0.4);">
+        <span>🔴</span> CỔNG BÌNH CHỌN ĐANG TẠM ĐÓNG
+      </div>
+    `;
+    renderTopicContestants();
     return;
   }
 
-  const endTime = new Date(endTimeStr).getTime();
-  if (isNaN(endTime)) {
-    displayEl.innerHTML = `<div style="font-size:1rem;color:#94a3b8;">Đang mở bình chọn</div>`;
-    state.isExpired = false;
-    return;
-  }
-
-  function update() {
+  function renderTimer(targetTime, isCountingToStart) {
     const now = Date.now();
-    const diff = endTime - now;
+    const diff = targetTime - now;
 
     if (diff <= 0) {
-      clearInterval(countdownInterval);
-      countdownInterval = null;
-      state.isExpired = true;
+      if (isCountingToStart) {
+        state.isNotStarted = false;
+        renderTopicContestants();
+        update();
+        return;
+      } else {
+        clearInterval(countdownInterval);
+        countdownInterval = null;
+        state.isExpired = true;
 
-      if (titleEl) titleEl.textContent = 'Trạng thái cuộc thi';
-      if (badgeEl) {
-        badgeEl.textContent = '⛔ ĐÃ HẾT GIỜ';
-        badgeEl.style.background = '#fee2e2';
-        badgeEl.style.color = '#b91c1c';
-        badgeEl.style.borderColor = '#fca5a5';
+        if (titleEl) titleEl.textContent = 'Trạng thái cuộc thi';
+        if (badgeEl) {
+          badgeEl.textContent = '⛔ ĐÃ HẾT GIỜ';
+          badgeEl.style.background = '#fee2e2';
+          badgeEl.style.color = '#b91c1c';
+          badgeEl.style.borderColor = '#fca5a5';
+        }
+
+        displayEl.innerHTML = `
+          <div style="background:#ef4444;color:#fff;padding:.45rem 1.1rem;border-radius:10px;font-weight:800;font-size:1.05rem;display:inline-flex;align-items:center;gap:.45rem;box-shadow:0 4px 15px rgba(239,68,68,0.4);">
+            <span>⛔</span> ĐÃ KẾT THÚC THỜI GIAN BÌNH CHỌN
+          </div>
+        `;
+
+        renderTopicContestants();
+        return;
       }
-
-      displayEl.innerHTML = `
-        <div style="background:#ef4444;color:#fff;padding:.45rem 1.1rem;border-radius:10px;font-weight:800;font-size:1.05rem;display:inline-flex;align-items:center;gap:.45rem;box-shadow:0 4px 15px rgba(239,68,68,0.4);">
-          <span>⛔</span> ĐÃ KẾT THÚC THỜI GIAN BÌNH CHỌN
-        </div>
-      `;
-
-      renderTopicContestants();
-      return;
     }
 
-    state.isExpired = false;
-    if (badgeEl) {
-      badgeEl.textContent = '🟢 ĐANG BÌNH CHỌN';
-      badgeEl.style.background = '#dcfce7';
-      badgeEl.style.color = '#15803d';
-      badgeEl.style.borderColor = '#86efac';
+    if (isCountingToStart) {
+      state.isNotStarted = true;
+      if (titleEl) titleEl.textContent = 'Thời gian đếm ngược mở bình chọn';
+      if (badgeEl) {
+        badgeEl.textContent = '⏱️ SẮP MỞ BÌNH CHỌN';
+        badgeEl.style.background = '#eff6ff';
+        badgeEl.style.color = '#1d4ed8';
+        badgeEl.style.borderColor = '#93c5fd';
+      }
+    } else {
+      state.isExpired = false;
+      if (titleEl) titleEl.textContent = 'Thời gian bình chọn còn lại';
+      if (badgeEl) {
+        badgeEl.textContent = '🟢 ĐANG BÌNH CHỌN';
+        badgeEl.style.background = '#dcfce7';
+        badgeEl.style.color = '#15803d';
+        badgeEl.style.borderColor = '#86efac';
+      }
     }
 
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -1483,6 +1518,29 @@ function startTopicCountdown(endTimeStr) {
     `;
 
     displayEl.innerHTML = html;
+  }
+
+  function update() {
+    const now = Date.now();
+    const startTime = startTimeStr ? new Date(startTimeStr).getTime() : 0;
+    const endTime = endTimeStr ? new Date(endTimeStr).getTime() : 0;
+
+    if (startTime && !isNaN(startTime) && startTime > now) {
+      renderTimer(startTime, true);
+    } else if (endTime && !isNaN(endTime)) {
+      renderTimer(endTime, false);
+    } else {
+      if (titleEl) titleEl.textContent = 'Trạng thái cuộc thi';
+      if (badgeEl) {
+        badgeEl.textContent = '🟢 ĐANG BÌNH CHỌN';
+        badgeEl.style.background = '#dcfce7';
+        badgeEl.style.color = '#15803d';
+        badgeEl.style.borderColor = '#86efac';
+      }
+      displayEl.innerHTML = `<div style="font-size:1rem;color:#94a3b8;font-weight:600;">🟢 Đang mở bình chọn trực tiếp</div>`;
+      state.isExpired = false;
+      state.isNotStarted = false;
+    }
   }
 
   update();
@@ -1565,9 +1623,14 @@ async function loadTopicContestantsAndVotes(eventId) {
     state.maxAllowed = Math.max(1, Math.round((contestants.length * (ratio / 100))));
   }
 
-  // Update Countdown
+  // Update Countdown & Active Status
+  const isActive = (myVRes && myVRes.is_active !== undefined) ? myVRes.is_active : (ev ? (ev.is_active !== false) : true);
+  const startTimeStr = (myVRes && myVRes.start_time) ? myVRes.start_time : (ev ? ev.start_time : null);
   const endTimeStr = (myVRes && myVRes.end_time) ? myVRes.end_time : (ev ? ev.end_time : null);
-  startTopicCountdown(endTimeStr);
+  state.isActive = isActive;
+  state.startTime = startTimeStr;
+  state.endTime = endTimeStr;
+  startTopicCountdown(startTimeStr, endTimeStr, isActive);
 
   // Update Voting Rule Bar
   const myVotesCount = (state.votedIds || []).length;
@@ -1646,7 +1709,15 @@ function renderTopicContestants() {
     let btnText = 'Bình chọn cho thí sinh này';
     let disabled = false;
 
-    if (state.isExpired) {
+    if (!state.isActive || state.isClosed) {
+      btnClass = 'vote-action-btn btn-disabled';
+      btnText = '🔴 Bình chọn đang tạm đóng';
+      disabled = true;
+    } else if (state.isNotStarted) {
+      btnClass = 'vote-action-btn btn-disabled';
+      btnText = '⏱️ Sắp mở bình chọn...';
+      disabled = true;
+    } else if (state.isExpired) {
       btnClass = 'vote-action-btn btn-disabled';
       btnText = '⛔ Hết giờ bình chọn';
       disabled = true;
@@ -1704,6 +1775,14 @@ function renderTopicContestants() {
 let pendingContestantId = null;
 
 function openVoteModal(id) {
+  if (!state.isActive || state.isClosed) {
+    toast('🔴 Cổng bình chọn cho cuộc thi này hiện đang tạm đóng!', 'warning');
+    return;
+  }
+  if (state.isNotStarted) {
+    toast('⏱️ Cuộc thi này chưa tới thời gian mở bình chọn! Vui lòng quay lại sau.', 'info');
+    return;
+  }
   if (state.isExpired) {
     toast('⛔ Thời gian bình chọn cho cuộc thi này đã kết thúc!', 'error');
     return;

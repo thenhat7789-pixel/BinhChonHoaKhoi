@@ -62,8 +62,8 @@ app.post('/api/events', async (req, res) => {
       const item = list[i];
       const id = item.id || ('evt_' + Date.now() + '_' + i);
       await client.query(`
-        INSERT INTO events (id, tag, benefit_badge, title, description, location, radius, event_time, benefit, creator, checked_in_count, sort_order, start_time, end_time, vote_ratio, short_url, slug)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        INSERT INTO events (id, tag, benefit_badge, title, description, location, radius, event_time, benefit, creator, checked_in_count, sort_order, start_time, end_time, vote_ratio, short_url, slug, is_active)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
         ON CONFLICT (id) DO UPDATE SET
           tag = EXCLUDED.tag,
           benefit_badge = EXCLUDED.benefit_badge,
@@ -80,7 +80,8 @@ app.post('/api/events', async (req, res) => {
           end_time = COALESCE(EXCLUDED.end_time, events.end_time),
           vote_ratio = COALESCE(EXCLUDED.vote_ratio, events.vote_ratio),
           short_url = COALESCE(EXCLUDED.short_url, events.short_url),
-          slug = COALESCE(EXCLUDED.slug, events.slug)
+          slug = COALESCE(EXCLUDED.slug, events.slug),
+          is_active = COALESCE(EXCLUDED.is_active, events.is_active)
       `, [
         id,
         item.tag || '# CUỘC THI',
@@ -98,7 +99,8 @@ app.post('/api/events', async (req, res) => {
         item.end_time || null,
         parseInt(item.vote_ratio) || 80,
         item.short_url || null,
-        item.slug || null
+        item.slug || null,
+        item.is_active !== undefined ? Boolean(item.is_active) : true
       ]);
     }
     await client.query('COMMIT');
@@ -127,17 +129,44 @@ app.get('/api/create-short-url', async (req, res) => {
   }
 });
 
+// ─── POST /api/events/:id/toggle ──────────────────
+app.post('/api/events/:id/toggle', async (req, res) => {
+  try {
+    const { is_active } = req.body;
+    let nextState;
+    if (is_active !== undefined) {
+      nextState = Boolean(is_active);
+    } else {
+      const { rows } = await pool.query('SELECT is_active FROM events WHERE id = $1', [req.params.id]);
+      nextState = rows.length ? !(rows[0].is_active !== false) : false;
+    }
+    await pool.query('UPDATE events SET is_active = $1 WHERE id = $2', [nextState, req.params.id]);
+    res.json({ success: true, is_active: nextState });
+  } catch (e) {
+    console.error('POST /api/events/:id/toggle error:', e);
+    res.status(500).json({ error: 'Lỗi bật/tắt bình chọn' });
+  }
+});
+
 // ─── POST /api/events/:id/time-ratio ──────────────
 app.post('/api/events/:id/time-ratio', async (req, res) => {
-  const { start_time, end_time, vote_ratio } = req.body;
+  const { start_time, end_time, vote_ratio, is_active } = req.body;
   try {
     await pool.query(`
       UPDATE events 
       SET start_time = COALESCE($1, start_time),
           end_time = COALESCE($2, end_time),
-          vote_ratio = COALESCE($3, vote_ratio)
-      WHERE id = $4
-    `, [start_time || null, end_time || null, vote_ratio ? parseInt(vote_ratio) : null, req.params.id]);
+          vote_ratio = COALESCE($3, vote_ratio),
+          is_active = CASE WHEN $4::text IS NOT NULL THEN $5::boolean ELSE is_active END
+      WHERE id = $6
+    `, [
+      start_time !== undefined ? (start_time || null) : null,
+      end_time !== undefined ? (end_time || null) : null,
+      vote_ratio ? parseInt(vote_ratio) : null,
+      is_active !== undefined ? String(is_active) : null,
+      is_active !== undefined ? Boolean(is_active) : true,
+      req.params.id
+    ]);
     res.json({ success: true });
   } catch (e) {
     console.error('POST /api/events/:id/time-ratio error:', e);
@@ -389,8 +418,25 @@ app.post('/api/vote', async (req, res) => {
       });
     }
 
-    // 2. Kiểm tra thời gian kết thúc và tỉ lệ bình chọn của cuộc thi này
-    const { rows: eventRow } = await pool.query("SELECT vote_ratio, end_time, start_time FROM events WHERE id = $1", [currentEventId]);
+    // 2. Kiểm tra trạng thái bật/tắt, thời gian mở/kết thúc và tỉ lệ bình chọn của cuộc thi này
+    const { rows: eventRow } = await pool.query("SELECT is_active, vote_ratio, end_time, start_time FROM events WHERE id = $1", [currentEventId]);
+    if (eventRow.length && eventRow[0].is_active === false) {
+      return res.status(400).json({
+        error: 'Cổng bình chọn cho cuộc thi này hiện đang tắt (tạm đóng)!',
+        code: 'VOTING_DISABLED'
+      });
+    }
+
+    if (eventRow.length && eventRow[0].start_time) {
+      const startTime = new Date(eventRow[0].start_time).getTime();
+      if (!isNaN(startTime) && Date.now() < startTime) {
+        return res.status(400).json({
+          error: 'Cuộc thi này chưa tới thời gian mở bình chọn!',
+          code: 'VOTING_NOT_STARTED'
+        });
+      }
+    }
+
     if (eventRow.length && eventRow[0].end_time) {
       const endTime = new Date(eventRow[0].end_time).getTime();
       if (!isNaN(endTime) && Date.now() > endTime) {
@@ -480,7 +526,7 @@ app.get('/api/my-votes', async (req, res) => {
     const { rows } = await pool.query(myVotesQuery, myVotesParams);
     const votedIds = rows.map(r => r.contestant_id);
 
-    const { rows: eventRow } = await pool.query("SELECT vote_ratio, end_time, start_time FROM events WHERE id = $1", [eventId]);
+    const { rows: eventRow } = await pool.query("SELECT is_active, vote_ratio, end_time, start_time FROM events WHERE id = $1", [eventId]);
     const { rows: settingsRows } = await pool.query("SELECT value FROM settings WHERE key = 'vote_ratio'");
     const globalRatio = settingsRows.length ? parseInt(settingsRows[0].value) || 80 : 80;
     const voteRatio = (eventRow.length && eventRow[0].vote_ratio) ? parseInt(eventRow[0].vote_ratio) : globalRatio;
@@ -494,6 +540,7 @@ app.get('/api/my-votes', async (req, res) => {
       maxAllowed,
       voteRatio,
       totalContestants,
+      is_active: eventRow.length ? (eventRow[0].is_active !== false) : true,
       start_time: eventRow.length ? eventRow[0].start_time : null,
       end_time: eventRow.length ? eventRow[0].end_time : null
     });
