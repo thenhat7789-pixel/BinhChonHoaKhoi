@@ -257,10 +257,13 @@ app.get('/api/contestants', async (req, res) => {
       if (defsForEvent.length > 0) {
         for (let i = 0; i < defsForEvent.length; i++) {
           const d = defsForEvent[i];
-          await pool.query(
-            'INSERT INTO contestants (id, event_id, name, subtitle, color, sort_order) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING',
-            [d.id, d.event_id, d.name, d.subtitle, d.color, i]
-          );
+          await pool.query(`
+            INSERT INTO contestants (id, event_id, name, subtitle, color, sort_order, faculty, hometown)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            ON CONFLICT (id) DO UPDATE SET
+              faculty = CASE WHEN contestants.faculty IS NULL OR contestants.faculty = '' THEN EXCLUDED.faculty ELSE contestants.faculty END,
+              hometown = CASE WHEN contestants.hometown IS NULL OR contestants.hometown = '' THEN EXCLUDED.hometown ELSE contestants.hometown END
+          `, [d.id, d.event_id, d.name, d.subtitle, d.color, i, d.faculty || '', d.hometown || '']);
         }
         const refreshed = await pool.query('SELECT * FROM contestants WHERE event_id = $1 ORDER BY sort_order, id', [eventId]);
         rows = refreshed.rows;
