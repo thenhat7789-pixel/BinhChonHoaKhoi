@@ -61,19 +61,21 @@ async function initDB() {
   try {
     await client.query(`
       CREATE TABLE IF NOT EXISTS contestants (
-        id VARCHAR(10) PRIMARY KEY,
+        id VARCHAR(100) PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
         subtitle VARCHAR(255) DEFAULT '',
         color VARCHAR(20) DEFAULT '#0057a8',
         photo TEXT DEFAULT '',
         sort_order INT DEFAULT 0,
+        faculty VARCHAR(100) DEFAULT '',
+        hometown VARCHAR(150) DEFAULT '',
         created_at TIMESTAMP DEFAULT NOW()
       );
 
       CREATE TABLE IF NOT EXISTS votes (
         id SERIAL PRIMARY KEY,
         vote_id VARCHAR(100) UNIQUE NOT NULL,
-        contestant_id VARCHAR(10) NOT NULL REFERENCES contestants(id) ON DELETE CASCADE,
+        contestant_id VARCHAR(100) NOT NULL REFERENCES contestants(id) ON DELETE CASCADE,
         voter_name VARCHAR(255) DEFAULT 'Người ẩn danh',
         comment TEXT DEFAULT '',
         voter_ip VARCHAR(255) DEFAULT '',
@@ -82,7 +84,7 @@ async function initDB() {
 
       CREATE TABLE IF NOT EXISTS shares (
         id SERIAL PRIMARY KEY,
-        contestant_id VARCHAR(10) REFERENCES contestants(id) ON DELETE CASCADE,
+        contestant_id VARCHAR(100) REFERENCES contestants(id) ON DELETE CASCADE,
         sharer_name VARCHAR(255) DEFAULT 'Người dùng',
         platform VARCHAR(50) DEFAULT 'facebook',
         created_at TIMESTAMP DEFAULT NOW()
@@ -122,6 +124,11 @@ async function initDB() {
         sort_order INT DEFAULT 0,
         created_at TIMESTAMP DEFAULT NOW()
       );
+
+      -- Migration: nâng cấp độ dài cột id nếu đang là VARCHAR(10)
+      ALTER TABLE contestants ALTER COLUMN id TYPE VARCHAR(100);
+      ALTER TABLE votes ALTER COLUMN contestant_id TYPE VARCHAR(100);
+      ALTER TABLE shares ALTER COLUMN contestant_id TYPE VARCHAR(100);
 
       -- Migration: thêm các cột nếu chưa có
       ALTER TABLE events ADD COLUMN IF NOT EXISTS start_time VARCHAR(100);

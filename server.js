@@ -8,7 +8,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(cors());
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // Tắt cache cho HTML để client luôn nhận code giao diện mới nhất
 app.use((req, res, next) => {
@@ -274,7 +275,7 @@ app.post('/api/contestants', async (req, res) => {
   } catch (e) {
     await client.query('ROLLBACK');
     console.error('POST /api/contestants error:', e);
-    res.status(500).json({ error: 'Lỗi server' });
+    res.status(500).json({ error: 'Lỗi server: ' + (e.message || '') });
   } finally {
     client.release();
   }

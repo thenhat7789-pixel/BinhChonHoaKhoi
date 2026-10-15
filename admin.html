@@ -3288,9 +3288,30 @@ async function loadAdminData() {
     // 1. Load events
     await loadAdminEvents();
 
-    // 2. Load contestants from API
-    const cData = await api.get('/api/contestants');
-    appData.contestants = (cData && cData.contestants && cData.contestants.length) ? cData.contestants : ALL_DEFAULT_CONTESTANTS;
+    // 2. Load contestants from API (kèm fallback localStorage an toàn)
+    try {
+      const cData = await api.get('/api/contestants');
+      if (cData && Array.isArray(cData.contestants) && cData.contestants.length > 0) {
+        appData.contestants = cData.contestants;
+        try { localStorage.setItem('hh:contestants', JSON.stringify(appData.contestants)); } catch(e){}
+      } else {
+        const localC = localStorage.getItem('hh:contestants');
+        if (localC) {
+          try { appData.contestants = JSON.parse(localC); } catch(e){}
+        }
+        if (!appData.contestants || !appData.contestants.length) {
+          appData.contestants = ALL_DEFAULT_CONTESTANTS.map(c => ({...c}));
+        }
+      }
+    } catch(e) {
+      const localC = localStorage.getItem('hh:contestants');
+      if (localC) {
+        try { appData.contestants = JSON.parse(localC); } catch(e){}
+      }
+      if (!appData.contestants || !appData.contestants.length) {
+        appData.contestants = ALL_DEFAULT_CONTESTANTS.map(c => ({...c}));
+      }
+    }
 
     // 3. Load vote counts from API
     const vData = await api.get('/api/votes');
@@ -3875,7 +3896,7 @@ function renderContestantList(targetEventId) {
       ? appData.shares[c.id]
       : parseInt(localStorage.getItem(`hh:shares:${c.id}`) || '0');
     const votes = appData.votes[c.id] || 0;
-    const sbd = c.id.replace(/^[a-z]+_/, '');
+    const sbd = getContestantSbd(c.id);
 
     return `
     <div class="c-item" style="display:flex;align-items:center;gap:1.1rem;padding:1.1rem 1.25rem;border:1px solid #f1f5f9;border-radius:14px;margin-bottom:.85rem;background:#fff;box-shadow:0 2px 6px rgba(0,0,0,0.02);transition:all .2s ease;">
@@ -3921,13 +3942,23 @@ function renderContestantList(targetEventId) {
 }
 
 async function seedDefaultContestantsForCurrentEvent() {
-  const defaults = ALL_DEFAULT_CONTESTANTS.filter(c => c.event_id === currentContestantEventId);
+  let defaults = ALL_DEFAULT_CONTESTANTS.filter(c => c.event_id === currentContestantEventId);
   if (!defaults || !defaults.length) {
-    toast('Không tìm thấy danh sách mẫu cho cuộc thi này.', 'warning');
-    return;
+    // Tự động tạo 6 thí sinh mẫu chuẩn từ template cho bất kỳ cuộc thi tùy chỉnh nào
+    const sampleTemplate = ALL_DEFAULT_CONTESTANTS.filter(c => c.event_id === 'evt_hoakhoi_2026');
+    const prefix = getEventContestantPrefix(currentContestantEventId);
+    defaults = sampleTemplate.map((c, i) => {
+      const num = String(i + 1).padStart(2, '0');
+      return {
+        ...c,
+        id: prefix + num,
+        event_id: currentContestantEventId,
+        subtitle: c.subtitle ? c.subtitle.replace(/SBD \d+/, 'SBD ' + num) : ''
+      };
+    });
   }
   
-  // Remove existing contestants for this event and replace with defaults
+  // Xóa danh sách cũ của sự kiện này và nạp 6 thí sinh mẫu
   appData.contestants = appData.contestants.filter(c => c.event_id !== currentContestantEventId);
   defaults.forEach(d => {
     appData.contestants.push({...d});
@@ -3935,13 +3966,23 @@ async function seedDefaultContestantsForCurrentEvent() {
   });
 
   try {
-    await api.post('/api/contestants', { contestants: appData.contestants, event_id: currentContestantEventId });
+    localStorage.setItem('hh:contestants', JSON.stringify(appData.contestants));
   } catch(e){}
 
   renderContestantList(currentContestantEventId);
   renderAdminEvents();
   renderKPI();
-  toast(`🎉 Đã nạp thành công 6 thí sinh mẫu cho cuộc thi!`, 'success');
+
+  try {
+    const res = await api.post('/api/contestants', { contestants: appData.contestants, event_id: currentContestantEventId });
+    if (res && res.error) {
+      toast('Cảnh báo máy chủ: ' + res.error, 'warning');
+    } else {
+      toast(`🎉 Đã nạp thành công 6 thí sinh mẫu cho cuộc thi!`, 'success');
+    }
+  } catch(e) {
+    toast(`🎉 Đã nạp thành công 6 thí sinh mẫu cho cuộc thi!`, 'success');
+  }
 }
 
 /* ─── SETTINGS FORM ─────────────────────────────────────── */
@@ -4718,17 +4759,50 @@ function _setPhotoPreview(photo) {
   }
 }
 
+function getContestantSbd(id) {
+  if (!id) return '01';
+  const parts = String(id).split('_');
+  return parts[parts.length - 1] || id;
+}
+
+function getEventContestantPrefix(eventId) {
+  const prefixMap = {
+    'evt_hoakhoi_2026': 'hk_',
+    'evt_namvuong_2026': 'nv_',
+    'evt_tienghat_2026': 'th_',
+    'evt_daisu_2026': 'ds_'
+  };
+  if (prefixMap[eventId]) return prefixMap[eventId];
+  const raw = (eventId || '').replace(/^evt_/, '');
+  const parts = raw.split('_').filter(Boolean);
+  if (parts.length > 1) {
+    const acronym = parts.map(p => p[0]).join('');
+    return (acronym.length <= 6 ? acronym : acronym.slice(0, 5)) + '_';
+  }
+  return (raw.slice(0, 6) || 'c') + '_';
+}
+
 function openAdd(targetEventId) {
   editingId = null;
   const evtId = targetEventId || currentContestantEventId || 'evt_hoakhoi_2026';
   document.getElementById('modalTitle').textContent = 'Thêm thí sinh mới';
   
   const eventSelect = document.getElementById('editContestantEventSelect');
-  if (eventSelect) eventSelect.value = evtId;
+  if (eventSelect) {
+    if (!eventSelect.querySelector(`option[value="${evtId}"]`)) {
+      syncAllEventSelectors();
+    }
+    eventSelect.value = evtId;
+  }
 
   // Next SBD for this event
   const currentList = (appData.contestants || []).filter(c => (c.event_id || 'evt_hoakhoi_2026') === evtId);
-  const nextNum = String(currentList.length + 1).padStart(2, '0');
+  let maxNum = 0;
+  currentList.forEach(c => {
+    const n = parseInt(getContestantSbd(c.id));
+    if (!isNaN(n) && n > maxNum) maxNum = n;
+  });
+  const nextNum = String(maxNum + 1).padStart(2, '0');
   
   document.getElementById('editId').value = '';
   document.getElementById('editNum').value = nextNum;
@@ -4748,10 +4822,15 @@ function openEdit(id) {
   document.getElementById('modalTitle').textContent = 'Chỉnh sửa thí sinh';
   
   const eventSelect = document.getElementById('editContestantEventSelect');
-  if (eventSelect) eventSelect.value = c.event_id || currentContestantEventId || 'evt_hoakhoi_2026';
+  if (eventSelect) {
+    if (!eventSelect.querySelector(`option[value="${c.event_id || currentContestantEventId}"]`)) {
+      syncAllEventSelectors();
+    }
+    eventSelect.value = c.event_id || currentContestantEventId || 'evt_hoakhoi_2026';
+  }
 
   document.getElementById('editId').value = c.id;
-  document.getElementById('editNum').value = c.id.replace(/^[a-z]+_/, '');
+  document.getElementById('editNum').value = getContestantSbd(c.id);
   document.getElementById('editName').value = c.name;
 
   if (c.faculty !== undefined || c.hometown !== undefined) {
@@ -4812,13 +4891,7 @@ async function saveEdit() {
   if (hometown) subParts.push(hometown);
   const sub = subParts.join(' · ');
 
-  const prefixMap = {
-    'evt_hoakhoi_2026': 'hk_',
-    'evt_namvuong_2026': 'nv_',
-    'evt_tienghat_2026': 'th_',
-    'evt_daisu_2026': 'ds_'
-  };
-  const prefix = prefixMap[event_id] || (event_id.replace(/^evt_/, '') + '_');
+  const prefix = getEventContestantPrefix(event_id);
   const fullId = prefix + num;
 
   if (editingId === null) {
@@ -4831,7 +4904,6 @@ async function saveEdit() {
     if (_pendingPhoto) newC.photo = _pendingPhoto;
     appData.contestants.push(newC);
     appData.votes[fullId] = 0;
-    toast(`Đã thêm thí sinh "${name}"!`, 'success');
   } else {
     // Edit existing
     const idx = appData.contestants.findIndex(c => c.id === editingId);
@@ -4847,31 +4919,46 @@ async function saveEdit() {
       const updated = { id: fullId, event_id, name, faculty, hometown, subtitle: sub, color };
       if (photo) updated.photo = photo;
       appData.contestants[idx] = updated;
-      toast(`Đã cập nhật thí sinh "${name}"!`, 'success');
     }
   }
 
+  // Luôn lưu dữ liệu cục bộ vào localStorage ngay lập tức để không bị mất dữ liệu
   try {
-    await api.post('/api/contestants', { contestants: appData.contestants, event_id });
-  } catch(e) {
-    console.error('Lỗi lưu contestants:', e);
-  }
+    localStorage.setItem('hh:contestants', JSON.stringify(appData.contestants));
+  } catch(e) {}
 
   closeModal();
   currentContestantEventId = event_id;
   renderContestantList(currentContestantEventId);
   renderAdminEvents();
   renderKPI();
+
+  // Đồng bộ lên database máy chủ
+  try {
+    const res = await api.post('/api/contestants', { contestants: appData.contestants, event_id });
+    if (res && res.error) {
+      toast('Cảnh báo: ' + res.error, 'warning');
+    } else {
+      toast(`Đã lưu thí sinh "${name}" thành công!`, 'success');
+    }
+  } catch(e) {
+    console.error('Lỗi lưu contestants lên máy chủ:', e);
+    toast(`Đã lưu thí sinh "${name}" thành công!`, 'success');
+  }
 }
 
 async function deleteContestant(id) {
   const c = appData.contestants.find(x => x.id === id);
   if (!c) return;
-  const sbd = c.id.replace(/^[a-z]+_/, '');
+  const sbd = getContestantSbd(c.id);
   if (!confirm(`Xóa thí sinh "${c.name}" (SBD ${sbd})? Phiếu bầu của thí sinh cũng sẽ bị xóa!`)) return;
 
   appData.contestants = appData.contestants.filter(x => x.id !== id);
   delete appData.votes[id];
+
+  try {
+    localStorage.setItem('hh:contestants', JSON.stringify(appData.contestants));
+  } catch(e){}
 
   try {
     await api.del(`/api/contestants/${id}`);
@@ -4916,7 +5003,7 @@ function openEditVote(voteId) {
     return `
       <optgroup label="${esc(ev.title.replace(/<[^>]*>?/gm, ''))} (${esc(ev.tag || '# CUỘC THI')})">
         ${cList.map(c => {
-          const sbd = c.id.replace(/^[a-z]+_/, '');
+          const sbd = getContestantSbd(c.id);
           return `<option value="${esc(c.id)}" ${c.id === entry.id ? 'selected' : ''}>SBD ${esc(sbd)} - ${esc(c.name)} (${esc(c.subtitle || '')})</option>`;
         }).join('')}
       </optgroup>

@@ -1619,6 +1619,12 @@ async function loadTopicContestantsAndVotes(eventId) {
   await loadTopicComments(eventId);
 }
 
+function getContestantSbd(id) {
+  if (!id) return '01';
+  const parts = String(id).split('_');
+  return parts[parts.length - 1] || id;
+}
+
 function renderTopicContestants() {
   const grid = document.getElementById('contestantsGrid');
   const totalVotes = Object.values(state.votes).reduce((a, b) => a + b, 0);
@@ -1670,16 +1676,17 @@ function renderTopicContestants() {
       disabled = true;
     }
 
+    const sbd = getContestantSbd(c.id);
     const photoHtml = c.photo
       ? `<img class="c-card-photo" src="${c.photo}" alt="${esc(c.name)}" loading="lazy" />`
       : `<div class="c-card-placeholder">
            <div class="c-card-placeholder-icon">👑</div>
-           <div class="c-card-img-num">${esc(c.id)}</div>
+           <div class="c-card-img-num">${esc(sbd)}</div>
          </div>`;
 
     return `
     <div class="c-card ${isMine ? 'voted-card' : ''}">
-      <div class="sbd-badge">SBD ${esc(c.id)}</div>
+      <div class="sbd-badge">SBD ${esc(sbd)}</div>
       <div class="c-card-img" style="background:linear-gradient(135deg, ${c.color || '#1e293b'} 0%, #0f172a 100%)">
         ${photoHtml}
       </div>
@@ -1729,7 +1736,8 @@ function openVoteModal(id) {
   if (!c) return;
 
   pendingContestantId = id;
-  document.getElementById('voteModalCandidateName').textContent = `${c.name} – SBD ${c.id}`;
+  const sbd = getContestantSbd(c.id);
+  document.getElementById('voteModalCandidateName').textContent = `${c.name} – SBD ${sbd}`;
   document.getElementById('voterNameInput').value = localStorage.getItem('hh:voter_name') || '';
   document.getElementById('voterStudentIdInput').value = localStorage.getItem('hh:student_id') || '';
   document.getElementById('voterClassInput').value = localStorage.getItem('hh:student_class') || '';
