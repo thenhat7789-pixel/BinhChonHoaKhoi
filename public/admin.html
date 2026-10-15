@@ -1080,10 +1080,11 @@
         </small>
       </div>
       <div class="form-group">
-        <label class="form-label">Vai trò quản trị</label>
+        <label class="form-label">Vai trò quản trị & Phân quyền</label>
         <select class="input" id="editAdminRole">
+          <option value="member">👤 Thành viên (Chỉ xem & tạo sự kiện)</option>
           <option value="admin">🛡️ Quản trị viên (Admin)</option>
-          <option value="superadmin">👑 Quản trị cấp cao (Super Admin)</option>
+          <option value="superadmin">⭐ Quản trị cấp cao (Super Admin)</option>
         </select>
       </div>
       <div style="display:flex;gap:.5rem;margin-top:.75rem">
@@ -1185,11 +1186,12 @@
         </button>
       </div>
       <div class="sidebar-footer">
-        <div id="sidebarUserInfo" class="auth-user-info" style="display:none">
-          <span>👤</span>
-          <div>
-            <strong id="sidebarUserName"></strong><br>
-            <span id="sidebarUserEmail" style="font-size:.65rem"></span>
+        <div id="sidebarUserInfo" class="auth-user-info" style="display:none;align-items:flex-start;gap:.6rem;padding:.5rem .25rem;">
+          <span style="font-size:1.3rem;">👤</span>
+          <div style="flex:1;min-width:0;overflow:hidden;">
+            <strong id="sidebarUserName" style="font-size:.85rem;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></strong>
+            <span id="sidebarUserEmail" style="font-size:.68rem;color:var(--text-dim);display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></span>
+            <div id="sidebarUserRoleBadge" style="margin-top:3px;"></div>
           </div>
         </div>
         <button class="btn btn-ghost btn-sm btn-full" onclick="logout()">
@@ -1578,18 +1580,26 @@
           <div class="chart-card" id="inviteAdminCard">
             <div class="chart-title">
               <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
-              Mời quản trị viên mới
+              Mời quản trị viên hoặc thành viên mới
             </div>
             <div style="max-width:400px">
               <div class="form-group">
                 <label class="form-label">Email người được mời</label>
                 <div style="display:flex;gap:.5rem">
-                  <input class="input" type="email" id="inviteEmail" placeholder="newadmin@example.com" />
+                  <input class="input" type="email" id="inviteEmail" placeholder="newaccount@example.com" />
                   <button class="btn btn-gold btn-sm" onclick="inviteAdmin()" id="btnInvite">Mời</button>
                 </div>
               </div>
+              <div class="form-group" style="margin-top:.5rem;">
+                <label class="form-label">Vai trò khi người dùng kích hoạt</label>
+                <select class="input" id="inviteRole">
+                  <option value="member">👤 Thành viên (Chỉ xem & tạo sự kiện)</option>
+                  <option value="admin" selected>🛡️ Quản trị viên (Admin)</option>
+                  <option value="superadmin" id="inviteRoleSuperOpt">⭐ Quản trị cấp cao (Super Admin)</option>
+                </select>
+              </div>
               <small style="color:var(--text-dim);display:block;margin-top:.25rem">
-                Người được mời có thể đăng ký tài khoản bằng email này để truy cập trang quản trị.
+                Người được mời có thể đăng ký tài khoản bằng email này để truy cập trang quản trị theo vai trò được cấp.
               </small>
             </div>
           </div>
@@ -1923,6 +1933,7 @@ async function doRegister() {
     const adminsSnap = await db.collection('admins').limit(1).get();
     const isFirst = adminsSnap.empty;
     const isSuperOwner = email.toLowerCase() === getSuperAdminEmail();
+    let assignedRole = isFirst ? 'superadmin' : (isSuperOwner ? 'superadmin' : 'admin');
 
     if (!isFirst && !isSuperOwner) {
       // Check if email is invited
@@ -1934,6 +1945,9 @@ async function doRegister() {
         btn.textContent = 'Đăng ký tài khoản';
         return;
       }
+      if (inviteDoc.data() && inviteDoc.data().role) {
+        assignedRole = inviteDoc.data().role;
+      }
     }
 
     const cred = await auth.createUserWithEmailAndPassword(email, password);
@@ -1943,7 +1957,7 @@ async function doRegister() {
     await db.collection('admins').doc(cred.user.uid).set({
       name: name,
       email: email.toLowerCase(),
-      role: isFirst ? 'superadmin' : 'admin',
+      role: assignedRole,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       uid: cred.user.uid
     });
@@ -1951,7 +1965,8 @@ async function doRegister() {
     // Remove invite if exists
     try { await db.collection('admin_invites').doc(email.toLowerCase()).delete(); } catch {}
 
-    toast(`Chào mừng ${name}! ${isFirst ? 'Bạn là Super Admin.' : 'Đăng ký thành công!'}`, 'success');
+    const roleTitle = isFirst ? 'Super Admin' : (assignedRole === 'member' ? 'Thành viên' : 'Quản trị viên');
+    toast(`Chào mừng ${name}! Bạn đã đăng ký thành công với vai trò ${roleTitle}.`, 'success');
   } catch (e) {
     errEl.textContent = firebaseErrorMsg(e);
     errEl.classList.remove('hidden');
@@ -1998,6 +2013,7 @@ async function ensureAdminDoc(user) {
     // Check if first admin or superadmin owner email
     const adminsSnap = await db.collection('admins').limit(1).get();
     const isFirst = adminsSnap.empty;
+    let assignedRole = (isFirst || isSuperOwner) ? 'superadmin' : 'admin';
 
     if (!isFirst && !isSuperOwner) {
       // Check invite
@@ -2007,16 +2023,100 @@ async function ensureAdminDoc(user) {
         await auth.signOut();
         return;
       }
+      if (inviteDoc.data() && inviteDoc.data().role) {
+        assignedRole = inviteDoc.data().role;
+      }
       try { await db.collection('admin_invites').doc(userEmail).delete(); } catch {}
     }
 
     await docRef.set({
       name: user.displayName || 'Admin',
       email: userEmail,
-      role: (isFirst || isSuperOwner) ? 'superadmin' : 'admin',
+      role: assignedRole,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
       uid: user.uid
     });
+  }
+}
+
+/* ─── ROLE PERMISSIONS SYSTEM ──────────────────────────── */
+function isCurrentUserOwner() {
+  const ownerEmail = getSuperAdminEmail().toLowerCase();
+  const currentEmail = (currentUser?.email || currentAdminDoc?.email || '').toLowerCase();
+  return (currentEmail && currentEmail === ownerEmail) || currentAdminDoc?.role === 'owner';
+}
+
+function isCurrentUserSuperAdmin() {
+  return isCurrentUserOwner() || currentAdminDoc?.role === 'superadmin';
+}
+
+function isCurrentUserAdmin() {
+  return isCurrentUserSuperAdmin() || currentAdminDoc?.role === 'admin' || !currentAdminDoc?.role;
+}
+
+function isCurrentUserMember() {
+  return !isCurrentUserOwner() && !isCurrentUserSuperAdmin() && currentAdminDoc?.role === 'member';
+}
+
+function updateSidebarUserBadge() {
+  const badgeEl = document.getElementById('sidebarUserRoleBadge');
+  if (!badgeEl) return;
+  if (isCurrentUserOwner()) {
+    badgeEl.innerHTML = '<span style="background:linear-gradient(135deg, #f59e0b, #d97706);color:#fff;font-size:.68rem;font-weight:900;padding:2px 8px;border-radius:999px;display:inline-block;box-shadow:0 1px 4px rgba(245,158,11,0.4);">👑 CHỦ HỆ THỐNG</span>';
+  } else if (currentAdminDoc?.role === 'superadmin') {
+    badgeEl.innerHTML = '<span style="background:#fef3c7;color:#b45309;font-size:.68rem;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid #fde68a;display:inline-block;">⭐ SUPER ADMIN</span>';
+  } else if (currentAdminDoc?.role === 'member') {
+    badgeEl.innerHTML = '<span style="background:#f3e8ff;color:#7e22ce;font-size:.68rem;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid #e9d5ff;display:inline-block;">👤 THÀNH VIÊN</span>';
+  } else {
+    badgeEl.innerHTML = '<span style="background:#eff6ff;color:#1d4ed8;font-size:.68rem;font-weight:800;padding:2px 8px;border-radius:999px;border:1px solid #bfdbfe;display:inline-block;">🛡️ QUẢN TRỊ VIÊN</span>';
+  }
+}
+
+function applyRolePermissions() {
+  const isOwner = isCurrentUserOwner();
+  const isSuper = isCurrentUserSuperAdmin();
+  const isMember = isCurrentUserMember();
+
+  // 1. Sidebar Nav Items: Thành viên bị ẩn Cài đặt và Quản lý Admin
+  const navSettings = document.getElementById('nav-settings');
+  const navAdmins = document.getElementById('nav-admins');
+  if (navSettings) {
+    navSettings.style.display = isMember ? 'none' : 'flex';
+  }
+  if (navAdmins) {
+    navAdmins.style.display = isMember ? 'none' : 'flex';
+  }
+
+  // 2. Nút Cài đặt thời gian & tỉ lệ ở header
+  const headerTimeBtn = document.querySelector('.main-header button[onclick*="openAdminTimeRatioModal"]');
+  if (headerTimeBtn) {
+    headerTimeBtn.style.display = isMember ? 'none' : 'inline-flex';
+  }
+
+  // 3. Tab Thí sinh: Ẩn các nút thêm/sửa/cài đặt với Thành viên
+  const contestantToolbarTimeBtn = document.querySelector('#tab-contestants button[onclick*="openAdminTimeRatioModal"]');
+  if (contestantToolbarTimeBtn) contestantToolbarTimeBtn.style.display = isMember ? 'none' : 'inline-flex';
+
+  const contestantsAddBtns = document.querySelectorAll('#tab-contestants button[onclick*="openAdd("], #tab-contestants button[onclick*="openAdd()"]');
+  contestantsAddBtns.forEach(btn => {
+    btn.style.display = isMember ? 'none' : 'inline-flex';
+  });
+
+  // 4. Tab Cuộc thi: Ẩn cài đặt thời gian và thùng rác với Thành viên (Thành viên vẫn giữ nút tạo sự kiện)
+  const eventsToolbarTimeBtn = document.querySelector('#tab-events-manager button[onclick*="openAdminTimeRatioModal"]');
+  if (eventsToolbarTimeBtn) eventsToolbarTimeBtn.style.display = isMember ? 'none' : 'inline-flex';
+
+  const eventsTrashBtn = document.querySelector('#tab-events-manager button[onclick*="resetDefaultAdminEvents"]');
+  if (eventsTrashBtn) eventsTrashBtn.style.display = isMember ? 'none' : 'inline-flex';
+
+  // 5. Overview banner: Ẩn nút cài đặt đếm ngược với Thành viên
+  const overviewTimeBtn = document.querySelector('#overviewEventBanner button[onclick*="openAdminTimeRatioModal"]');
+  if (overviewTimeBtn) overviewTimeBtn.style.display = isMember ? 'none' : 'inline-flex';
+
+  // 6. Nếu tài khoản Thành viên đang đứng ở tab cấm (settings hoặc admins), chuyển ngay về overview
+  const activePane = document.querySelector('.tab-pane.active');
+  if (isMember && activePane && (activePane.id === 'tab-settings' || activePane.id === 'tab-admins')) {
+    showTab('overview');
   }
 }
 
@@ -2025,11 +2125,15 @@ function _showAdmin() {
   document.getElementById('loginScreen').style.display = 'none';
   document.getElementById('adminApp').style.display = 'block';
 
+  // Áp dụng phân quyền vai trò cho toàn bộ giao diện
+  applyRolePermissions();
+
   // Update sidebar user info
   if (currentUser) {
     document.getElementById('sidebarUserInfo').style.display = 'flex';
-    document.getElementById('sidebarUserName').textContent = currentUser.displayName || 'Admin';
+    document.getElementById('sidebarUserName').textContent = currentUser.displayName || (isCurrentUserOwner() ? 'Chủ Hệ Thống' : 'Quản trị viên');
     document.getElementById('sidebarUserEmail').textContent = currentUser.email || '';
+    updateSidebarUserBadge();
   }
 
   loadAdminData();
@@ -2099,6 +2203,7 @@ auth.onAuthStateChanged(async (user) => {
 /* ─── ADMIN LIST ───────────────────────────────────────── */
 async function loadAdminList() {
   const listEl = document.getElementById('adminList');
+  if (!listEl) return;
   try {
     const snap = await db.collection('admins').orderBy('createdAt').get();
     if (snap.empty) {
@@ -2108,33 +2213,69 @@ async function loadAdminList() {
 
     const ownerEmail = getSuperAdminEmail().toLowerCase();
     const currentEmail = (currentUser?.email || '').toLowerCase();
-    const currentIsOwner = currentEmail === ownerEmail;
-    const currentIsSuper = currentAdminDoc?.role === 'superadmin' || currentIsOwner;
+    const currentIsOwner = isCurrentUserOwner();
+    const currentIsSuper = isCurrentUserSuperAdmin();
 
-    listEl.innerHTML = snap.docs.map(doc => {
-      const d = doc.data();
+    // Phân quyền hiển thị danh sách tài khoản:
+    // - CHỦ HỆ THỐNG: Được xem tất cả các tài khoản trong hệ thống
+    // - TÀI KHOẢN KHÁC (Admin, Super Admin phụ, Member...):
+    //   ẨN HOÀN TOÀN TÀI KHOẢN CHỦ HỆ THỐNG VÀ SUPER ADMIN!
+    const visibleDocs = snap.docs.filter(doc => {
+      const d = doc.data() || {};
       const dEmail = (d.email || '').toLowerCase();
-      const isOwner = dEmail === ownerEmail;
-      const isSuper = isOwner || d.role === 'superadmin';
+      const isDocOwner = dEmail === ownerEmail || d.role === 'owner';
+      const isDocSuper = isDocOwner || d.role === 'superadmin';
+
+      if (!currentIsOwner) {
+        // Tài khoản khác đăng nhập -> ẩn hoàn toàn Chủ hệ thống và Super Admin
+        if (isDocOwner || isDocSuper) {
+          return false;
+        }
+      }
+      return true;
+    });
+
+    if (visibleDocs.length === 0) {
+      listEl.innerHTML = '<div style="text-align:center;padding:1.5rem;color:var(--text-dim);font-size:.9rem;">Chưa có tài khoản nào khác trong danh sách quản lý.</div>';
+      return;
+    }
+
+    listEl.innerHTML = visibleDocs.map(doc => {
+      const d = doc.data() || {};
+      const dEmail = (d.email || '').toLowerCase();
+      const isDocOwner = dEmail === ownerEmail || d.role === 'owner';
+      const isDocSuper = isDocOwner || d.role === 'superadmin';
+      const isDocMember = d.role === 'member';
       const isMe = currentUser && doc.id === currentUser.uid;
       const initial = (d.name || d.email || '?').charAt(0).toUpperCase();
       const pw = d.password || '';
 
+      let roleBadgeHtml = '';
+      if (isDocOwner) {
+        roleBadgeHtml = '<span class="admin-badge" style="background:linear-gradient(135deg, #f59e0b 0%, #b45309 100%);color:#fff;font-weight:900;padding:4px 12px;border-radius:999px;box-shadow:0 2px 6px rgba(245,158,11,0.35);border:none;">👑 CHỦ HỆ THỐNG</span>';
+      } else if (d.role === 'superadmin') {
+        roleBadgeHtml = '<span class="admin-badge" style="background:#fef3c7;color:#b45309;font-weight:800;padding:3px 10px;border-radius:999px;border:1px solid #fde68a;">⭐ SUPER ADMIN</span>';
+      } else if (isDocMember) {
+        roleBadgeHtml = '<span class="admin-badge" style="background:#f3e8ff;color:#7e22ce;font-weight:800;padding:3px 10px;border-radius:999px;border:1px solid #e9d5ff;">👤 THÀNH VIÊN</span>';
+      } else {
+        roleBadgeHtml = '<span class="admin-badge" style="background:#eff6ff;color:#1d4ed8;font-weight:700;padding:3px 10px;border-radius:999px;border:1px solid #bfdbfe;">🛡 ADMIN</span>';
+      }
+
       return `
-      <div class="admin-item" style="display:flex;align-items:center;justify-content:space-between;padding:.85rem 1rem;gap:.75rem;border-radius:12px;background:#fff;border:${isOwner ? '2px solid #f59e0b' : '1px solid #e2e8f0'};margin-bottom:.65rem;flex-wrap:wrap;box-shadow:${isOwner ? '0 4px 15px rgba(245,158,11,0.15)' : 'none'};">
+      <div class="admin-item" style="display:flex;align-items:center;justify-content:space-between;padding:.85rem 1rem;gap:.75rem;border-radius:12px;background:#fff;border:${isDocOwner ? '2px solid #f59e0b' : '1px solid #e2e8f0'};margin-bottom:.65rem;flex-wrap:wrap;box-shadow:${isDocOwner ? '0 4px 15px rgba(245,158,11,0.15)' : 'none'};">
         <div style="display:flex;align-items:center;gap:.75rem;min-width:200px;">
-          <div class="admin-avatar" style="${isOwner ? 'background:linear-gradient(135deg, #f59e0b, #d97706);color:#fff;font-weight:900;' : ''}">${isOwner ? '👑' : initial}</div>
+          <div class="admin-avatar" style="${isDocOwner ? 'background:linear-gradient(135deg, #f59e0b, #d97706);color:#fff;font-weight:900;' : ''}">${isDocOwner ? '👑' : initial}</div>
           <div class="admin-info">
             <div class="admin-name" style="font-weight:700;color:#0f172a;">
-              ${esc(d.name || (isOwner ? 'Chủ Hệ Thống' : 'Admin'))} 
+              ${esc(d.name || (isDocOwner ? 'Chủ Hệ Thống' : (isDocMember ? 'Thành viên' : 'Admin')))} 
               ${isMe ? '<span style="color:#2563eb;font-size:.78rem;font-weight:800;">(Bạn)</span>' : ''}
-              ${isOwner ? '<span style="color:#b45309;font-size:.75rem;font-weight:800;background:#fef3c7;padding:2px 6px;border-radius:4px;margin-left:4px;">Chủ Tối Cao</span>' : ''}
+              ${isDocOwner ? '<span style="color:#b45309;font-size:.75rem;font-weight:800;background:#fef3c7;padding:2px 6px;border-radius:4px;margin-left:4px;">Chủ Tối Cao</span>' : ''}
             </div>
             <div class="admin-email" style="font-size:.8rem;color:#64748b;">${esc(d.email || '')}</div>
           </div>
         </div>
 
-        ${currentIsSuper ? `
+        ${currentIsOwner ? `
           <div style="display:flex;align-items:center;gap:.35rem;background:#f8fafc;border:1px solid #cbd5e1;padding:4px 10px;border-radius:6px;font-family:monospace;font-size:.85rem;">
             <span style="color:#64748b;" title="Mật khẩu tài khoản">🔑</span>
             <span id="pw_val_${doc.id}" style="font-weight:700;color:#0f172a;letter-spacing:1.5px;">••••••••</span>
@@ -2143,60 +2284,79 @@ async function loadAdminList() {
           </div>
         ` : ''}
 
-        <span class="admin-badge" style="${isOwner ? 'background:linear-gradient(135deg, #f59e0b 0%, #b45309 100%);color:#fff;font-weight:900;padding:4px 12px;border-radius:999px;box-shadow:0 2px 6px rgba(245,158,11,0.35);border:none;' : (isSuper ? 'background:#fef3c7;color:#b45309;font-weight:800;padding:3px 10px;border-radius:999px;border:1px solid #fde68a;' : 'background:#f1f5f9;color:#475569;font-weight:700;padding:3px 10px;border-radius:999px;border:1px solid #cbd5e1;')}">
-          ${isOwner ? '👑 CHỦ HỆ THỐNG' : (isSuper ? '⭐ SUPER ADMIN' : '🛡 ADMIN')}
-        </span>
+        ${roleBadgeHtml}
 
-        ${currentIsSuper ? `
-          <div style="display:flex;gap:.35rem;align-items:center;">
-            <button class="btn btn-outline-gold btn-sm" onclick="openEditAdmin('${doc.id}', '${esc(d.name || '')}', '${esc(d.email || '')}', '${esc(pw)}', '${d.role || 'admin'}')" title="Chỉnh sửa thông tin & đổi mật khẩu">
+        <div style="display:flex;gap:.35rem;align-items:center;">
+          ${(currentIsOwner || (!isMe && !isDocSuper)) ? `
+            <button class="btn btn-outline-gold btn-sm" onclick="openEditAdmin('${doc.id}', '${esc(d.name || '')}', '${esc(d.email || '')}', '${esc(pw)}', '${d.role || (isDocMember ? 'member' : 'admin')}')" title="Chỉnh sửa thông tin & đổi mật khẩu">
               ✏️ Sửa & Đổi MK
             </button>
-            ${!isOwner ? (
-              !isSuper
-                ? `<button class="btn btn-ghost btn-sm" onclick="transferSuperAdmin('${doc.id}','${esc(d.email)}')" title="Thăng cấp Chủ Hệ Thống" style="border:1.5px solid #f59e0b;color:#b45309;font-weight:700;">👑 Chuyển Chủ Hệ Thống</button>`
-                : (currentIsOwner && !isMe ? `<button class="btn btn-ghost btn-sm" onclick="demoteSuperAdmin('${doc.id}','${esc(d.email)}')" title="Hạ quyền xuống Admin">Hạ quyền</button>` : '')
-            ) : ''}
-            ${(!isOwner && (currentIsOwner || (!isMe && !isSuper))) ? `<button class="btn btn-danger btn-sm" onclick="removeAdmin('${doc.id}','${esc(d.email)}')" title="Xóa tài khoản">✕</button>` : ''}
-          </div>
-        ` : ''}
+          ` : ''}
+
+          ${currentIsOwner && !isDocOwner ? `
+            <button class="btn btn-ghost btn-sm" onclick="transferSuperAdmin('${doc.id}','${esc(d.email)}')" title="Thăng cấp Chủ Hệ Thống" style="border:1.5px solid #f59e0b;color:#b45309;font-weight:700;">👑 Chuyển Chủ Hệ Thống</button>
+            ${isDocSuper ? `<button class="btn btn-ghost btn-sm" onclick="demoteSuperAdmin('${doc.id}','${esc(d.email)}')" title="Hạ quyền xuống Admin">Hạ quyền</button>` : ''}
+          ` : ''}
+
+          ${(!isDocOwner && (currentIsOwner || (!isMe && !isDocSuper))) ? `
+            <button class="btn btn-danger btn-sm" onclick="removeAdmin('${doc.id}','${esc(d.email)}')" title="Xóa tài khoản">✕</button>
+          ` : ''}
+        </div>
       </div>`;
     }).join('');
 
     // Show/hide invite & transfer cards based on role
     const inviteCard = document.getElementById('inviteAdminCard');
-    if (inviteCard && currentAdminDoc?.role !== 'superadmin') {
-      inviteCard.style.display = 'none';
+    if (inviteCard) {
+      inviteCard.style.display = isCurrentUserMember() ? 'none' : 'block';
     }
     const transferCard = document.getElementById('transferSuperAdminCard');
-    if (transferCard && currentAdminDoc?.role !== 'superadmin') {
-      transferCard.style.display = 'none';
+    if (transferCard) {
+      // Chỉ duy nhất Chủ Hệ Thống mới có thể chuyển giao Super Admin
+      transferCard.style.display = currentIsOwner ? 'block' : 'none';
+    }
+    const inviteRoleSuperOpt = document.getElementById('inviteRoleSuperOpt');
+    if (inviteRoleSuperOpt) {
+      inviteRoleSuperOpt.style.display = currentIsOwner ? 'block' : 'none';
     }
   } catch (e) {
     listEl.innerHTML = '<div style="text-align:center;padding:1rem;color:var(--text-dim)">Lỗi tải danh sách admin.</div>';
   }
 }
 
-/* ─── INVITE ADMIN ─────────────────────────────────────── */
+/* ─── INVITE ADMIN / MEMBER ────────────────────────────── */
 async function inviteAdmin() {
+  if (isCurrentUserMember()) {
+    toast('Tài khoản Thành viên không có quyền mời người dùng mới!', 'error');
+    return;
+  }
   const emailInput = document.getElementById('inviteEmail');
-  const email = emailInput.value.trim().toLowerCase();
+  const email = emailInput ? emailInput.value.trim().toLowerCase() : '';
+  const roleSelect = document.getElementById('inviteRole');
+  const role = roleSelect ? roleSelect.value : 'admin';
   const btn = document.getElementById('btnInvite');
 
   if (!email || !email.includes('@')) { toast('Vui lòng nhập email hợp lệ.', 'error'); return; }
+
+  if (!isCurrentUserOwner() && role === 'superadmin') {
+    toast('Chỉ có Chủ Hệ Thống mới có quyền mời Super Admin!', 'error');
+    return;
+  }
 
   btn.classList.add('btn-loading');
   try {
     // Check if already an admin
     const existingSnap = await db.collection('admins').where('email', '==', email).limit(1).get();
-    if (!existingSnap.empty) { toast('Email này đã là admin!', 'error'); btn.classList.remove('btn-loading'); return; }
+    if (!existingSnap.empty) { toast('Email này đã có tài khoản trong hệ thống!', 'error'); btn.classList.remove('btn-loading'); return; }
 
     await db.collection('admin_invites').doc(email).set({
       invitedBy: currentUser.email,
+      role: role,
       invitedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
 
-    toast(`Đã mời ${email} làm admin!`, 'success');
+    const roleName = role === 'member' ? 'Thành viên' : (role === 'superadmin' ? 'Super Admin' : 'Admin');
+    toast(`🎉 Đã gửi lời mời cho ${email} với vai trò ${roleName}!`, 'success');
     emailInput.value = '';
   } catch (e) {
     toast('Lỗi gửi lời mời: ' + e.message, 'error');
@@ -2206,6 +2366,10 @@ async function inviteAdmin() {
 
 /* ─── TRANSFER & DEMOTE SUPER ADMIN ──────────────────── */
 async function transferSuperAdmin(targetUid, targetEmail) {
+  if (!isCurrentUserOwner()) {
+    toast('Chỉ có Chủ Hệ Thống mới có quyền chuyển giao Chủ Hệ Thống!', 'error');
+    return;
+  }
   if (!targetEmail) return;
   const targetLower = targetEmail.trim().toLowerCase();
   const c = confirm(`XÁC NHẬN CHUYỂN GIAO CHỦ HỆ THỐNG:\n\nBạn có chắc chắn muốn chuyển giao TOÀN QUYỀN CHỦ HỆ THỐNG (Quyền lực tối cao nhất) cho tài khoản:\n${targetLower} không?`);
@@ -2243,6 +2407,10 @@ async function transferSuperAdmin(targetUid, targetEmail) {
 }
 
 async function transferSuperAdminByEmail() {
+  if (!isCurrentUserOwner()) {
+    toast('Chỉ có Chủ Hệ Thống mới có quyền chuyển giao Chủ Hệ Thống!', 'error');
+    return;
+  }
   const input = document.getElementById('newSuperAdminEmail');
   const email = input ? input.value.trim().toLowerCase() : '';
   if (!email || !email.includes('@')) {
@@ -2294,6 +2462,10 @@ async function transferSuperAdminByEmail() {
 }
 
 async function demoteSuperAdmin(targetUid, targetEmail) {
+  if (!isCurrentUserOwner()) {
+    toast('Chỉ có Chủ Hệ Thống mới có quyền hạ quyền Super Admin!', 'error');
+    return;
+  }
   if (currentUser && targetUid === currentUser.uid) {
     toast('Bạn không thể tự hạ quyền Super Admin của chính mình!', 'error');
     return;
@@ -2314,6 +2486,10 @@ async function demoteSuperAdmin(targetUid, targetEmail) {
 
 /* ─── PASSWORD VIEWER & ADMIN EDIT (SUPER ADMIN) ───────── */
 function togglePasswordView(docId, rawPw) {
+  if (!isCurrentUserOwner()) {
+    toast('Chỉ có Chủ Hệ Thống mới có quyền xem mật khẩu tài khoản!', 'error');
+    return;
+  }
   const el = document.getElementById('pw_val_' + docId);
   if (!el) return;
   if (el.textContent === '••••••••') {
@@ -2328,6 +2504,10 @@ function togglePasswordView(docId, rawPw) {
 }
 
 function copyPasswordText(pw) {
+  if (!isCurrentUserOwner()) {
+    toast('Chỉ có Chủ Hệ Thống mới có quyền sao chép mật khẩu tài khoản!', 'error');
+    return;
+  }
   if (!pw) { toast('Tài khoản chưa có mật khẩu lưu sẵn.', 'info'); return; }
   navigator.clipboard.writeText(pw).then(() => {
     toast('Đã sao chép mật khẩu vào bộ nhớ tạm! 📋', 'success');
@@ -2336,11 +2516,32 @@ function copyPasswordText(pw) {
   });
 }
 
+function updateRoleOptionsInModal() {
+  const roleSelect = document.getElementById('editAdminRole');
+  if (!roleSelect) return;
+  
+  if (isCurrentUserOwner()) {
+    // Chủ hệ thống có thể tạo/gán mọi quyền
+    roleSelect.innerHTML = `
+      <option value="member">👤 Thành viên (Chỉ xem & tạo sự kiện)</option>
+      <option value="admin">🛡️ Quản trị viên (Admin)</option>
+      <option value="superadmin">⭐ Quản trị cấp cao (Super Admin)</option>
+    `;
+  } else {
+    // Tài khoản khác KHÔNG được gán Super Admin hoặc Chủ hệ thống
+    roleSelect.innerHTML = `
+      <option value="member">👤 Thành viên (Chỉ xem & tạo sự kiện)</option>
+      <option value="admin">🛡️ Quản trị viên (Admin)</option>
+    `;
+  }
+}
+
 function openEditAdmin(docId, name, email, pw, role) {
   document.getElementById('editAdminUid').value = docId;
   document.getElementById('editAdminName').value = name;
   document.getElementById('editAdminEmail').value = email;
   document.getElementById('editAdminPassword').value = pw;
+  updateRoleOptionsInModal();
   document.getElementById('editAdminRole').value = role || 'admin';
   document.getElementById('adminModalTitle').textContent = '✏️ Chỉnh Sửa Tài Khoản & Đổi Mật Khẩu';
   document.getElementById('editAdminModal').classList.remove('hidden');
@@ -2351,8 +2552,9 @@ function openCreateAdminModal() {
   document.getElementById('editAdminName').value = '';
   document.getElementById('editAdminEmail').value = '';
   document.getElementById('editAdminPassword').value = '';
-  document.getElementById('editAdminRole').value = 'admin';
-  document.getElementById('adminModalTitle').textContent = '➕ Thêm Tài Khoản Quản Trị Mới';
+  updateRoleOptionsInModal();
+  document.getElementById('editAdminRole').value = 'member';
+  document.getElementById('adminModalTitle').textContent = '➕ Thêm Tài Khoản Quản Trị / Thành Viên Mới';
   document.getElementById('editAdminModal').classList.remove('hidden');
 }
 
@@ -2374,10 +2576,15 @@ async function saveAdminEdit() {
   const name = document.getElementById('editAdminName').value.trim();
   const email = document.getElementById('editAdminEmail').value.trim().toLowerCase();
   const password = document.getElementById('editAdminPassword').value.trim();
-  const role = document.getElementById('editAdminRole').value;
+  const role = document.getElementById('editAdminRole').value || 'member';
 
   if (!email || !email.includes('@')) { toast('Vui lòng nhập email hợp lệ!', 'error'); return; }
   if (!password || password.length < 6) { toast('Mật khẩu phải có ít nhất 6 ký tự!', 'error'); return; }
+
+  if (!isCurrentUserOwner() && (role === 'superadmin' || role === 'owner')) {
+    toast('Chỉ có Chủ Hệ Thống mới có quyền phân quyền Super Admin!', 'error');
+    return;
+  }
 
   try {
     if (uid) {
@@ -2416,7 +2623,24 @@ async function saveAdminEdit() {
   }
 }
 async function removeAdmin(uid, email) {
-  if (!await customConfirm(`Xóa quyền admin của ${email}?`, '🛡️')) return;
+  if (isCurrentUserMember()) {
+    toast('Tài khoản Thành viên không có quyền xóa tài khoản!', 'error');
+    return;
+  }
+  const ownerEmail = getSuperAdminEmail().toLowerCase();
+  const targetLower = (email || '').toLowerCase();
+  if (targetLower === ownerEmail) {
+    toast('Không thể xóa tài khoản Chủ Hệ Thống!', 'error');
+    return;
+  }
+  if (!isCurrentUserOwner()) {
+    const targetDoc = await db.collection('admins').doc(uid).get();
+    if (targetDoc.exists && targetDoc.data().role === 'superadmin') {
+      toast('Bạn không có quyền xóa tài khoản Super Admin!', 'error');
+      return;
+    }
+  }
+  if (!await customConfirm(`Xóa quyền quản trị của ${email}?`, '🛡️')) return;
   try {
     await db.collection('admins').doc(uid).delete();
     toast(`Đã xóa quyền admin của ${email}.`, 'success');
@@ -2450,6 +2674,10 @@ async function changeFirebasePassword() {
 
 /* ─── TAB NAVIGATION ────────────────────────────────────── */
 function showTab(name) {
+  if (isCurrentUserMember() && (name === 'settings' || name === 'admins')) {
+    toast('Tài khoản Thành viên chỉ được xem và tạo sự kiện, không có quyền truy cập mục này!', 'error');
+    name = 'overview';
+  }
   const titles = {
     overview: 'Tổng quan',
     timeline: 'Nhật ký bình chọn',
@@ -2586,7 +2814,11 @@ function renderAdminEvents() {
 
     const isActive = ev.is_active !== false;
     let statusToggleBtn = '';
-    if (isActive) {
+    if (isCurrentUserMember()) {
+      statusToggleBtn = isActive
+        ? `<span style="background:#dcfce7;color:#15803d;border:1.5px solid #4ade80;font-size:.76rem;font-weight:800;padding:.24rem .7rem;border-radius:999px;display:inline-flex;align-items:center;gap:.35rem;"><span style="width:8px;height:8px;border-radius:50%;background:#16a34a;display:inline-block;"></span>🟢 ĐANG MỞ</span>`
+        : `<span style="background:#fee2e2;color:#b91c1c;border:1.5px solid #f87171;font-size:.76rem;font-weight:800;padding:.24rem .7rem;border-radius:999px;display:inline-flex;align-items:center;gap:.35rem;"><span style="width:8px;height:8px;border-radius:50%;background:#dc2626;display:inline-block;"></span>🔴 ĐÃ TẮT</span>`;
+    } else if (isActive) {
       statusToggleBtn = `
         <button type="button" onclick="event.stopPropagation(); toggleAdminEventStatus('${ev.id}')" title="Cổng bình chọn đang MỞ. Nhấp để TẮT" style="background:#dcfce7;color:#15803d;border:1.5px solid #4ade80;font-size:.76rem;font-weight:800;padding:.24rem .7rem;border-radius:999px;cursor:pointer;display:inline-flex;align-items:center;gap:.35rem;box-shadow:0 1px 3px rgba(22,163,74,0.15);transition:all .15s ease;">
           <span style="width:8px;height:8px;border-radius:50%;background:#16a34a;box-shadow:0 0 6px #22c55e;display:inline-block;"></span>
@@ -2697,6 +2929,7 @@ function renderAdminEvents() {
           <span>Tải Excel</span>
         </button>
 
+        ${!isCurrentUserMember() ? `
         <!-- Button 4: Cài đặt đếm ngược & tỉ lệ -->
         <button class="btn btn-ghost btn-sm" onclick="openAdminTimeRatioModal('${ev.id}')" style="border:1.5px solid #0284c7;color:#0284c7;background:#fff;font-weight:600;border-radius:8px;padding:.52rem .85rem;display:inline-flex;align-items:center;gap:.35rem;">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -2719,6 +2952,7 @@ function renderAdminEvents() {
             <polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
           </svg>
         </button>
+        ` : ''}
       </div>
     </div>`;
   }).join('');
@@ -2945,6 +3179,10 @@ let currentModalEventId = null;
 let modalEventIsActive = true;
 
 async function toggleAdminEventStatus(eventId) {
+  if (isCurrentUserMember()) {
+    toast('Tài khoản Thành viên không có quyền bật/tắt cổng bình chọn!', 'error');
+    return;
+  }
   const ev = adminEvents.find(e => e.id === eventId);
   if (!ev) return;
 
@@ -3018,6 +3256,10 @@ function toggleCurrentModalEventStatus() {
 }
 
 function openAdminTimeRatioModal(eventId) {
+  if (isCurrentUserMember()) {
+    toast('Tài khoản Thành viên không có quyền cài đặt thời gian & tỉ lệ!', 'error');
+    return;
+  }
   const select = document.getElementById('timeRatioEventSelect');
   if (!select) return;
 
@@ -3291,6 +3533,10 @@ function openAddAdminEvent() {
 }
 
 function openEditAdminEvent(id) {
+  if (isCurrentUserMember()) {
+    toast('Tài khoản Thành viên không có quyền chỉnh sửa cuộc thi đã tạo!', 'error');
+    return;
+  }
   const ev = adminEvents.find(e => e.id === id);
   if (!ev) return;
   editingEventId = id;
@@ -3342,6 +3588,10 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 async function saveAdminEvent() {
+  if (isCurrentUserMember() && editingEventId) {
+    toast('Tài khoản Thành viên chỉ có quyền tạo mới cuộc thi, không thể sửa cuộc thi đã tạo!', 'error');
+    return;
+  }
   const title = document.getElementById('adminEventTitle').value.trim();
   if (!title) { toast('Vui lòng nhập tên cuộc thi!', 'error'); return; }
 
@@ -3391,6 +3641,10 @@ async function saveAdminEvent() {
 }
 
 async function deleteAdminEvent(id) {
+  if (isCurrentUserMember()) {
+    toast('Tài khoản Thành viên không có quyền xóa cuộc thi!', 'error');
+    return;
+  }
   const ev = adminEvents.find(e => e.id === id);
   if (!ev) return;
   const ok = confirm(`Bạn có chắc chắn muốn xóa cuộc thi "${ev.title}"?`);
@@ -3408,6 +3662,10 @@ async function deleteAdminEvent(id) {
 }
 
 async function resetDefaultAdminEvents() {
+  if (isCurrentUserMember()) {
+    toast('Tài khoản Thành viên không có quyền khôi phục hoặc xóa dữ liệu cuộc thi!', 'error');
+    return;
+  }
   const ok = confirm('Bạn có muốn khôi phục lại 4 cuộc thi chuẩn (Hoa Khôi, Nam Vương, Tiếng Hát, Đại Sứ) không?');
   if (!ok) return;
 
@@ -3610,6 +3868,8 @@ async function loadAdminData() {
 
   syncAllEventSelectors();
   renderAll();
+  applyRolePermissions();
+  updateSidebarUserBadge();
 }
 
 function renderAll() {
@@ -4188,14 +4448,20 @@ function renderContestantList(targetEventId) {
       </div>
 
       <!-- Actions: Sửa & Xóa -->
-      <div class="c-item-actions" style="display:flex;gap:.45rem;">
-        <button class="btn btn-ghost btn-sm" onclick="openEdit('${esc(c.id)}')" style="border:1.5px solid #38bdf8;background:#fff;font-weight:600;color:#0284c7;padding:.4rem .85rem;border-radius:8px;display:inline-flex;align-items:center;gap:.3rem;">
-          <span>✏️</span> Sửa
-        </button>
-        <button class="btn btn-danger btn-sm" onclick="deleteContestant('${esc(c.id)}')" style="background:#ef4444;color:#fff;border:none;border-radius:8px;padding:.4rem .8rem;font-weight:700;" title="Xóa thí sinh">
-          🗑️
-        </button>
-      </div>
+      ${!isCurrentUserMember() ? `
+        <div class="c-item-actions" style="display:flex;gap:.45rem;">
+          <button class="btn btn-ghost btn-sm" onclick="openEdit('${esc(c.id)}')" style="border:1.5px solid #38bdf8;background:#fff;font-weight:600;color:#0284c7;padding:.4rem .85rem;border-radius:8px;display:inline-flex;align-items:center;gap:.3rem;">
+            <span>✏️</span> Sửa
+          </button>
+          <button class="btn btn-danger btn-sm" onclick="deleteContestant('${esc(c.id)}')" style="background:#ef4444;color:#fff;border:none;border-radius:8px;padding:.4rem .8rem;font-weight:700;" title="Xóa thí sinh">
+            🗑️
+          </button>
+        </div>
+      ` : `
+        <div class="c-item-actions" style="display:flex;gap:.45rem;">
+          <span style="font-size:.75rem;color:#64748b;background:#f8fafc;border:1px solid #e2e8f0;padding:4px 8px;border-radius:6px;font-weight:600;">👁️ Chỉ xem</span>
+        </div>
+      `}
     </div>`;
   }).join('');
 }
@@ -4747,6 +5013,10 @@ async function changePassword() {
 
 /* ─── RESET ACTIONS ─────────────────────────────────────── */
 async function resetVotes() {
+  if (isCurrentUserMember()) {
+    toast('Tài khoản Thành viên không có quyền reset phiếu bầu!', 'error');
+    return;
+  }
   if (!await customConfirm('Reset TẤT CẢ phiếu bầu & LƯỢT CHIA SẺ? Dữ liệu vẫn được lưu lại trong SQL.', '🗑️')) return;
   try {
     await api.post('/api/reset-votes');
@@ -4769,6 +5039,10 @@ async function resetVotes() {
 }
 
 async function resetLog() {
+  if (isCurrentUserMember()) {
+    toast('Tài khoản Thành viên không có quyền xóa nhật ký bình chọn!', 'error');
+    return;
+  }
   if (!await customConfirm('Xóa toàn bộ nhật ký bình chọn & LƯỢT CHIA SẺ? Dữ liệu vẫn được lưu lại trong SQL.', '🗑️')) return;
   try {
     await api.post('/api/reset-votes');
@@ -4791,6 +5065,10 @@ async function resetLog() {
 }
 
 async function resetAll() {
+  if (isCurrentUserMember()) {
+    toast('Tài khoản Thành viên không có quyền reset toàn bộ hệ thống!', 'error');
+    return;
+  }
   if (!await customConfirm('RESET TOÀN BỘ HỆ THỐNG? Tất cả dữ liệu và lượt chia sẻ sẽ bị xóa vĩnh viễn!', '⚠️')) return;
   try {
     await api.post('/api/reset-all', {});
@@ -4998,6 +5276,10 @@ function getEventContestantPrefix(eventId) {
 }
 
 function openAdd(targetEventId) {
+  if (isCurrentUserMember()) {
+    toast('Tài khoản Thành viên chỉ có quyền xem, không được thêm thí sinh!', 'error');
+    return;
+  }
   editingId = null;
   const evtId = targetEventId || currentContestantEventId || 'evt_hoakhoi_2026';
   document.getElementById('modalTitle').textContent = 'Thêm thí sinh mới';
@@ -5031,6 +5313,10 @@ function openAdd(targetEventId) {
 }
 
 function openEdit(id) {
+  if (isCurrentUserMember()) {
+    toast('Tài khoản Thành viên chỉ có quyền xem, không được chỉnh sửa thông tin thí sinh!', 'error');
+    return;
+  }
   const c = appData.contestants.find(x => x.id === id);
   if (!c) return;
   editingId = id;
@@ -5106,6 +5392,10 @@ function selectQuickHometown(val) {
 }
 
 async function saveEdit() {
+  if (isCurrentUserMember()) {
+    toast('Tài khoản Thành viên không có quyền thêm hoặc sửa thí sinh!', 'error');
+    return;
+  }
   const rawNum = document.getElementById('editNum').value.trim();
   const num = rawNum.padStart(2, '0');
   const name = document.getElementById('editName').value.trim();
@@ -5179,6 +5469,10 @@ async function saveEdit() {
 }
 
 async function deleteContestant(id) {
+  if (isCurrentUserMember()) {
+    toast('Tài khoản Thành viên không có quyền xóa thí sinh!', 'error');
+    return;
+  }
   const c = appData.contestants.find(x => x.id === id);
   if (!c) return;
   const sbd = getContestantSbd(c.id);
