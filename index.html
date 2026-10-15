@@ -972,7 +972,19 @@
 
     <div class="form-group">
       <label class="form-label">Khoa <span style="color:#dc2626;font-weight:700">*</span></label>
-      <input class="form-input" id="voterFacultyInput" placeholder="Ví dụ: Khoa Xây dựng" required />
+      <input class="form-input" id="voterFacultyInput" list="voterFacultyList" placeholder="Chọn hoặc nhập khoa..." required autocomplete="off" />
+      <datalist id="voterFacultyList">
+        <option value="Khoa Kinh tế">
+        <option value="Khoa Kiến trúc">
+        <option value="Khoa Xây dựng">
+        <option value="Khoa Kĩ thuật công nghệ">
+      </datalist>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-top:6px;">
+        <span style="cursor:pointer;font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(96,165,250,0.3);font-weight:600;" onclick="document.getElementById('voterFacultyInput').value='Khoa Kinh tế'">Kinh tế</span>
+        <span style="cursor:pointer;font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(96,165,250,0.3);font-weight:600;" onclick="document.getElementById('voterFacultyInput').value='Khoa Kiến trúc'">Kiến trúc</span>
+        <span style="cursor:pointer;font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(96,165,250,0.3);font-weight:600;" onclick="document.getElementById('voterFacultyInput').value='Khoa Xây dựng'">Xây dựng</span>
+        <span style="cursor:pointer;font-size:11px;padding:2px 8px;border-radius:999px;background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(96,165,250,0.3);font-weight:600;" onclick="document.getElementById('voterFacultyInput').value='Khoa Kĩ thuật công nghệ'">Kĩ thuật công nghệ</span>
+      </div>
     </div>
 
     <div class="form-group">

@@ -563,6 +563,18 @@
     #statusPill.badge-rose  { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
 
     .btn-loading { opacity: .6; pointer-events: none; }
+
+    .quick-pill {
+      display: inline-flex; align-items: center;
+      font-size: 11px; font-weight: 600; padding: 2.5px 8px;
+      border-radius: 999px; background: #eff6ff; color: #0284c7;
+      border: 1px solid #bfdbfe; cursor: pointer; transition: all .15s ease;
+      user-select: none;
+    }
+    .quick-pill:hover {
+      background: #0284c7; color: #ffffff; border-color: #0284c7;
+      transform: translateY(-1px);
+    }
   </style>
 
   <!-- Firebase SDK -->
@@ -598,11 +610,99 @@
       <div class="form-row">
         <div class="form-group" style="flex:1;">
           <label class="form-label">Khoa / Đơn vị</label>
-          <input class="input" id="editFaculty" placeholder="Ví dụ: Khoa Xây dựng" />
+          <input class="input" id="editFaculty" list="facultySuggestions" placeholder="Ví dụ: Khoa Xây dựng" autocomplete="off" />
+          <datalist id="facultySuggestions">
+            <option value="Khoa Kinh tế">
+            <option value="Khoa Kiến trúc">
+            <option value="Khoa Xây dựng">
+            <option value="Khoa Kĩ thuật công nghệ">
+            <option value="Kinh tế">
+            <option value="Kiến trúc">
+            <option value="Xây dựng">
+            <option value="Kĩ thuật công nghệ">
+          </datalist>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;">
+            <span class="quick-pill" onclick="selectQuickFaculty('Khoa Kinh tế')">Kinh tế</span>
+            <span class="quick-pill" onclick="selectQuickFaculty('Khoa Kiến trúc')">Kiến trúc</span>
+            <span class="quick-pill" onclick="selectQuickFaculty('Khoa Xây dựng')">Xây dựng</span>
+            <span class="quick-pill" onclick="selectQuickFaculty('Khoa Kĩ thuật công nghệ')">Kĩ thuật công nghệ</span>
+          </div>
         </div>
         <div class="form-group" style="flex:1;">
           <label class="form-label">Địa chỉ / Quê quán</label>
-          <input class="input" id="editHometown" placeholder="Ví dụ: Phú Yên, Hà Nội..." />
+          <input class="input" id="editHometown" list="provinceSuggestions" placeholder="Ví dụ: Phú Yên, Hà Nội..." autocomplete="off" />
+          <datalist id="provinceSuggestions">
+            <option value="Phú Yên">
+            <option value="Bình Định">
+            <option value="Khánh Hòa">
+            <option value="Đà Nẵng">
+            <option value="Quảng Nam">
+            <option value="Quảng Ngãi">
+            <option value="Gia Lai">
+            <option value="Đắk Lắk">
+            <option value="Đắk Nông">
+            <option value="Kon Tum">
+            <option value="Lâm Đồng">
+            <option value="Ninh Thuận">
+            <option value="Bình Thuận">
+            <option value="Thừa Thiên Huế">
+            <option value="Quảng Trị">
+            <option value="Quảng Bình">
+            <option value="Hà Tĩnh">
+            <option value="Nghệ An">
+            <option value="Thanh Hóa">
+            <option value="TP. Hồ Chí Minh">
+            <option value="Hà Nội">
+            <option value="Bình Dương">
+            <option value="Đồng Nai">
+            <option value="Bà Rịa - Vũng Tàu">
+            <option value="Cần Thơ">
+            <option value="Long An">
+            <option value="Tiền Giang">
+            <option value="An Giang">
+            <option value="Bến Tre">
+            <option value="Đồng Tháp">
+            <option value="Vĩnh Long">
+            <option value="Trà Vinh">
+            <option value="Hậu Giang">
+            <option value="Sóc Trăng">
+            <option value="Bạc Liêu">
+            <option value="Cà Mau">
+            <option value="Kiên Giang">
+            <option value="Tây Ninh">
+            <option value="Bình Phước">
+            <option value="Hải Phòng">
+            <option value="Quảng Ninh">
+            <option value="Bắc Ninh">
+            <option value="Hải Dương">
+            <option value="Hưng Yên">
+            <option value="Thái Bình">
+            <option value="Nam Định">
+            <option value="Ninh Bình">
+            <option value="Hà Nam">
+            <option value="Vĩnh Phúc">
+            <option value="Phú Thọ">
+            <option value="Thái Nguyên">
+            <option value="Bắc Giang">
+            <option value="Lạng Sơn">
+            <option value="Tuyên Quang">
+            <option value="Cao Bằng">
+            <option value="Bắc Kạn">
+            <option value="Hà Giang">
+            <option value="Lào Cai">
+            <option value="Yên Bái">
+            <option value="Điện Biên">
+            <option value="Lai Châu">
+            <option value="Sơn La">
+            <option value="Hòa Bình">
+          </datalist>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;">
+            <span class="quick-pill" onclick="selectQuickHometown('Phú Yên')">Phú Yên</span>
+            <span class="quick-pill" onclick="selectQuickHometown('Bình Định')">Bình Định</span>
+            <span class="quick-pill" onclick="selectQuickHometown('Khánh Hòa')">Khánh Hòa</span>
+            <span class="quick-pill" onclick="selectQuickHometown('Đắk Lắk')">Đắk Lắk</span>
+            <span class="quick-pill" onclick="selectQuickHometown('Đà Nẵng')">Đà Nẵng</span>
+          </div>
         </div>
       </div>
       <div class="form-group">
@@ -4872,6 +4972,22 @@ function openModal() {
 
 function closeModal() {
   document.getElementById('editModal').classList.add('hidden');
+}
+
+function selectQuickFaculty(val) {
+  const el = document.getElementById('editFaculty');
+  if (el) {
+    el.value = val;
+    el.focus();
+  }
+}
+
+function selectQuickHometown(val) {
+  const el = document.getElementById('editHometown');
+  if (el) {
+    el.value = val;
+    el.focus();
+  }
 }
 
 async function saveEdit() {
