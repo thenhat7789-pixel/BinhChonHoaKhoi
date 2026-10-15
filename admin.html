@@ -1482,7 +1482,7 @@
               </div>
               <div style="display:flex;align-items:center;gap:.6rem;">
                 <span id="contestantCountBadge" style="background:#e0f2fe;color:#0284c7;padding:.25rem .85rem;border-radius:999px;font-weight:800;font-size:.82rem;border:1px solid #bae6fd;">
-                  6 thí sinh
+                  0 thí sinh
                 </span>
                 <button class="btn btn-gold btn-sm" onclick="openAdd()" style="font-weight:700;display:inline-flex;align-items:center;gap:.35rem;padding:.35rem .85rem;">
                   <span>➕</span> Thêm thí sinh
@@ -2582,7 +2582,7 @@ function renderAdminEvents() {
 
     // Contestants count for this event
     const cList = (appData.contestants || []).filter(c => c.event_id === ev.id || (!c.event_id && ev.id === 'evt_hoakhoi_2026'));
-    const contestantCount = cList.length > 0 ? cList.length : 6;
+    const contestantCount = cList.length;
 
     const isActive = ev.is_active !== false;
     let statusToggleBtn = '';
@@ -4210,60 +4210,6 @@ function renderContestantList(targetEventId) {
       </div>
     </div>`;
   }).join('');
-}
-
-async function seedDefaultContestantsForCurrentEvent() {
-  let defaults = ALL_DEFAULT_CONTESTANTS.filter(c => c.event_id === currentContestantEventId);
-  if (!defaults || !defaults.length) {
-    // Tự động tạo 6 thí sinh mẫu chuẩn từ template cho bất kỳ cuộc thi tùy chỉnh nào
-    const sampleTemplate = ALL_DEFAULT_CONTESTANTS.filter(c => c.event_id === 'evt_hoakhoi_2026');
-    const prefix = getEventContestantPrefix(currentContestantEventId);
-    defaults = sampleTemplate.map((c, i) => {
-      const num = String(i + 1).padStart(2, '0');
-      return {
-        ...c,
-        id: prefix + num,
-        event_id: currentContestantEventId,
-        faculty: c.faculty || 'Khoa MUCE',
-        hometown: c.hometown || 'Phú Yên',
-        subtitle: `${c.faculty || 'Khoa MUCE'} · ${c.hometown || 'Phú Yên'}`
-      };
-    });
-  }
-  
-  // Xóa danh sách cũ của sự kiện này và nạp 6 thí sinh mẫu
-  appData.contestants = appData.contestants.filter(c => c.event_id !== currentContestantEventId);
-  defaults.forEach(d => {
-    appData.contestants.push({...d});
-    if (appData.votes[d.id] === undefined) appData.votes[d.id] = 0;
-  });
-
-  // Sắp xếp theo SBD
-  appData.contestants.sort((a, b) => {
-    const numA = parseInt(getContestantSbd(a.id)) || 0;
-    const numB = parseInt(getContestantSbd(b.id)) || 0;
-    if (numA !== numB) return numA - numB;
-    return String(a.id).localeCompare(String(b.id));
-  });
-
-  try {
-    localStorage.setItem('hh:contestants', JSON.stringify(appData.contestants));
-  } catch(e){}
-
-  renderContestantList(currentContestantEventId);
-  renderAdminEvents();
-  renderKPI();
-
-  try {
-    const res = await api.post('/api/contestants', { contestants: appData.contestants, event_id: currentContestantEventId });
-    if (res && res.error) {
-      toast('Cảnh báo máy chủ: ' + res.error, 'warning');
-    } else {
-      toast(`🎉 Đã nạp thành công 6 thí sinh mẫu chuẩn đẹp cho cuộc thi!`, 'success');
-    }
-  } catch(e) {
-    toast(`🎉 Đã nạp thành công 6 thí sinh mẫu chuẩn đẹp cho cuộc thi!`, 'success');
-  }
 }
 
 /* ─── SETTINGS FORM ─────────────────────────────────────── */

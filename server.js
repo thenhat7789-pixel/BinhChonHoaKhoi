@@ -455,7 +455,7 @@ app.post('/api/vote', async (req, res) => {
     const voteRatio = (eventRow.length && eventRow[0].vote_ratio) ? parseInt(eventRow[0].vote_ratio) : globalRatio;
 
     const { rows: contestantCount } = await pool.query('SELECT COUNT(*)::int as cnt FROM contestants WHERE (event_id = $1 OR event_id IS NULL)', [currentEventId]);
-    const totalContestants = contestantCount[0].cnt || 6;
+    const totalContestants = contestantCount[0].cnt || 0;
     const maxAllowed = Math.max(1, Math.round((totalContestants * voteRatio) / 100));
 
     let quotaQuery = 'SELECT COUNT(DISTINCT contestant_id)::int as cnt FROM votes WHERE (event_id = $1 OR event_id IS NULL) AND (voter_ip = $2';
@@ -534,7 +534,7 @@ app.get('/api/my-votes', async (req, res) => {
     const globalRatio = settingsRows.length ? parseInt(settingsRows[0].value) || 80 : 80;
     const voteRatio = (eventRow.length && eventRow[0].vote_ratio) ? parseInt(eventRow[0].vote_ratio) : globalRatio;
     const { rows: contestantCount } = await pool.query('SELECT COUNT(*)::int as cnt FROM contestants WHERE (event_id = $1 OR event_id IS NULL)', [eventId]);
-    const totalContestants = contestantCount[0].cnt || 6;
+    const totalContestants = contestantCount[0].cnt || 0;
     const maxAllowed = Math.max(1, Math.round((totalContestants * voteRatio) / 100));
 
     res.json({
