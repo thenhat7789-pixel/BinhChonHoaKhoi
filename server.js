@@ -3,7 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { pool, initDB, DEFAULT_CONTESTANTS } = require('./db');
-const { getRandomVietnameseName, getRandomVietnameseComment, getRandomStudentInfo } = require('./vietnameseData');
+const { getRandomVietnameseName, getRandomVietnameseComment, getRandomVoterIp } = require('./vietnameseData');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -375,18 +375,17 @@ app.post('/api/votes/adjust', async (req, res) => {
     const contestantFaculty = contestantExists[0]?.faculty || '';
 
     if (delta > 0) {
-      // Tăng vote: chèn delta phiếu với người bình chọn Việt Nam & lời chúc ngẫu nhiên phong phú
+      // Tăng vote: chèn delta phiếu với người bình chọn Việt Nam & lời chúc ngẫu nhiên (không còn MSSV, Lớp, Khoa)
       for (let i = 0; i < delta; i++) {
         const vote_id = 'v_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6) + '_' + i;
         const voterName = getRandomVietnameseName();
         const comment = getRandomVietnameseComment();
-        const preferredFac = (contestantFaculty && Math.random() < 0.7) ? contestantFaculty : null;
-        const stInfo = getRandomStudentInfo(preferredFac);
+        const voterIp = getRandomVoterIp();
 
         await client.query(
           `INSERT INTO votes (vote_id, contestant_id, event_id, voter_name, student_id, student_class, faculty, comment, voter_ip) 
            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-          [vote_id, contestant_id, currentEventId, voterName, stInfo.studentId, stInfo.studentClass, stInfo.faculty, comment, stInfo.voterIp]
+          [vote_id, contestant_id, currentEventId, voterName, '', '', '', comment, voterIp]
         );
       }
     } else {

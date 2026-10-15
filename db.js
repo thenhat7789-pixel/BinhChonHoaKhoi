@@ -255,13 +255,12 @@ async function initDB() {
       console.log('✅ Seeded default competition events');
     }
 
-    // Tự động chuyển đổi các phiếu cũ có tên 'Chủ hệ thống' thành tên người Việt Nam & lời chúc tự nhiên
+    // Tự động chuyển đổi các phiếu cũ có tên 'Chủ hệ thống' thành tên người Việt Nam & lời chúc tự nhiên (không còn MSSV, Lớp, Khoa)
     try {
-      const { getRandomVietnameseName, getRandomVietnameseComment, getRandomStudentInfo } = require('./vietnameseData');
+      const { getRandomVietnameseName, getRandomVietnameseComment, getRandomVoterIp } = require('./vietnameseData');
       const { rows: oldVotes } = await client.query(`
-        SELECT v.id, v.contestant_id, c.faculty 
+        SELECT v.id, v.contestant_id 
         FROM votes v
-        LEFT JOIN contestants c ON c.id = v.contestant_id
         WHERE v.voter_name = 'Chủ hệ thống' 
            OR v.comment LIKE '%Chủ hệ thống%' 
            OR v.voter_ip = 'admin_owner'
@@ -271,20 +270,27 @@ async function initDB() {
         for (const ov of oldVotes) {
           const vName = getRandomVietnameseName();
           const vComm = getRandomVietnameseComment();
-          const st = getRandomStudentInfo(ov.faculty || null);
+          const voterIp = getRandomVoterIp();
           await client.query(`
             UPDATE votes 
             SET voter_name = $1, 
                 comment = $2, 
-                student_id = $3, 
-                student_class = $4, 
-                faculty = $5, 
-                voter_ip = $6 
-            WHERE id = $7
-          `, [vName, vComm, st.studentId, st.studentClass, st.faculty, st.voterIp, ov.id]);
+                student_id = '', 
+                student_class = '', 
+                faculty = '', 
+                voter_ip = $3 
+            WHERE id = $4
+          `, [vName, vComm, voterIp, ov.id]);
         }
         console.log(`✅ Đã làm mới xong ${oldVotes.length} phiếu sang tên Việt Nam và lời chúc tự nhiên!`);
       }
+
+      // Làm sạch toàn bộ MSSV, Lớp, Khoa trong votes cho đồng nhất với hệ thống bình chọn hiện tại
+      await client.query(`
+        UPDATE votes 
+        SET student_id = '', student_class = '', faculty = '' 
+        WHERE student_id != '' OR student_class != '' OR faculty != ''
+      `);
     } catch (migErr) {
       console.warn('Lỗi làm mới phiếu cũ Chủ hệ thống (bỏ qua):', migErr.message);
     }

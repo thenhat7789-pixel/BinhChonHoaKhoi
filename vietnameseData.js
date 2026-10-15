@@ -130,33 +130,16 @@ function getRandomVietnameseComment() {
   return VIETNAMESE_COMMENTS[Math.floor(Math.random() * VIETNAMESE_COMMENTS.length)];
 }
 
-function getRandomStudentInfo(preferredFaculty) {
-  let faculty = preferredFaculty;
-  if (!faculty || !CLASS_SUFFIXES[faculty]) {
-    faculty = FACULTIES[Math.floor(Math.random() * FACULTIES.length)];
-  }
-
-  const yearPrefix = CLASS_PREFIXES[Math.floor(Math.random() * CLASS_PREFIXES.length)];
-  const suffixes = CLASS_SUFFIXES[faculty] || ['XD01', 'KT01', 'CNTT1'];
-  const suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
-  const studentClass = `${yearPrefix}_${suffix}`;
-
-  const yearNum = yearPrefix.replace('D', '');
-  const randNum = Math.floor(1000 + Math.random() * 9000);
-  const studentId = `${yearNum}110${randNum}`;
-
-  const ipPrefixes = ['14.232', '113.161', '171.244', '42.115', '27.72', '125.235', '116.108'];
+function getRandomVoterIp() {
+  const ipPrefixes = ['14.232', '113.161', '171.244', '42.115', '27.72', '125.235', '116.108', '14.162', '118.69'];
   const ipPrefix = ipPrefixes[Math.floor(Math.random() * ipPrefixes.length)];
-  const voterIp = `${ipPrefix}.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}`;
-
-  return { faculty, studentClass, studentId, voterIp };
+  return `${ipPrefix}.${Math.floor(Math.random() * 250) + 1}.${Math.floor(Math.random() * 250) + 1}`;
 }
 
 module.exports = {
   getRandomVietnameseName,
   getRandomVietnameseComment,
-  getRandomStudentInfo,
+  getRandomVoterIp,
   VIETNAMESE_LAST_NAMES,
-  VIETNAMESE_COMMENTS,
-  FACULTIES
+  VIETNAMESE_COMMENTS
 };
