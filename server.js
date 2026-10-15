@@ -283,7 +283,12 @@ app.get('/api/votes', async (req, res) => {
     `;
     let params = [];
     if (eventId && eventId !== 'all') {
-      query += ' WHERE c.event_id = $1';
+      query = `
+        SELECT c.id, c.name, COUNT(v.id)::int as count
+        FROM contestants c
+        LEFT JOIN votes v ON v.contestant_id = c.id AND (v.event_id = $1 OR v.event_id IS NULL)
+        WHERE (c.event_id = $1 OR (c.event_id IS NULL AND $1 = 'evt_hoakhoi_2026'))
+      `;
       params.push(eventId);
     }
     query += `
@@ -327,6 +332,18 @@ app.post('/api/vote', async (req, res) => {
   const voterId = voter_fingerprint ? `${voterIp}_${voter_fingerprint}` : voterIp;
 
   try {
+    // 0. Kiểm tra thí sinh có tồn tại trong database không
+    const { rows: contestantExists } = await pool.query(
+      'SELECT id, name, event_id FROM contestants WHERE id = $1',
+      [contestant_id]
+    );
+    if (contestantExists.length === 0) {
+      return res.status(400).json({
+        error: `Thí sinh này (SBD ${contestant_id}) chưa được tạo trong cuộc thi trên hệ thống! Ban tổ chức vui lòng vào trang Quản trị để thêm thí sinh trước khi bình chọn.`,
+        code: 'CONTESTANT_NOT_FOUND'
+      });
+    }
+
     // 1. Kiểm tra đã vote cho thí sinh này chưa
     let dupeQuery = 'SELECT COUNT(*)::int as cnt FROM votes WHERE contestant_id = $1 AND (event_id = $2 OR event_id IS NULL) AND (voter_ip = $3';
     const dupeParams = [contestant_id, currentEventId, voterId];

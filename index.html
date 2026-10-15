@@ -1550,8 +1550,12 @@ async function loadTopicContestantsAndVotes(eventId) {
   const cRes = await api.get(`/api/contestants?event=${encodeURIComponent(eventId)}`);
   if (cRes && Array.isArray(cRes.contestants) && cRes.contestants.length > 0) {
     contestants = cRes.contestants;
+  } else if (CONTESTANTS_BY_THEME[eventId]) {
+    contestants = CONTESTANTS_BY_THEME[eventId];
+  } else if (eventId === 'evt_hoakhoi_2026') {
+    contestants = CONTESTANTS_BY_THEME.evt_hoakhoi_2026;
   } else {
-    contestants = CONTESTANTS_BY_THEME[eventId] || CONTESTANTS_BY_THEME.evt_hoakhoi_2026;
+    contestants = [];
   }
   state.contestants = contestants;
 
@@ -1625,6 +1629,22 @@ function renderTopicContestants() {
   // Sync count badge in rule box
   const countEl = document.getElementById('topicMyVotesCount');
   if (countEl) countEl.textContent = `${myVotesCount} / ${state.maxAllowed} thí sinh`;
+
+  if (!state.contestants || state.contestants.length === 0) {
+    grid.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center; padding: 3.5rem 1.5rem; background: rgba(30, 41, 59, 0.4); border-radius: 16px; border: 1.5px dashed rgba(148, 163, 184, 0.25); color: #94a3b8; margin: 1rem 0;">
+        <div style="font-size: 3rem; margin-bottom: 0.8rem;">📋</div>
+        <h3 style="color: #f8fafc; font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">Cuộc thi này chưa có thí sinh</h3>
+        <p style="font-size: 0.95rem; max-width: 480px; margin: 0 auto 1.5rem auto; line-height: 1.5; color: #94a3b8;">
+          Ban tổ chức chưa thêm danh sách thí sinh cho cuộc thi này trên hệ thống. Quản trị viên vui lòng vào trang Quản trị để cập nhật thí sinh!
+        </p>
+        <button class="vote-action-btn btn-default" style="max-width: 240px; margin: 0 auto; display: inline-block;" onclick="backToPortal()">
+          ← Quay lại Cổng bình chọn
+        </button>
+      </div>
+    `;
+    return;
+  }
 
   grid.innerHTML = state.contestants.map(c => {
     const count = state.votes[c.id] || 0;
@@ -1873,16 +1893,12 @@ document.getElementById('confirmVoteBtn').addEventListener('click', async () => 
   localStorage.setItem('hh:student_class', studentClass);
   localStorage.setItem('hh:faculty', faculty);
 
-  // Optimistic vote update
-  state.votes[cId] = (state.votes[cId] || 0) + 1;
-  state.votedIds.push(cId);
-  localStorage.setItem(`hh:voted:${eventId}`, JSON.stringify(state.votedIds));
-  renderTopicContestants();
-  closeVoteModal();
+  const confirmBtn = document.getElementById('confirmVoteBtn');
+  const originalBtnText = confirmBtn.innerHTML;
+  confirmBtn.disabled = true;
+  confirmBtn.innerHTML = '⏳ Đang ghi phiếu...';
 
-  toast(`🎉 Đã bình chọn thành công cho thí sinh!`, 'success');
-
-  // Submit to Server API
+  // Submit to Server API first
   const res = await api.post('/api/vote', {
     contestant_id: cId,
     event_id: eventId,
@@ -1894,21 +1910,31 @@ document.getElementById('confirmVoteBtn').addEventListener('click', async () => 
     voter_fingerprint: VOTER_FP
   });
 
+  confirmBtn.disabled = false;
+  confirmBtn.innerHTML = originalBtnText;
+
   if (res && res._error) {
     if (res.code === 'VOTING_ENDED') {
       state.isExpired = true;
       toast('⛔ Thời gian bình chọn cho cuộc thi này đã kết thúc!', 'error');
+      closeVoteModal();
+      renderTopicContestants();
     } else {
       toast(res.error || 'Lỗi khi gửi phiếu bầu', 'error');
     }
-    // Revert optimistic update
-    state.votes[cId] = Math.max(0, (state.votes[cId] || 1) - 1);
-    state.votedIds = state.votedIds.filter(id => id !== cId);
-    localStorage.setItem(`hh:voted:${eventId}`, JSON.stringify(state.votedIds));
-    renderTopicContestants();
     return;
   }
 
+  // Server ghi phiếu thành công 100% -> cập nhật giao diện & localStorage
+  state.votes[cId] = (state.votes[cId] || 0) + 1;
+  if (!state.votedIds.includes(cId)) {
+    state.votedIds.push(cId);
+  }
+  localStorage.setItem(`hh:voted:${eventId}`, JSON.stringify(state.votedIds));
+  renderTopicContestants();
+  closeVoteModal();
+
+  toast(`🎉 Đã bình chọn thành công cho thí sinh!`, 'success');
   await loadTopicComments(eventId);
 });
 
