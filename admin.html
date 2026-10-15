@@ -1468,9 +1468,6 @@
               <button class="btn btn-gold btn-sm" onclick="openAdd()" style="font-weight:700;display:inline-flex;align-items:center;gap:.35rem;padding:.45rem 1.1rem;box-shadow:0 2px 8px rgba(37,99,235,0.3);">
                 <span>➕</span> Thêm thí sinh mới
               </button>
-              <button class="btn btn-ghost btn-sm" onclick="seedDefaultContestantsForCurrentEvent()" style="border:1.5px solid #bfdbfe;color:#0284c7;background:#fff;font-weight:600;padding:.45rem .85rem;">
-                <span>🔄</span> Nạp 6 thí sinh mẫu
-              </button>
               <button class="btn btn-ghost btn-sm" onclick="showTab('events-manager')" style="border:1px solid #cbd5e1;background:#fff;color:#475569;padding:.45rem .85rem;">
                 <span>⬅</span> Quản lý sự kiện
               </button>
@@ -4140,13 +4137,10 @@ function renderContestantList(targetEventId) {
       <div style="text-align:center;padding:3rem 1.5rem;background:#f8fafc;border-radius:12px;border:1.5px dashed #cbd5e1;">
         <div style="font-size:2.5rem;margin-bottom:.5rem;">👥</div>
         <div style="font-weight:700;font-size:1.05rem;color:#1e293b;margin-bottom:.35rem;">Chưa có thí sinh nào trong cuộc thi này</div>
-        <p style="color:#64748b;font-size:.85rem;margin-bottom:1.25rem;">Bạn có thể nạp ngay 6 thí sinh mẫu hoặc thêm thí sinh mới.</p>
+        <p style="color:#64748b;font-size:.85rem;margin-bottom:1.25rem;">Bấm nút bên dưới để thêm thí sinh vào cuộc thi.</p>
         <div style="display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap;">
           <button class="btn btn-gold btn-sm" onclick="openAdd('${currentContestantEventId}')" style="font-weight:700;padding:.5rem 1.2rem;">
             ➕ Thêm thí sinh mới
-          </button>
-          <button class="btn btn-ghost btn-sm" onclick="seedDefaultContestantsForCurrentEvent()" style="border:1.5px solid #bfdbfe;color:#0284c7;background:#fff;font-weight:600;padding:.5rem 1.2rem;">
-            🔄 Nạp 6 thí sinh mẫu
           </button>
         </div>
       </div>
