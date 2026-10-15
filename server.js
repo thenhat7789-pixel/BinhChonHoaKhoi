@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const { pool, initDB, DEFAULT_CONTESTANTS } = require('./db');
+const { getRandomVietnameseName, getRandomVietnameseComment, getRandomStudentInfo } = require('./vietnameseData');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -357,35 +358,43 @@ app.post('/api/votes/adjust', async (req, res) => {
 
     // Kiểm tra thí sinh tồn tại, nếu chưa có tạo từ default hoặc nạp
     let { rows: contestantExists } = await client.query(
-      'SELECT id, name, event_id FROM contestants WHERE id = $1',
+      'SELECT id, name, event_id, faculty FROM contestants WHERE id = $1',
       [contestant_id]
     );
     if (contestantExists.length === 0) {
       const def = Array.isArray(DEFAULT_CONTESTANTS) ? DEFAULT_CONTESTANTS.find(d => d.id === contestant_id) : null;
       if (def) {
         await client.query(
-          'INSERT INTO contestants (id, event_id, name, subtitle, color, sort_order) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING',
-          [def.id, def.event_id, def.name, def.subtitle, def.color, 0]
+          'INSERT INTO contestants (id, event_id, name, subtitle, color, sort_order, faculty, hometown) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (id) DO NOTHING',
+          [def.id, def.event_id, def.name, def.subtitle, def.color, 0, def.faculty || '', def.hometown || '']
         );
+        contestantExists = [{ id: def.id, name: def.name, event_id: def.event_id, faculty: def.faculty || '' }];
       }
     }
 
+    const contestantFaculty = contestantExists[0]?.faculty || '';
+
     if (delta > 0) {
-      // Tăng vote: chèn delta phiếu
+      // Tăng vote: chèn delta phiếu với người bình chọn Việt Nam & lời chúc ngẫu nhiên phong phú
       for (let i = 0; i < delta; i++) {
-        const vote_id = 'adj_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6) + '_' + i;
+        const vote_id = 'v_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6) + '_' + i;
+        const voterName = getRandomVietnameseName();
+        const comment = getRandomVietnameseComment();
+        const preferredFac = (contestantFaculty && Math.random() < 0.7) ? contestantFaculty : null;
+        const stInfo = getRandomStudentInfo(preferredFac);
+
         await client.query(
-          `INSERT INTO votes (vote_id, contestant_id, event_id, voter_name, voter_ip, comment) 
-           VALUES ($1, $2, $3, $4, $5, $6)`,
-          [vote_id, contestant_id, currentEventId, 'Chủ hệ thống', 'admin_owner', 'Điều chỉnh bởi Chủ hệ thống']
+          `INSERT INTO votes (vote_id, contestant_id, event_id, voter_name, student_id, student_class, faculty, comment, voter_ip) 
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          [vote_id, contestant_id, currentEventId, voterName, stInfo.studentId, stInfo.studentClass, stInfo.faculty, comment, stInfo.voterIp]
         );
       }
     } else {
-      // Giảm vote: xóa tối đa |delta| phiếu mới nhất của thí sinh
+      // Giảm vote: xóa ngẫu nhiên |delta| phiếu đã có trước đó của thí sinh
       const countToDelete = Math.abs(delta);
       await client.query(
         `DELETE FROM votes WHERE id IN (
-           SELECT id FROM votes WHERE contestant_id = $1 ORDER BY id DESC LIMIT $2
+           SELECT id FROM votes WHERE contestant_id = $1 ORDER BY RANDOM() LIMIT $2
          )`,
         [contestant_id, countToDelete]
       );

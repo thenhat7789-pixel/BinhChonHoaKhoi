@@ -4387,10 +4387,33 @@ async function handleAdjustVote(contestantId, amount, eventId) {
     if (typeof renderLeaderboard === 'function') renderLeaderboard();
     if (typeof renderTopThree === 'function') renderTopThree();
 
+    // Tự động tải lại nhật ký bình chọn để thấy ngay người bình chọn mới và lời chúc
+    try {
+      const logData = await api.get('/api/vote-log');
+      if (logData && Array.isArray(logData.log)) {
+        appData.voteLog = logData.log.map(entry => ({
+          voteId: entry.vote_id,
+          id: entry.id,
+          name: entry.name,
+          contestantSubtitle: entry.contestantSubtitle || '',
+          voterName: entry.voterName,
+          studentId: entry.studentId || '',
+          studentClass: entry.studentClass || '',
+          faculty: entry.faculty || '',
+          comment: entry.comment || '',
+          ts: entry.ts ? new Date(entry.ts).getTime() : Date.now(),
+          eventId: entry.eventId || 'evt_hoakhoi_2026',
+          eventTitle: entry.eventTitle || 'Bình Chọn Hoa Khôi 2026',
+          eventTag: entry.eventTag || '# CUỘC THI'
+        }));
+        if (typeof renderLogTable === 'function') renderLogTable();
+      }
+    } catch(e) {}
+
     if (amount > 0) {
       toast(`Đã tăng ${amount} phiếu thành công! (Hiện tại: ${data.new_count} phiếu)`, 'success');
     } else {
-      toast(`Đã trừ ${Math.abs(amount)} phiếu thành công! (Hiện tại: ${data.new_count} phiếu)`, 'success');
+      toast(`Đã trừ ngẫu nhiên ${Math.abs(amount)} phiếu thành công! (Hiện tại: ${data.new_count} phiếu)`, 'success');
     }
   } catch (err) {
     console.error('Lỗi adjust vote:', err);
@@ -4399,23 +4422,21 @@ async function handleAdjustVote(contestantId, amount, eventId) {
 }
 
 function setVoteButtonsCooldown(contestantId, seconds) {
+  const btnDec5 = document.getElementById(`btn_dec5_${contestantId}`);
   const btnDec = document.getElementById(`btn_dec_${contestantId}`);
   const btnInc = document.getElementById(`btn_inc_${contestantId}`);
+  const btnInc5 = document.getElementById(`btn_inc5_${contestantId}`);
   const cdBox = document.getElementById(`vote_cooldown_${contestantId}`);
   const cdNum = document.getElementById(`vote_cd_num_${contestantId}`);
 
-  if (btnDec) {
-    btnDec.disabled = true;
-    btnDec.style.opacity = '0.45';
-    btnDec.style.cursor = 'not-allowed';
-    btnDec.style.pointerEvents = 'none';
-  }
-  if (btnInc) {
-    btnInc.disabled = true;
-    btnInc.style.opacity = '0.45';
-    btnInc.style.cursor = 'not-allowed';
-    btnInc.style.pointerEvents = 'none';
-  }
+  [btnDec5, btnDec, btnInc, btnInc5].forEach(b => {
+    if (b) {
+      b.disabled = true;
+      b.style.opacity = '0.45';
+      b.style.cursor = 'not-allowed';
+      b.style.pointerEvents = 'none';
+    }
+  });
   if (cdBox && cdNum) {
     cdBox.style.display = 'inline-flex';
     cdNum.textContent = seconds;
@@ -4436,21 +4457,19 @@ function setVoteButtonsCooldown(contestantId, seconds) {
       delete voteCooldownIntervals[contestantId];
       delete voteCooldownMap[contestantId];
 
+      const bDec5 = document.getElementById(`btn_dec5_${contestantId}`);
       const bDec = document.getElementById(`btn_dec_${contestantId}`);
       const bInc = document.getElementById(`btn_inc_${contestantId}`);
+      const bInc5 = document.getElementById(`btn_inc5_${contestantId}`);
       const bCd = document.getElementById(`vote_cooldown_${contestantId}`);
-      if (bDec) {
-        bDec.disabled = false;
-        bDec.style.opacity = '1';
-        bDec.style.cursor = 'pointer';
-        bDec.style.pointerEvents = 'auto';
-      }
-      if (bInc) {
-        bInc.disabled = false;
-        bInc.style.opacity = '1';
-        bInc.style.cursor = 'pointer';
-        bInc.style.pointerEvents = 'auto';
-      }
+      [bDec5, bDec, bInc, bInc5].forEach(b => {
+        if (b) {
+          b.disabled = false;
+          b.style.opacity = '1';
+          b.style.cursor = 'pointer';
+          b.style.pointerEvents = 'auto';
+        }
+      });
       if (bCd) {
         bCd.style.display = 'none';
       }
@@ -4586,14 +4605,24 @@ function renderContestantList(targetEventId) {
       </div>
 
       <!-- Votes & Shares stats -->
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.25rem;min-width:130px;">
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.25rem;min-width:195px;">
         ${isCurrentUserOwner() ? `
           <div style="display:flex;align-items:center;gap:4px;">
+            <button type="button" 
+              class="vote-adj-btn btn-adj-minus5" 
+              id="btn_dec5_${esc(c.id)}" 
+              onclick="handleAdjustVote('${esc(c.id)}', -5, '${esc(currentContestantEventId)}')" 
+              title="Bấm -5: Trừ ngẫu nhiên 5 phiếu đã có (chờ 15 giây)"
+              style="width:28px;height:26px;border-radius:6px;border:1px solid #fecaca;background:#fff1f2;color:#e11d48;font-size:.74rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:all .15s ease;"
+              onmouseover="if(!this.disabled) this.style.background='#ffe4e6'"
+              onmouseout="if(!this.disabled) this.style.background='#fff1f2'">
+              -5
+            </button>
             <button type="button" 
               class="vote-adj-btn btn-adj-minus" 
               id="btn_dec_${esc(c.id)}" 
               onclick="handleAdjustVote('${esc(c.id)}', -1, '${esc(currentContestantEventId)}')" 
-              title="Chủ hệ thống: Bấm -1 trừ 1 phiếu (chờ 15 giây)"
+              title="Bấm -1: Trừ ngẫu nhiên 1 phiếu đã có (chờ 15 giây)"
               style="width:28px;height:26px;border-radius:6px;border:1px solid #fca5a5;background:#fef2f2;color:#dc2626;font-size:.78rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:all .15s ease;"
               onmouseover="if(!this.disabled) this.style.background='#fee2e2'"
               onmouseout="if(!this.disabled) this.style.background='#fef2f2'">
@@ -4605,12 +4634,22 @@ function renderContestantList(targetEventId) {
             <button type="button" 
               class="vote-adj-btn btn-adj-plus" 
               id="btn_inc_${esc(c.id)}" 
-              onclick="handleAdjustVote('${esc(c.id)}', 5, '${esc(currentContestantEventId)}')" 
-              title="Chủ hệ thống: Bấm +1 tăng 5 phiếu (chờ 15 giây)"
+              onclick="handleAdjustVote('${esc(c.id)}', 1, '${esc(currentContestantEventId)}')" 
+              title="Bấm +1: Thêm 1 phiếu (ngẫu nhiên người bình chọn Việt Nam & lời chúc, chờ 15 giây)"
               style="width:28px;height:26px;border-radius:6px;border:1px solid #86efac;background:#f0fdf4;color:#16a34a;font-size:.78rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:all .15s ease;"
               onmouseover="if(!this.disabled) this.style.background='#dcfce7'"
               onmouseout="if(!this.disabled) this.style.background='#f0fdf4'">
               +1
+            </button>
+            <button type="button" 
+              class="vote-adj-btn btn-adj-plus5" 
+              id="btn_inc5_${esc(c.id)}" 
+              onclick="handleAdjustVote('${esc(c.id)}', 5, '${esc(currentContestantEventId)}')" 
+              title="Bấm +5: Thêm 5 phiếu (ngẫu nhiên 5 người bình chọn Việt Nam & 5 lời chúc khác nhau, chờ 15 giây)"
+              style="width:28px;height:26px;border-radius:6px;border:1px solid #6ee7b7;background:#ecfdf5;color:#059669;font-size:.74rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:all .15s ease;"
+              onmouseover="if(!this.disabled) this.style.background='#d1fae5'"
+              onmouseout="if(!this.disabled) this.style.background='#ecfdf5'">
+              +5
             </button>
           </div>
           <div id="vote_cooldown_${esc(c.id)}" style="display:none;font-size:.72rem;color:#d97706;font-weight:700;align-items:center;gap:3px;">

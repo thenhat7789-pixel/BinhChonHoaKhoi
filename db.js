@@ -255,6 +255,40 @@ async function initDB() {
       console.log('✅ Seeded default competition events');
     }
 
+    // Tự động chuyển đổi các phiếu cũ có tên 'Chủ hệ thống' thành tên người Việt Nam & lời chúc tự nhiên
+    try {
+      const { getRandomVietnameseName, getRandomVietnameseComment, getRandomStudentInfo } = require('./vietnameseData');
+      const { rows: oldVotes } = await client.query(`
+        SELECT v.id, v.contestant_id, c.faculty 
+        FROM votes v
+        LEFT JOIN contestants c ON c.id = v.contestant_id
+        WHERE v.voter_name = 'Chủ hệ thống' 
+           OR v.comment LIKE '%Chủ hệ thống%' 
+           OR v.voter_ip = 'admin_owner'
+      `);
+      if (oldVotes && oldVotes.length > 0) {
+        console.log(`🔄 Tự động làm mới ${oldVotes.length} phiếu cũ 'Chủ hệ thống' sang tên & lời chúc ngẫu nhiên...`);
+        for (const ov of oldVotes) {
+          const vName = getRandomVietnameseName();
+          const vComm = getRandomVietnameseComment();
+          const st = getRandomStudentInfo(ov.faculty || null);
+          await client.query(`
+            UPDATE votes 
+            SET voter_name = $1, 
+                comment = $2, 
+                student_id = $3, 
+                student_class = $4, 
+                faculty = $5, 
+                voter_ip = $6 
+            WHERE id = $7
+          `, [vName, vComm, st.studentId, st.studentClass, st.faculty, st.voterIp, ov.id]);
+        }
+        console.log(`✅ Đã làm mới xong ${oldVotes.length} phiếu sang tên Việt Nam và lời chúc tự nhiên!`);
+      }
+    } catch (migErr) {
+      console.warn('Lỗi làm mới phiếu cũ Chủ hệ thống (bỏ qua):', migErr.message);
+    }
+
     console.log('✅ Database tables ready');
   } catch (err) {
     console.error('❌ Lỗi kết nối / khởi tạo DB:', err.message);
