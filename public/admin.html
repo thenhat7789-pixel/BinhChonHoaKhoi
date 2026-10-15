@@ -2118,6 +2118,11 @@ function applyRolePermissions() {
   if (isMember && activePane && (activePane.id === 'tab-settings' || activePane.id === 'tab-admins')) {
     showTab('overview');
   }
+
+  // 7. Đồng bộ nút tăng/giảm vote của Chủ hệ thống trong danh sách thí sinh
+  if (typeof renderContestantList === 'function' && typeof currentContestantEventId !== 'undefined' && currentContestantEventId && appData?.contestants?.length) {
+    renderContestantList(currentContestantEventId);
+  }
 }
 
 /* ─── SHOW ADMIN ───────────────────────────────────────── */
@@ -4314,6 +4319,142 @@ async function loadShareLogs() {
   }).join('');
 }
 
+/* ─── TĂNG / GIẢM VOTE THÍ SINH (DÀNH RIÊNG CHO CHỦ HỆ THỐNG) ─── */
+const voteCooldownMap = {}; // contestantId -> timestamp when cooldown finishes
+const voteCooldownIntervals = {}; // contestantId -> intervalId
+
+async function handleAdjustVote(contestantId, amount, eventId) {
+  if (!isCurrentUserOwner()) {
+    toast('Chỉ Chủ hệ thống mới có quyền điều chỉnh số phiếu!', 'error');
+    return;
+  }
+
+  const now = Date.now();
+  const cdUntil = voteCooldownMap[contestantId] || 0;
+  if (cdUntil > now) {
+    const remainSec = Math.max(1, Math.ceil((cdUntil - now) / 1000));
+    toast(`Vui lòng đợi ${remainSec} giây trước khi bấm tiếp!`, 'warning');
+    return;
+  }
+
+  const currentVotes = (appData.votes && appData.votes[contestantId] !== undefined)
+    ? Number(appData.votes[contestantId]) : 0;
+  if (amount < 0 && currentVotes <= 0) {
+    toast('Thí sinh này hiện có 0 phiếu, không thể giảm thêm!', 'warning');
+    return;
+  }
+
+  // Khởi động cooldown 5 giây
+  voteCooldownMap[contestantId] = now + 5000;
+  setVoteButtonsCooldown(contestantId, 5);
+
+  try {
+    const res = await fetch('/api/votes/adjust', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contestant_id: contestantId,
+        amount: amount,
+        event_id: eventId || currentContestantEventId || 'evt_hoakhoi_2026'
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      toast(data.error || 'Lỗi khi điều chỉnh phiếu bầu!', 'error');
+      return;
+    }
+
+    if (!appData.votes) appData.votes = {};
+    appData.votes[contestantId] = data.new_count;
+
+    // Cập nhật badge vote ngay lập tức với hiệu ứng phản hồi
+    const badgeEl = document.getElementById(`vote_badge_${contestantId}`);
+    if (badgeEl) {
+      badgeEl.textContent = `${data.new_count.toLocaleString('vi-VN')} phiếu`;
+      badgeEl.style.transform = 'scale(1.15)';
+      badgeEl.style.boxShadow = amount > 0 ? '0 0 10px rgba(16, 185, 129, 0.4)' : '0 0 10px rgba(239, 68, 68, 0.4)';
+      badgeEl.style.borderColor = amount > 0 ? '#10b981' : '#f87171';
+      setTimeout(() => {
+        badgeEl.style.transform = 'scale(1)';
+        badgeEl.style.boxShadow = 'none';
+        badgeEl.style.borderColor = '#bae6fd';
+      }, 350);
+    }
+
+    // Đồng bộ lại các phần hiển thị khác trên dashboard
+    if (typeof renderKPI === 'function') renderKPI();
+    if (typeof renderLeaderboard === 'function') renderLeaderboard();
+    if (typeof renderTopThree === 'function') renderTopThree();
+
+    const sign = amount > 0 ? '+' : '';
+    toast(`Đã điều chỉnh ${sign}${amount} phiếu thành công! (Hiện tại: ${data.new_count} phiếu)`, 'success');
+  } catch (err) {
+    console.error('Lỗi adjust vote:', err);
+    toast('Lỗi kết nối máy chủ: ' + err.message, 'error');
+  }
+}
+
+function setVoteButtonsCooldown(contestantId, seconds) {
+  const btnDec = document.getElementById(`btn_dec_${contestantId}`);
+  const btnInc = document.getElementById(`btn_inc_${contestantId}`);
+  const cdBox = document.getElementById(`vote_cooldown_${contestantId}`);
+  const cdNum = document.getElementById(`vote_cd_num_${contestantId}`);
+
+  if (btnDec) {
+    btnDec.disabled = true;
+    btnDec.style.opacity = '0.45';
+    btnDec.style.cursor = 'not-allowed';
+    btnDec.style.pointerEvents = 'none';
+  }
+  if (btnInc) {
+    btnInc.disabled = true;
+    btnInc.style.opacity = '0.45';
+    btnInc.style.cursor = 'not-allowed';
+    btnInc.style.pointerEvents = 'none';
+  }
+  if (cdBox && cdNum) {
+    cdBox.style.display = 'inline-flex';
+    cdNum.textContent = seconds;
+  }
+
+  if (voteCooldownIntervals[contestantId]) {
+    clearInterval(voteCooldownIntervals[contestantId]);
+  }
+
+  let remaining = seconds;
+  voteCooldownIntervals[contestantId] = setInterval(() => {
+    remaining--;
+    const currentCdNum = document.getElementById(`vote_cd_num_${contestantId}`);
+    if (currentCdNum) currentCdNum.textContent = remaining;
+
+    if (remaining <= 0) {
+      clearInterval(voteCooldownIntervals[contestantId]);
+      delete voteCooldownIntervals[contestantId];
+      delete voteCooldownMap[contestantId];
+
+      const bDec = document.getElementById(`btn_dec_${contestantId}`);
+      const bInc = document.getElementById(`btn_inc_${contestantId}`);
+      const bCd = document.getElementById(`vote_cooldown_${contestantId}`);
+      if (bDec) {
+        bDec.disabled = false;
+        bDec.style.opacity = '1';
+        bDec.style.cursor = 'pointer';
+        bDec.style.pointerEvents = 'auto';
+      }
+      if (bInc) {
+        bInc.disabled = false;
+        bInc.style.opacity = '1';
+        bInc.style.cursor = 'pointer';
+        bInc.style.pointerEvents = 'auto';
+      }
+      if (bCd) {
+        bCd.style.display = 'none';
+      }
+    }
+  }, 1000);
+}
+
 /* ─── CONTESTANT MANAGEMENT CONTROLLER ──────────────────── */
 
 function renderContestantList(targetEventId) {
@@ -4442,8 +4583,39 @@ function renderContestantList(targetEventId) {
       </div>
 
       <!-- Votes & Shares stats -->
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.25rem;min-width:115px;">
-        <span style="font-size:.92rem;font-weight:800;color:#0284c7;background:#f0f9ff;padding:2px 10px;border-radius:6px;border:1px solid #bae6fd;">${votes.toLocaleString('vi-VN')} phiếu</span>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.25rem;min-width:130px;">
+        ${isCurrentUserOwner() ? `
+          <div style="display:flex;align-items:center;gap:4px;">
+            <button type="button" 
+              class="vote-adj-btn btn-adj-minus" 
+              id="btn_dec_${esc(c.id)}" 
+              onclick="handleAdjustVote('${esc(c.id)}', -5, '${esc(currentContestantEventId)}')" 
+              title="Chủ hệ thống: Giảm 5 phiếu (cooldown 5 giây)"
+              style="width:28px;height:26px;border-radius:6px;border:1px solid #fca5a5;background:#fef2f2;color:#dc2626;font-size:.78rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:all .15s ease;"
+              onmouseover="if(!this.disabled) this.style.background='#fee2e2'"
+              onmouseout="if(!this.disabled) this.style.background='#fef2f2'">
+              -5
+            </button>
+            <span id="vote_badge_${esc(c.id)}" style="font-size:.92rem;font-weight:800;color:#0284c7;background:#f0f9ff;padding:2px 8px;border-radius:6px;border:1px solid #bae6fd;white-space:nowrap;transition:all .2s ease;">
+              ${votes.toLocaleString('vi-VN')} phiếu
+            </span>
+            <button type="button" 
+              class="vote-adj-btn btn-adj-plus" 
+              id="btn_inc_${esc(c.id)}" 
+              onclick="handleAdjustVote('${esc(c.id)}', 5, '${esc(currentContestantEventId)}')" 
+              title="Chủ hệ thống: Tăng 5 phiếu (cooldown 5 giây)"
+              style="width:28px;height:26px;border-radius:6px;border:1px solid #86efac;background:#f0fdf4;color:#16a34a;font-size:.78rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:all .15s ease;"
+              onmouseover="if(!this.disabled) this.style.background='#dcfce7'"
+              onmouseout="if(!this.disabled) this.style.background='#f0fdf4'">
+              +5
+            </button>
+          </div>
+          <div id="vote_cooldown_${esc(c.id)}" style="display:none;font-size:.72rem;color:#d97706;font-weight:700;align-items:center;gap:3px;">
+            ⏳ Chờ <span id="vote_cd_num_${esc(c.id)}">5</span>s
+          </div>
+        ` : `
+          <span style="font-size:.92rem;font-weight:800;color:#0284c7;background:#f0f9ff;padding:2px 10px;border-radius:6px;border:1px solid #bae6fd;">${votes.toLocaleString('vi-VN')} phiếu</span>
+        `}
         <span style="font-size:.76rem;color:#7c3aed;font-weight:600;">📤 ${shares.toLocaleString('vi-VN')} chia sẻ</span>
       </div>
 
@@ -4464,6 +4636,18 @@ function renderContestantList(targetEventId) {
       `}
     </div>`;
   }).join('');
+
+  // 7. Khôi phục trạng thái đếm ngược cho các thí sinh đang trong 5s cooldown
+  if (isCurrentUserOwner()) {
+    const now = Date.now();
+    contestantsForEvent.forEach(c => {
+      const cdUntil = voteCooldownMap[c.id] || 0;
+      if (cdUntil > now) {
+        const remaining = Math.max(1, Math.ceil((cdUntil - now) / 1000));
+        setVoteButtonsCooldown(c.id, remaining);
+      }
+    });
+  }
 }
 
 /* ─── SETTINGS FORM ─────────────────────────────────────── */

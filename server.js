@@ -342,6 +342,87 @@ app.get('/api/votes', async (req, res) => {
   }
 });
 
+// ─── POST /api/votes/adjust (Dành riêng cho Chủ hệ thống tăng/giảm vote) ───
+app.post('/api/votes/adjust', async (req, res) => {
+  const { contestant_id, amount, event_id } = req.body;
+  if (!contestant_id) return res.status(400).json({ error: 'Thiếu contestant_id' });
+  const delta = parseInt(amount, 10);
+  if (isNaN(delta) || delta === 0) return res.status(400).json({ error: 'Số lượng điều chỉnh không hợp lệ' });
+
+  const currentEventId = event_id || 'evt_hoakhoi_2026';
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    // Kiểm tra thí sinh tồn tại, nếu chưa có tạo từ default hoặc nạp
+    let { rows: contestantExists } = await client.query(
+      'SELECT id, name, event_id FROM contestants WHERE id = $1',
+      [contestant_id]
+    );
+    if (contestantExists.length === 0) {
+      const def = Array.isArray(DEFAULT_CONTESTANTS) ? DEFAULT_CONTESTANTS.find(d => d.id === contestant_id) : null;
+      if (def) {
+        await client.query(
+          'INSERT INTO contestants (id, event_id, name, subtitle, color, sort_order) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING',
+          [def.id, def.event_id, def.name, def.subtitle, def.color, 0]
+        );
+      }
+    }
+
+    if (delta > 0) {
+      // Tăng vote: chèn delta phiếu
+      for (let i = 0; i < delta; i++) {
+        const vote_id = 'adj_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6) + '_' + i;
+        await client.query(
+          `INSERT INTO votes (vote_id, contestant_id, event_id, voter_name, voter_ip, comment) 
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [vote_id, contestant_id, currentEventId, 'Chủ hệ thống', 'admin_owner', 'Điều chỉnh bởi Chủ hệ thống']
+        );
+      }
+    } else {
+      // Giảm vote: xóa tối đa |delta| phiếu mới nhất của thí sinh
+      const countToDelete = Math.abs(delta);
+      await client.query(
+        `DELETE FROM votes WHERE id IN (
+           SELECT id FROM votes WHERE contestant_id = $1 ORDER BY id DESC LIMIT $2
+         )`,
+        [contestant_id, countToDelete]
+      );
+    }
+
+    await client.query('COMMIT');
+
+    // Lấy số phiếu mới nhất của thí sinh
+    const { rows: countRows } = await pool.query(
+      'SELECT COUNT(*)::int as count FROM votes WHERE contestant_id = $1',
+      [contestant_id]
+    );
+    const newCount = countRows[0]?.count || 0;
+
+    // Lấy tổng số phiếu toàn cuộc thi
+    const { rows: totalRows } = await pool.query(
+      'SELECT COUNT(*)::int as total FROM votes WHERE event_id = $1 OR event_id IS NULL',
+      [currentEventId]
+    );
+    const totalVotes = totalRows[0]?.total || 0;
+
+    res.json({
+      success: true,
+      contestant_id,
+      amount: delta,
+      new_count: newCount,
+      total_votes: totalVotes
+    });
+  } catch (e) {
+    await client.query('ROLLBACK');
+    console.error('POST /api/votes/adjust error:', e);
+    res.status(500).json({ error: 'Lỗi khi điều chỉnh số phiếu: ' + e.message });
+  } finally {
+    client.release();
+  }
+});
+
 // ─── POST /api/vote ───────────────────────────────
 app.post('/api/vote', async (req, res) => {
   const { contestant_id, event_id, voter_name, student_id, student_class, faculty, comment, voter_fingerprint } = req.body;
