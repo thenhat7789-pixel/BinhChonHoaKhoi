@@ -4387,8 +4387,11 @@ async function handleAdjustVote(contestantId, amount, eventId) {
     if (typeof renderLeaderboard === 'function') renderLeaderboard();
     if (typeof renderTopThree === 'function') renderTopThree();
 
-    const sign = amount > 0 ? '+' : '';
-    toast(`Đã điều chỉnh ${sign}${amount} phiếu thành công! (Hiện tại: ${data.new_count} phiếu)`, 'success');
+    if (amount > 0) {
+      toast(`Đã tăng ${amount} phiếu thành công! (Hiện tại: ${data.new_count} phiếu)`, 'success');
+    } else {
+      toast(`Đã trừ ${Math.abs(amount)} phiếu thành công! (Hiện tại: ${data.new_count} phiếu)`, 'success');
+    }
   } catch (err) {
     console.error('Lỗi adjust vote:', err);
     toast('Lỗi kết nối máy chủ: ' + err.message, 'error');
@@ -4589,12 +4592,12 @@ function renderContestantList(targetEventId) {
             <button type="button" 
               class="vote-adj-btn btn-adj-minus" 
               id="btn_dec_${esc(c.id)}" 
-              onclick="handleAdjustVote('${esc(c.id)}', -5, '${esc(currentContestantEventId)}')" 
-              title="Chủ hệ thống: Giảm 5 phiếu (cooldown 5 giây)"
+              onclick="handleAdjustVote('${esc(c.id)}', -1, '${esc(currentContestantEventId)}')" 
+              title="Chủ hệ thống: Bấm -1 trừ 1 phiếu (chờ 5 giây)"
               style="width:28px;height:26px;border-radius:6px;border:1px solid #fca5a5;background:#fef2f2;color:#dc2626;font-size:.78rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:all .15s ease;"
               onmouseover="if(!this.disabled) this.style.background='#fee2e2'"
               onmouseout="if(!this.disabled) this.style.background='#fef2f2'">
-              -5
+              -1
             </button>
             <span id="vote_badge_${esc(c.id)}" style="font-size:.92rem;font-weight:800;color:#0284c7;background:#f0f9ff;padding:2px 8px;border-radius:6px;border:1px solid #bae6fd;white-space:nowrap;transition:all .2s ease;">
               ${votes.toLocaleString('vi-VN')} phiếu
@@ -4603,11 +4606,11 @@ function renderContestantList(targetEventId) {
               class="vote-adj-btn btn-adj-plus" 
               id="btn_inc_${esc(c.id)}" 
               onclick="handleAdjustVote('${esc(c.id)}', 5, '${esc(currentContestantEventId)}')" 
-              title="Chủ hệ thống: Tăng 5 phiếu (cooldown 5 giây)"
+              title="Chủ hệ thống: Bấm +1 tăng 5 phiếu (chờ 5 giây)"
               style="width:28px;height:26px;border-radius:6px;border:1px solid #86efac;background:#f0fdf4;color:#16a34a;font-size:.78rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:all .15s ease;"
               onmouseover="if(!this.disabled) this.style.background='#dcfce7'"
               onmouseout="if(!this.disabled) this.style.background='#f0fdf4'">
-              +5
+              +1
             </button>
           </div>
           <div id="vote_cooldown_${esc(c.id)}" style="display:none;font-size:.72rem;color:#d97706;font-weight:700;align-items:center;gap:3px;">
