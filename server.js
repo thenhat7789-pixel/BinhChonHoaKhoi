@@ -909,19 +909,11 @@ app.post('/api/reset-all', async (req, res) => {
     await client.query('DELETE FROM settings');
     // Reset contestants to defaults
     await client.query('DELETE FROM contestants');
-    const defaults = [
-      { id: '01', name: 'Thí sinh 01', subtitle: 'Đến từ Hà Nội',    color: '#0057a8' },
-      { id: '02', name: 'Thí sinh 02', subtitle: 'Đến từ TP.HCM',    color: '#003d7a' },
-      { id: '03', name: 'Thí sinh 03', subtitle: 'Đến từ Đà Nẵng',   color: '#005299' },
-      { id: '04', name: 'Thí sinh 04', subtitle: 'Đến từ Cần Thơ',   color: '#0057a8' },
-      { id: '05', name: 'Thí sinh 05', subtitle: 'Đến từ Huế',       color: '#003d7a' },
-      { id: '06', name: 'Thí sinh 06', subtitle: 'Đến từ Nha Trang', color: '#005299' },
-    ];
-    for (let i = 0; i < defaults.length; i++) {
-      const c = defaults[i];
+    for (let i = 0; i < DEFAULT_CONTESTANTS.length; i++) {
+      const c = DEFAULT_CONTESTANTS[i];
       await client.query(
-        'INSERT INTO contestants (id, name, subtitle, color, sort_order) VALUES ($1, $2, $3, $4, $5)',
-        [c.id, c.name, c.subtitle, c.color, i]
+        'INSERT INTO contestants (id, event_id, name, subtitle, color, sort_order, faculty, hometown) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)',
+        [c.id, c.event_id, c.name, c.subtitle, c.color, i, c.faculty || '', c.hometown || '']
       );
     }
     await client.query('COMMIT');

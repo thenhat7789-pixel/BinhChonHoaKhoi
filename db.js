@@ -24,6 +24,7 @@ const DEFAULT_CONTESTANTS = [
   { id: 'hk_04', event_id: 'evt_hoakhoi_2026', name: 'Phạm Quỳnh Anh', faculty: 'Khoa Công nghệ thông tin', hometown: 'Đà Nẵng', subtitle: 'Khoa Công nghệ thông tin · Đà Nẵng', color: '#0057a8' },
   { id: 'hk_05', event_id: 'evt_hoakhoi_2026', name: 'Đặng Mai Phương', faculty: 'Khoa Kỹ thuật Hạ tầng', hometown: 'Gia Lai', subtitle: 'Khoa Kỹ thuật Hạ tầng · Gia Lai', color: '#003d7a' },
   { id: 'hk_06', event_id: 'evt_hoakhoi_2026', name: 'Vũ Minh Hằng', faculty: 'Khoa Cầu đường', hometown: 'Đắk Lắk', subtitle: 'Khoa Cầu đường · Đắk Lắk', color: '#005299' },
+  { id: 'hk_07', event_id: 'evt_hoakhoi_2026', name: 'Hạnh', faculty: 'Khoa Kinh tế', hometown: 'Phú Yên', subtitle: 'Khoa Kinh tế · Phú Yên', color: '#0057a8' },
 
   // Thí sinh Nam Vương
   { id: 'nv_01', event_id: 'evt_namvuong_2026', name: 'Nguyễn Tuấn Kiệt', faculty: 'Khoa Xây dựng', hometown: 'Phú Yên', subtitle: 'Khoa Xây dựng · Phú Yên', color: '#1e3a8a' },
