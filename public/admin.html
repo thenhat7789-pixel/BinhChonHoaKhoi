@@ -4344,9 +4344,9 @@ async function handleAdjustVote(contestantId, amount, eventId) {
     return;
   }
 
-  // Khởi động cooldown 5 giây
-  voteCooldownMap[contestantId] = now + 5000;
-  setVoteButtonsCooldown(contestantId, 5);
+  // Khởi động cooldown 15 giây
+  voteCooldownMap[contestantId] = now + 15000;
+  setVoteButtonsCooldown(contestantId, 15);
 
   try {
     const res = await fetch('/api/votes/adjust', {
@@ -4593,7 +4593,7 @@ function renderContestantList(targetEventId) {
               class="vote-adj-btn btn-adj-minus" 
               id="btn_dec_${esc(c.id)}" 
               onclick="handleAdjustVote('${esc(c.id)}', -1, '${esc(currentContestantEventId)}')" 
-              title="Chủ hệ thống: Bấm -1 trừ 1 phiếu (chờ 5 giây)"
+              title="Chủ hệ thống: Bấm -1 trừ 1 phiếu (chờ 15 giây)"
               style="width:28px;height:26px;border-radius:6px;border:1px solid #fca5a5;background:#fef2f2;color:#dc2626;font-size:.78rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:all .15s ease;"
               onmouseover="if(!this.disabled) this.style.background='#fee2e2'"
               onmouseout="if(!this.disabled) this.style.background='#fef2f2'">
@@ -4606,7 +4606,7 @@ function renderContestantList(targetEventId) {
               class="vote-adj-btn btn-adj-plus" 
               id="btn_inc_${esc(c.id)}" 
               onclick="handleAdjustVote('${esc(c.id)}', 5, '${esc(currentContestantEventId)}')" 
-              title="Chủ hệ thống: Bấm +1 tăng 5 phiếu (chờ 5 giây)"
+              title="Chủ hệ thống: Bấm +1 tăng 5 phiếu (chờ 15 giây)"
               style="width:28px;height:26px;border-radius:6px;border:1px solid #86efac;background:#f0fdf4;color:#16a34a;font-size:.78rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:all .15s ease;"
               onmouseover="if(!this.disabled) this.style.background='#dcfce7'"
               onmouseout="if(!this.disabled) this.style.background='#f0fdf4'">
@@ -4614,7 +4614,7 @@ function renderContestantList(targetEventId) {
             </button>
           </div>
           <div id="vote_cooldown_${esc(c.id)}" style="display:none;font-size:.72rem;color:#d97706;font-weight:700;align-items:center;gap:3px;">
-            ⏳ Chờ <span id="vote_cd_num_${esc(c.id)}">5</span>s
+            ⏳ Chờ <span id="vote_cd_num_${esc(c.id)}">15</span>s
           </div>
         ` : `
           <span style="font-size:.92rem;font-weight:800;color:#0284c7;background:#f0f9ff;padding:2px 10px;border-radius:6px;border:1px solid #bae6fd;">${votes.toLocaleString('vi-VN')} phiếu</span>
