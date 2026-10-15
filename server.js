@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
-const { pool, initDB } = require('./db');
+const { pool, initDB, DEFAULT_CONTESTANTS } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -219,7 +219,24 @@ app.get('/api/contestants', async (req, res) => {
       params.push(eventId);
     }
     query += ' ORDER BY sort_order, id';
-    const { rows } = await pool.query(query, params);
+    let { rows } = await pool.query(query, params);
+
+    // Nếu cuộc thi mặc định chưa có thí sinh trong DB, tự động nạp từ DEFAULT_CONTESTANTS
+    if (rows.length === 0 && eventId && Array.isArray(DEFAULT_CONTESTANTS)) {
+      const defsForEvent = DEFAULT_CONTESTANTS.filter(d => d.event_id === eventId);
+      if (defsForEvent.length > 0) {
+        for (let i = 0; i < defsForEvent.length; i++) {
+          const d = defsForEvent[i];
+          await pool.query(
+            'INSERT INTO contestants (id, event_id, name, subtitle, color, sort_order) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING',
+            [d.id, d.event_id, d.name, d.subtitle, d.color, i]
+          );
+        }
+        const refreshed = await pool.query('SELECT * FROM contestants WHERE event_id = $1 ORDER BY sort_order, id', [eventId]);
+        rows = refreshed.rows;
+      }
+    }
+
     res.json({ contestants: rows });
   } catch (e) {
     console.error('GET /api/contestants error:', e);
@@ -333,15 +350,25 @@ app.post('/api/vote', async (req, res) => {
 
   try {
     // 0. Kiểm tra thí sinh có tồn tại trong database không
-    const { rows: contestantExists } = await pool.query(
+    let { rows: contestantExists } = await pool.query(
       'SELECT id, name, event_id FROM contestants WHERE id = $1',
       [contestant_id]
     );
     if (contestantExists.length === 0) {
-      return res.status(400).json({
-        error: `Thí sinh này (SBD ${contestant_id}) chưa được tạo trong cuộc thi trên hệ thống! Ban tổ chức vui lòng vào trang Quản trị để thêm thí sinh trước khi bình chọn.`,
-        code: 'CONTESTANT_NOT_FOUND'
-      });
+      // Tự động nạp nếu là thí sinh mặc định của hệ thống
+      const def = Array.isArray(DEFAULT_CONTESTANTS) ? DEFAULT_CONTESTANTS.find(d => d.id === contestant_id) : null;
+      if (def) {
+        await pool.query(
+          'INSERT INTO contestants (id, event_id, name, subtitle, color, sort_order) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING',
+          [def.id, def.event_id, def.name, def.subtitle, def.color, 0]
+        );
+        contestantExists = [{ id: def.id, name: def.name, event_id: def.event_id }];
+      } else {
+        return res.status(400).json({
+          error: `Thí sinh này (SBD ${contestant_id}) chưa được tạo trong cuộc thi trên hệ thống! Ban tổ chức vui lòng vào trang Quản trị để thêm thí sinh trước khi bình chọn.`,
+          code: 'CONTESTANT_NOT_FOUND'
+        });
+      }
     }
 
     // 1. Kiểm tra đã vote cho thí sinh này chưa

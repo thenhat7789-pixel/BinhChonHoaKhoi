@@ -16,6 +16,40 @@ if (process.env.DATABASE_URL) {
   });
 }
 
+const DEFAULT_CONTESTANTS = [
+  // Thí sinh Hoa Khôi
+  { id: 'hk_01', event_id: 'evt_hoakhoi_2026', name: 'Nguyễn Thảo Nhi', subtitle: 'Khoa Xây dựng · SBD 01', color: '#0057a8' },
+  { id: 'hk_02', event_id: 'evt_hoakhoi_2026', name: 'Trần Bảo Ngọc', subtitle: 'Khoa Kiến trúc · SBD 02', color: '#003d7a' },
+  { id: 'hk_03', event_id: 'evt_hoakhoi_2026', name: 'Lê Hoàng Yến', subtitle: 'Khoa Kinh tế & QTKD · SBD 03', color: '#005299' },
+  { id: 'hk_04', event_id: 'evt_hoakhoi_2026', name: 'Phạm Quỳnh Anh', subtitle: 'Khoa Công nghệ thông tin · SBD 04', color: '#0057a8' },
+  { id: 'hk_05', event_id: 'evt_hoakhoi_2026', name: 'Đặng Mai Phương', subtitle: 'Khoa Kỹ thuật Hạ tầng · SBD 05', color: '#003d7a' },
+  { id: 'hk_06', event_id: 'evt_hoakhoi_2026', name: 'Vũ Minh Hằng', subtitle: 'Khoa Cầu đường · SBD 06', color: '#005299' },
+
+  // Thí sinh Nam Vương
+  { id: 'nv_01', event_id: 'evt_namvuong_2026', name: 'Nguyễn Tuấn Kiệt', subtitle: 'Khoa Xây dựng · SBD 01', color: '#1e3a8a' },
+  { id: 'nv_02', event_id: 'evt_namvuong_2026', name: 'Trần Hải Đăng', subtitle: 'Khoa Kiến trúc · SBD 02', color: '#0369a1' },
+  { id: 'nv_03', event_id: 'evt_namvuong_2026', name: 'Lê Đức Phúc', subtitle: 'Khoa CNTT · SBD 03', color: '#0f766e' },
+  { id: 'nv_04', event_id: 'evt_namvuong_2026', name: 'Phạm Minh Khang', subtitle: 'Khoa Kinh tế · SBD 04', color: '#1d4ed8' },
+  { id: 'nv_05', event_id: 'evt_namvuong_2026', name: 'Đỗ Quốc Bảo', subtitle: 'Khoa Cầu đường · SBD 05', color: '#0284c7' },
+  { id: 'nv_06', event_id: 'evt_namvuong_2026', name: 'Hoàng Gia Huy', subtitle: 'Khoa Cơ khí · SBD 06', color: '#0f172a' },
+
+  // Tiết mục Tiếng Hát Sinh Viên
+  { id: 'th_01', event_id: 'evt_tienghat_2026', name: 'Tiết mục: Khát Vọng Tuổi Trẻ', subtitle: 'CLB Âm Nhạc MUCE · SBD 01', color: '#7c3aed' },
+  { id: 'th_02', event_id: 'evt_tienghat_2026', name: 'Tiết mục: Bài Ca Sinh Viên Xây Dựng', subtitle: 'Khoa Xây dựng · SBD 02', color: '#9333ea' },
+  { id: 'th_03', event_id: 'evt_tienghat_2026', name: 'Tiết mục: Nơi Đảo Xa', subtitle: 'Khoa Công nghệ thông tin · SBD 03', color: '#6366f1' },
+  { id: 'th_04', event_id: 'evt_tienghat_2026', name: 'Tiết mục: Chiều Lên Bản Thượng', subtitle: 'Khoa Kiến trúc · SBD 04', color: '#4f46e5' },
+  { id: 'th_05', event_id: 'evt_tienghat_2026', name: 'Tiết mục: Tự Hào MUCE', subtitle: 'Liên quân Đoàn khoa · SBD 05', color: '#2563eb' },
+  { id: 'th_06', event_id: 'evt_tienghat_2026', name: 'Tiết mục: Ước Mơ Xanh', subtitle: 'Khoa Kinh tế · SBD 06', color: '#0284c7' },
+
+  // Ứng viên Gương Mặt Đại Sứ
+  { id: 'ds_01', event_id: 'evt_daisu_2026', name: 'Nguyễn Hoàng Long', subtitle: 'Đại sứ Học tập & NCKH Xuất sắc · SBD 01', color: '#d97706' },
+  { id: 'ds_02', event_id: 'evt_daisu_2026', name: 'Trần Thu Trang', subtitle: 'Đại sứ Hoạt động Phong trào · SBD 02', color: '#b45309' },
+  { id: 'ds_03', event_id: 'evt_daisu_2026', name: 'Lê Thanh Tùng', subtitle: 'Đại sứ Thể thao & Nghệ thuật · SBD 03', color: '#ea580c' },
+  { id: 'ds_04', event_id: 'evt_daisu_2026', name: 'Phạm Ngọc Linh', subtitle: 'Đại sứ Tình nguyện Vì cộng đồng · SBD 04', color: '#ca8a04' },
+  { id: 'ds_05', event_id: 'evt_daisu_2026', name: 'Vũ Đức Trọng', subtitle: 'Đại sứ Đổi mới Sáng tạo & Khởi nghiệp · SBD 05', color: '#0284c7' },
+  { id: 'ds_06', event_id: 'evt_daisu_2026', name: 'Đặng Thanh Tâm', subtitle: 'Đại sứ Hội nhập Quốc tế · SBD 06', color: '#059669' },
+];
+
 // ─── Tạo bảng tự động khi khởi động ──────────────────────
 async function initDB() {
   if (!pool) {
@@ -123,51 +157,15 @@ async function initDB() {
       CREATE INDEX IF NOT EXISTS idx_contestants_event_id ON contestants (event_id);
     `);
 
-    // Seed default contestants nếu bảng trống
-    const { rows } = await client.query('SELECT COUNT(*) as cnt FROM contestants');
-    if (parseInt(rows[0].cnt) === 0) {
-      const defaults = [
-        // Thí sinh Hoa Khôi
-        { id: 'hk_01', event_id: 'evt_hoakhoi_2026', name: 'Nguyễn Thảo Nhi', subtitle: 'Khoa Xây dựng · SBD 01', color: '#0057a8' },
-        { id: 'hk_02', event_id: 'evt_hoakhoi_2026', name: 'Trần Bảo Ngọc', subtitle: 'Khoa Kiến trúc · SBD 02', color: '#003d7a' },
-        { id: 'hk_03', event_id: 'evt_hoakhoi_2026', name: 'Lê Hoàng Yến', subtitle: 'Khoa Kinh tế & QTKD · SBD 03', color: '#005299' },
-        { id: 'hk_04', event_id: 'evt_hoakhoi_2026', name: 'Phạm Quỳnh Anh', subtitle: 'Khoa Công nghệ thông tin · SBD 04', color: '#0057a8' },
-        { id: 'hk_05', event_id: 'evt_hoakhoi_2026', name: 'Đặng Mai Phương', subtitle: 'Khoa Kỹ thuật Hạ tầng · SBD 05', color: '#003d7a' },
-        { id: 'hk_06', event_id: 'evt_hoakhoi_2026', name: 'Vũ Minh Hằng', subtitle: 'Khoa Cầu đường · SBD 06', color: '#005299' },
-
-        // Thí sinh Nam Vương
-        { id: 'nv_01', event_id: 'evt_namvuong_2026', name: 'Nguyễn Tuấn Kiệt', subtitle: 'Khoa Xây dựng · SBD 01', color: '#1e3a8a' },
-        { id: 'nv_02', event_id: 'evt_namvuong_2026', name: 'Trần Hải Đăng', subtitle: 'Khoa Kiến trúc · SBD 02', color: '#0369a1' },
-        { id: 'nv_03', event_id: 'evt_namvuong_2026', name: 'Lê Đức Phúc', subtitle: 'Khoa CNTT · SBD 03', color: '#0f766e' },
-        { id: 'nv_04', event_id: 'evt_namvuong_2026', name: 'Phạm Minh Khang', subtitle: 'Khoa Kinh tế · SBD 04', color: '#1d4ed8' },
-        { id: 'nv_05', event_id: 'evt_namvuong_2026', name: 'Đỗ Quốc Bảo', subtitle: 'Khoa Cầu đường · SBD 05', color: '#0284c7' },
-        { id: 'nv_06', event_id: 'evt_namvuong_2026', name: 'Hoàng Gia Huy', subtitle: 'Khoa Cơ khí · SBD 06', color: '#0f172a' },
-
-        // Tiết mục Tiếng Hát Sinh Viên
-        { id: 'th_01', event_id: 'evt_tienghat_2026', name: 'Tiết mục: Khát Vọng Tuổi Trẻ', subtitle: 'CLB Âm Nhạc MUCE · SBD 01', color: '#7c3aed' },
-        { id: 'th_02', event_id: 'evt_tienghat_2026', name: 'Tiết mục: Bài Ca Sinh Viên Xây Dựng', subtitle: 'Khoa Xây dựng · SBD 02', color: '#9333ea' },
-        { id: 'th_03', event_id: 'evt_tienghat_2026', name: 'Tiết mục: Nơi Đảo Xa', subtitle: 'Khoa Công nghệ thông tin · SBD 03', color: '#6366f1' },
-        { id: 'th_04', event_id: 'evt_tienghat_2026', name: 'Tiết mục: Chiều Lên Bản Thượng', subtitle: 'Khoa Kiến trúc · SBD 04', color: '#4f46e5' },
-        { id: 'th_05', event_id: 'evt_tienghat_2026', name: 'Tiết mục: Tự Hào MUCE', subtitle: 'Liên quân Đoàn khoa · SBD 05', color: '#2563eb' },
-        { id: 'th_06', event_id: 'evt_tienghat_2026', name: 'Tiết mục: Ước Mơ Xanh', subtitle: 'Khoa Kinh tế · SBD 06', color: '#0284c7' },
-
-        // Ứng viên Gương Mặt Đại Sứ
-        { id: 'ds_01', event_id: 'evt_daisu_2026', name: 'Nguyễn Hoàng Long', subtitle: 'Đại sứ Học tập & NCKH Xuất sắc · SBD 01', color: '#d97706' },
-        { id: 'ds_02', event_id: 'evt_daisu_2026', name: 'Trần Thu Trang', subtitle: 'Đại sứ Hoạt động Phong trào · SBD 02', color: '#b45309' },
-        { id: 'ds_03', event_id: 'evt_daisu_2026', name: 'Lê Thanh Tùng', subtitle: 'Đại sứ Thể thao & Nghệ thuật · SBD 03', color: '#ea580c' },
-        { id: 'ds_04', event_id: 'evt_daisu_2026', name: 'Phạm Ngọc Linh', subtitle: 'Đại sứ Tình nguyện Vì cộng đồng · SBD 04', color: '#ca8a04' },
-        { id: 'ds_05', event_id: 'evt_daisu_2026', name: 'Vũ Đức Trọng', subtitle: 'Đại sứ Đổi mới Sáng tạo & Khởi nghiệp · SBD 05', color: '#0284c7' },
-        { id: 'ds_06', event_id: 'evt_daisu_2026', name: 'Đặng Thanh Tâm', subtitle: 'Đại sứ Hội nhập Quốc tế · SBD 06', color: '#059669' },
-      ];
-      for (let i = 0; i < defaults.length; i++) {
-        const c = defaults[i];
-        await client.query(
-          'INSERT INTO contestants (id, event_id, name, subtitle, color, sort_order) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING',
-          [c.id, c.event_id, c.name, c.subtitle, c.color, i]
-        );
-      }
-      console.log('✅ Seeded default contestants across events');
+    // Đảm bảo tất cả thí sinh mặc định của 4 cuộc thi luôn có trong database
+    for (let i = 0; i < DEFAULT_CONTESTANTS.length; i++) {
+      const c = DEFAULT_CONTESTANTS[i];
+      await client.query(
+        'INSERT INTO contestants (id, event_id, name, subtitle, color, sort_order) VALUES ($1, $2, $3, $4, $5, $6) ON CONFLICT (id) DO NOTHING',
+        [c.id, c.event_id, c.name, c.subtitle, c.color, i]
+      );
     }
+    console.log('✅ Checked and seeded default contestants across all competitions');
 
     // Seed default competitions/events nếu bảng events trống
     const { rows: eventRows } = await client.query('SELECT COUNT(*) as cnt FROM events');
@@ -248,4 +246,4 @@ async function initDB() {
   }
 }
 
-module.exports = { pool, initDB };
+module.exports = { pool, initDB, DEFAULT_CONTESTANTS };
