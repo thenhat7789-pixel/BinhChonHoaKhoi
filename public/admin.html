@@ -585,18 +585,24 @@
         <label class="form-label">Thuộc cuộc thi / sự kiện *</label>
         <select class="input" id="editContestantEventSelect" style="font-weight:700;color:#0284c7;background:#eff6ff;border:1.5px solid #93c5fd;cursor:pointer;"></select>
       </div>
-      <div class="form-group">
-        <label class="form-label">Số báo danh (SBD) *</label>
-        <input class="input" id="editNum" placeholder="01" />
+      <div class="form-row">
+        <div class="form-group" style="flex:1;">
+          <label class="form-label">Số báo danh (SBD) *</label>
+          <input class="input" id="editNum" placeholder="01" />
+        </div>
+        <div class="form-group" style="flex:2;">
+          <label class="form-label">Tên thí sinh *</label>
+          <input class="input" id="editName" placeholder="Ví dụ: Nguyễn Thảo Nhi" />
+        </div>
       </div>
       <div class="form-row">
-        <div class="form-group">
-          <label class="form-label">Tên thí sinh</label>
-          <input class="input" id="editName" placeholder="Thí sinh 01" />
+        <div class="form-group" style="flex:1;">
+          <label class="form-label">Khoa / Đơn vị</label>
+          <input class="input" id="editFaculty" placeholder="Ví dụ: Khoa Xây dựng" />
         </div>
-        <div class="form-group">
+        <div class="form-group" style="flex:1;">
           <label class="form-label">Địa chỉ / Quê quán</label>
-          <input class="input" id="editSub" placeholder="Đến từ Hà Nội" />
+          <input class="input" id="editHometown" placeholder="Ví dụ: Phú Yên, Hà Nội..." />
         </div>
       </div>
       <div class="form-group">
@@ -3889,7 +3895,10 @@ function renderContestantList(targetEventId) {
       <!-- Info -->
       <div style="flex:1;min-width:180px;">
         <div class="c-item-name" style="font-size:1.05rem;font-weight:800;color:#0f172a;line-height:1.3;">${esc(c.name)}</div>
-        <div class="c-item-sub" style="font-size:.84rem;color:#64748b;margin-top:3px;">${esc(c.subtitle || '')}</div>
+        <div class="c-item-sub" style="font-size:.84rem;color:#64748b;margin-top:4px;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;">
+          ${c.faculty ? `<span style="background:#eff6ff;color:#0369a1;padding:2px 8px;border-radius:6px;font-weight:600;font-size:.76rem;border:1px solid #bfdbfe;">🏫 ${esc(c.faculty)}</span>` : ''}
+          ${c.hometown ? `<span style="color:#64748b;font-size:.82rem;">📍 ${esc(c.hometown)}</span>` : (!c.faculty && c.subtitle ? `<span>${esc(c.subtitle)}</span>` : '')}
+        </div>
       </div>
 
       <!-- Votes & Shares stats -->
@@ -4724,7 +4733,8 @@ function openAdd(targetEventId) {
   document.getElementById('editId').value = '';
   document.getElementById('editNum').value = nextNum;
   document.getElementById('editName').value = '';
-  document.getElementById('editSub').value = '';
+  document.getElementById('editFaculty').value = '';
+  document.getElementById('editHometown').value = '';
   document.getElementById('editColor').value = '#0057a8';
   document.getElementById('editColorHex').value = '#0057a8';
   _setPhotoPreview(null);
@@ -4743,7 +4753,27 @@ function openEdit(id) {
   document.getElementById('editId').value = c.id;
   document.getElementById('editNum').value = c.id.replace(/^[a-z]+_/, '');
   document.getElementById('editName').value = c.name;
-  document.getElementById('editSub').value = c.subtitle || '';
+
+  if (c.faculty !== undefined || c.hometown !== undefined) {
+    document.getElementById('editFaculty').value = c.faculty || '';
+    document.getElementById('editHometown').value = c.hometown || '';
+  } else {
+    const rawSub = c.subtitle || '';
+    const parts = rawSub.split('·').map(s => s.trim());
+    if (parts.length >= 2) {
+      document.getElementById('editFaculty').value = parts[0] || '';
+      document.getElementById('editHometown').value = parts.slice(1).join(' · ') || '';
+    } else {
+      if (rawSub.toLowerCase().includes('khoa') || rawSub.toLowerCase().includes('clb')) {
+        document.getElementById('editFaculty').value = rawSub;
+        document.getElementById('editHometown').value = '';
+      } else {
+        document.getElementById('editFaculty').value = '';
+        document.getElementById('editHometown').value = rawSub;
+      }
+    }
+  }
+
   document.getElementById('editColor').value = c.color || '#0057a8';
   document.getElementById('editColorHex').value = c.color || '#0057a8';
   _setPhotoPreview(c.photo || null);
@@ -4769,11 +4799,18 @@ async function saveEdit() {
   const rawNum = document.getElementById('editNum').value.trim();
   const num = rawNum.padStart(2, '0');
   const name = document.getElementById('editName').value.trim();
-  const sub = document.getElementById('editSub').value.trim();
+  const faculty = (document.getElementById('editFaculty')?.value || '').trim();
+  const hometown = (document.getElementById('editHometown')?.value || '').trim();
   const color = document.getElementById('editColorHex').value.trim() || document.getElementById('editColor').value;
   const event_id = document.getElementById('editContestantEventSelect')?.value || currentContestantEventId || 'evt_hoakhoi_2026';
 
   if (!num || !name) { toast('Vui lòng nhập số báo danh và tên thí sinh!', 'error'); return; }
+
+  // Tự động kết hợp subtitle đẹp mắt
+  let subParts = [];
+  if (faculty) subParts.push(faculty);
+  if (hometown) subParts.push(hometown);
+  const sub = subParts.join(' · ');
 
   const prefixMap = {
     'evt_hoakhoi_2026': 'hk_',
@@ -4790,7 +4827,7 @@ async function saveEdit() {
       toast(`Số báo danh ${num} đã tồn tại trong cuộc thi này!`, 'error');
       return;
     }
-    const newC = { id: fullId, event_id, name, subtitle: sub, color };
+    const newC = { id: fullId, event_id, name, faculty, hometown, subtitle: sub, color };
     if (_pendingPhoto) newC.photo = _pendingPhoto;
     appData.contestants.push(newC);
     appData.votes[fullId] = 0;
@@ -4807,7 +4844,7 @@ async function saveEdit() {
       if (_pendingPhoto === null) photo = null;
       else if (_pendingPhoto) photo = _pendingPhoto;
 
-      const updated = { id: fullId, event_id, name, subtitle: sub, color };
+      const updated = { id: fullId, event_id, name, faculty, hometown, subtitle: sub, color };
       if (photo) updated.photo = photo;
       appData.contestants[idx] = updated;
       toast(`Đã cập nhật thí sinh "${name}"!`, 'success');

@@ -1685,7 +1685,7 @@ function renderTopicContestants() {
       </div>
       <div class="c-card-body">
         <div class="c-card-name">${esc(c.name)}</div>
-        <div class="c-card-sub">📍 ${esc(c.subtitle)}</div>
+        <div class="c-card-sub">${c.faculty ? `🏫 ${esc(c.faculty)}${c.hometown ? ` · 📍 ${esc(c.hometown)}` : ''}` : `📍 ${esc(c.subtitle || '')}`}</div>
         <div class="c-card-bar">
           <div class="c-card-bar-header">
             <span><strong>${count.toLocaleString('vi-VN')}</strong> phiếu</span>

@@ -256,16 +256,18 @@ app.post('/api/contestants', async (req, res) => {
     for (let i = 0; i < contestants.length; i++) {
       const c = contestants[i];
       await client.query(`
-        INSERT INTO contestants (id, event_id, name, subtitle, color, photo, sort_order)
-        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        INSERT INTO contestants (id, event_id, name, subtitle, color, photo, sort_order, faculty, hometown)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         ON CONFLICT (id) DO UPDATE SET
           event_id = EXCLUDED.event_id,
           name = EXCLUDED.name,
           subtitle = EXCLUDED.subtitle,
           color = EXCLUDED.color,
           photo = EXCLUDED.photo,
-          sort_order = EXCLUDED.sort_order
-      `, [c.id, c.event_id || event_id || 'evt_hoakhoi_2026', c.name || '', c.subtitle || '', c.color || '#0057a8', c.photo || '', i]);
+          sort_order = EXCLUDED.sort_order,
+          faculty = EXCLUDED.faculty,
+          hometown = EXCLUDED.hometown
+      `, [c.id, c.event_id || event_id || 'evt_hoakhoi_2026', c.name || '', c.subtitle || '', c.color || '#0057a8', c.photo || '', i, c.faculty || '', c.hometown || '']);
     }
     await client.query('COMMIT');
     res.json({ success: true });
