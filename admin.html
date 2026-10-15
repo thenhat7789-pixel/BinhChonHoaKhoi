@@ -1025,28 +1025,15 @@
         <label class="form-label">Người bình chọn</label>
         <input class="input" id="editVoteVoterName" placeholder="Người ẩn danh" />
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.5rem;">
-        <div class="form-group">
-          <label class="form-label">Mã sinh viên (MSSV)</label>
-          <input class="input" id="editVoteStudentId" placeholder="MSSV" />
-        </div>
-        <div class="form-group">
-          <label class="form-label">Lớp</label>
-          <input class="input" id="editVoteStudentClass" placeholder="Lớp" />
-        </div>
-      </div>
       <div class="form-group">
-        <label class="form-label">Khoa</label>
-        <input class="input" id="editVoteFaculty" placeholder="Khoa" />
+        <label class="form-label">Bình chọn cho thí sinh</label>
+        <select class="input" id="editVoteContestantSelect"></select>
       </div>
       <div class="form-group">
         <label class="form-label">Bình luận / Lời chúc</label>
         <textarea class="input" id="editVoteComment" rows="2" placeholder="Lời bình luận..." style="resize:vertical; min-height:60px;"></textarea>
       </div>
-      <div class="form-group">
-        <label class="form-label">Bình chọn cho thí sinh</label>
-        <select class="input" id="editVoteContestantSelect"></select>
-      </div>
+
       <div style="display:flex;gap:.5rem;margin-top:.5rem">
         <button class="btn btn-gold btn-full" onclick="saveVoteEdit()">Lưu</button>
         <button class="btn btn-ghost" onclick="closeVoteModal()">Hủy</button>
@@ -1295,7 +1282,7 @@
                 </select>
               </div>
               <div style="display:flex;align-items:center;gap:.4rem;">
-                <input type="text" id="voteLogSearchInput" placeholder="🔍 Tìm theo tên cử tri, MSSV, lớp, thí sinh..." oninput="onVoteLogSearch(this.value)" class="input" style="min-width:280px;padding:.45rem .85rem;font-size:.85rem;" />
+                <input type="text" id="voteLogSearchInput" placeholder="🔍 Tìm theo tên cử tri, thí sinh, lời chúc..." oninput="onVoteLogSearch(this.value)" class="input" style="min-width:280px;padding:.45rem .85rem;font-size:.85rem;" />
               </div>
             </div>
             <div style="display:flex;gap:.4rem;flex-wrap:wrap;">
@@ -1356,12 +1343,9 @@
                   <tr>
                     <th style="width: 45px;">#</th>
                     <th style="width: 140px;">Thời điểm</th>
-                    <th style="width: 155px;">Cuộc thi</th>
-                    <th style="width: 165px;">Thí sinh được bầu</th>
-                    <th style="width: 135px;">Người bình chọn</th>
-                    <th style="width: 95px;">MSSV</th>
-                    <th style="width: 85px;">Lớp</th>
-                    <th style="width: 110px;">Khoa</th>
+                    <th style="width: 165px;">Cuộc thi</th>
+                    <th style="width: 180px;">Thí sinh được bầu</th>
+                    <th style="width: 155px;">Người bình chọn</th>
                     <th>Lời nhắn / Bình luận</th>
                     <th style="width: 90px; text-align: right;">Hành động</th>
                   </tr>
@@ -4186,17 +4170,11 @@ function renderLogTable() {
   if (voteLogSearchKeyword) {
     log = log.filter(e => {
       const vName = (e.voterName || '').toLowerCase();
-      const mssv = (e.studentId || '').toLowerCase();
-      const sClass = (e.studentClass || '').toLowerCase();
-      const faculty = (e.faculty || '').toLowerCase();
       const cName = (e.name || '').toLowerCase();
       const cId = (e.id || '').toLowerCase();
       const comment = (e.comment || '').toLowerCase();
       const evTitle = (e.eventTitle || '').toLowerCase();
       return vName.includes(voteLogSearchKeyword) ||
-             mssv.includes(voteLogSearchKeyword) ||
-             sClass.includes(voteLogSearchKeyword) ||
-             faculty.includes(voteLogSearchKeyword) ||
              cName.includes(voteLogSearchKeyword) ||
              cId.includes(voteLogSearchKeyword) ||
              comment.includes(voteLogSearchKeyword) ||
@@ -4212,7 +4190,7 @@ function renderLogTable() {
 
   if (totalVotesEl) totalVotesEl.textContent = log.length.toLocaleString('vi-VN');
   if (uniqueVotersEl) {
-    const uniqueVoters = new Set(log.map(e => (e.studentId || e.voterName || '').trim()).filter(Boolean));
+    const uniqueVoters = new Set(log.map(e => (e.voterName || '').trim()).filter(Boolean));
     uniqueVotersEl.textContent = uniqueVoters.size.toLocaleString('vi-VN');
   }
   if (votedContestantsEl) {
@@ -4265,10 +4243,7 @@ function renderLogTable() {
         ${entry.contestantSubtitle ? `<div style="font-size:0.72rem;color:#64748b;margin-top:2px;">${esc(entry.contestantSubtitle)}</div>` : ''}
       </td>
       <td class="td-name fw-600" style="color:var(--text-0)">${esc(voter)}</td>
-      <td><code style="font-size:0.75rem;background:#f1f5f9;padding:2px 5px;border-radius:4px;color:#0f172a;font-weight:700;">${esc(mssv)}</code></td>
-      <td style="font-size:0.78rem;color:#334155;">${esc(sClass)}</td>
-      <td style="font-size:0.78rem;color:#475569;">${esc(faculty)}</td>
-      <td style="color:var(--text-1);font-style:italic;max-width:220px;word-break:break-word;">"${esc(comment)}"</td>
+      <td style="color:var(--text-1);font-style:italic;max-width:320px;word-break:break-word;">"${esc(comment)}"</td>
       <td style="text-align: right;">
         <div style="display: flex; gap: 4px; justify-content: flex-end;">
           <button class="btn btn-ghost btn-sm" onclick="openEditVote('${esc(voteId)}')">✎ Sửa</button>
@@ -5354,15 +5329,12 @@ function exportCSV() {
     : appData.voteLog.filter(e => (e.eventId === currentActiveEventId) || scopedContestants.some(c => c.id === e.id));
 
   if (scopedLog && scopedLog.length) {
-    csv += '\nNhật ký bình chọn chi tiết\nSTT,Cuộc thi,Mã bình chọn,Số báo danh,Tên thí sinh,Người bình chọn,Mã sinh viên (MSSV),Lớp,Khoa,Lời chúc / Bình luận,Thời điểm\n';
+    csv += '\nNhật ký bình chọn chi tiết\nSTT,Cuộc thi,Mã bình chọn,Số báo danh,Tên thí sinh,Người bình chọn,Lời chúc / Bình luận,Thời điểm\n';
     scopedLog.forEach((e, idx) => {
       const voter = e.voterName || 'Người ẩn danh';
-      const mssv = e.studentId || '';
-      const sClass = e.studentClass || '';
-      const faculty = e.faculty || '';
       const comment = e.comment || '';
       const sbd = e.id.replace(/^[a-z]+_/, '');
-      csv += `${idx + 1},"${e.eventTitle || ''}","${e.voteId || ''}","${sbd}","${e.name}","${voter}","${mssv}","${sClass}","${faculty}","${comment.replace(/"/g, '""')}","${formatDateFull(new Date(e.ts))}"\n`;
+      csv += `${idx + 1},"${e.eventTitle || ''}","${e.voteId || ''}","${sbd}","${e.name}","${voter}","${comment.replace(/"/g, '""')}","${formatDateFull(new Date(e.ts))}"\n`;
     });
   }
   downloadFile(`${evTitle}_ket_qua.csv`, '\uFEFF' + csv, 'text/csv;charset=utf-8');
@@ -5386,16 +5358,13 @@ function exportVotersCSV() {
     toast('Chưa có lượt bình chọn nào để xuất trong cuộc thi này!', 'info');
     return;
   }
-  let csv = 'STT,Cuộc thi,Mã lượt bình chọn,Tên người bình chọn,Mã sinh viên (MSSV),Lớp,Khoa,Số báo danh,Thí sinh được chọn,Lời chúc / Bình luận,Thời gian bình chọn\n';
+  let csv = 'STT,Cuộc thi,Mã lượt bình chọn,Tên người bình chọn,Số báo danh,Thí sinh được chọn,Lời chúc / Bình luận,Thời gian bình chọn\n';
   scopedLog.forEach((e, idx) => {
     const voter = e.voterName || 'Người ẩn danh';
-    const mssv = e.studentId || '';
-    const sClass = e.studentClass || '';
-    const faculty = e.faculty || '';
     const comment = e.comment || '';
     const dateStr = formatDateFull(new Date(e.ts));
     const sbd = e.id.replace(/^[a-z]+_/, '');
-    csv += `${idx + 1},"${e.eventTitle || ''}","${e.voteId || ''}","${voter}","${mssv}","${sClass}","${faculty}","${sbd}","${e.name}","${comment.replace(/"/g, '""')}","${dateStr}"\n`;
+    csv += `${idx + 1},"${e.eventTitle || ''}","${e.voteId || ''}","${voter}","${sbd}","${e.name}","${comment.replace(/"/g, '""')}","${dateStr}"\n`;
   });
   downloadFile(`${evTitle}_danh_sach_nguoi_binh_chon.csv`, '\uFEFF' + csv, 'text/csv;charset=utf-8');
   toast('Đã tải danh sách người bình chọn (.csv)!', 'success');
@@ -5740,9 +5709,6 @@ function openEditVote(voteId) {
 
   document.getElementById('editVoteId').value = voteId;
   document.getElementById('editVoteVoterName').value = entry.voterName || 'Người ẩn danh';
-  document.getElementById('editVoteStudentId').value = entry.studentId || '';
-  document.getElementById('editVoteStudentClass').value = entry.studentClass || '';
-  document.getElementById('editVoteFaculty').value = entry.faculty || '';
   document.getElementById('editVoteComment').value = entry.comment || '';
 
   // Populate contestants dropdown grouped by competition
@@ -5771,9 +5737,6 @@ function closeVoteModal() {
 async function saveVoteEdit() {
   const voteId = document.getElementById('editVoteId').value;
   const voterName = document.getElementById('editVoteVoterName').value.trim() || 'Người ẩn danh';
-  const studentId = document.getElementById('editVoteStudentId').value.trim();
-  const studentClass = document.getElementById('editVoteStudentClass').value.trim();
-  const faculty = document.getElementById('editVoteFaculty').value.trim();
   const comment = document.getElementById('editVoteComment').value.trim();
   const targetId = document.getElementById('editVoteContestantSelect').value;
 
@@ -5781,9 +5744,9 @@ async function saveVoteEdit() {
     await api.put(`/api/vote/${voteId}`, {
       contestant_id: targetId,
       voter_name: voterName,
-      student_id: studentId,
-      student_class: studentClass,
-      faculty: faculty,
+      student_id: '',
+      student_class: '',
+      faculty: '',
       comment: comment
     });
     closeVoteModal();
