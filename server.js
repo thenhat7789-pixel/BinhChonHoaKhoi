@@ -315,10 +315,22 @@ app.get('/api/topic-data', async (req, res) => {
 });
 
 // ─── GET /api/contestants/:id/photo ──────────────
-// Trả về trực tiếp binary image để thẻ <img loading="lazy"> tải native & cache HTTP cực nhanh
+// Cache RAM máy chủ để ảnh phản hồi trong 0.5ms (không cần truy vấn Database mỗi lần)
+const photoBufferCache = new Map();
+
 app.get('/api/contestants/:id/photo', async (req, res) => {
+  const id = req.params.id;
+
+  // 1. Phục vụ ngay từ RAM máy chủ nếu đã có trong cache (0.5ms)
+  if (req.query.json !== '1' && photoBufferCache.has(id)) {
+    const cached = photoBufferCache.get(id);
+    res.setHeader('Content-Type', cached.mime);
+    res.setHeader('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
+    return res.send(cached.buffer);
+  }
+
   try {
-    const { rows } = await pool.query('SELECT id, photo FROM contestants WHERE id = $1', [req.params.id]);
+    const { rows } = await pool.query('SELECT id, photo FROM contestants WHERE id = $1', [id]);
     if (!rows.length || !rows[0].photo) {
       return res.status(404).send('Photo not found');
     }
@@ -326,7 +338,7 @@ app.get('/api/contestants/:id/photo', async (req, res) => {
 
     // Nếu client yêu cầu JSON rõ ràng
     if (req.query.json === '1') {
-      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.setHeader('Cache-Control', 'public, max-age=604800');
       return res.json({ photo });
     }
 
@@ -335,8 +347,10 @@ app.get('/api/contestants/:id/photo', async (req, res) => {
     if (match) {
       const mime = match[1];
       const buffer = Buffer.from(match[2], 'base64');
+      // Lưu vào RAM cache để các lần sau trả về ngay lập tức
+      photoBufferCache.set(id, { mime, buffer });
       res.setHeader('Content-Type', mime);
-      res.setHeader('Cache-Control', 'public, max-age=86400');
+      res.setHeader('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
       return res.send(buffer);
     }
 
@@ -346,9 +360,11 @@ app.get('/api/contestants/:id/photo', async (req, res) => {
     }
 
     // Mặc định buffer base64
+    const buffer = Buffer.from(photo, 'base64');
+    photoBufferCache.set(id, { mime: 'image/jpeg', buffer });
     res.setHeader('Content-Type', 'image/jpeg');
-    res.setHeader('Cache-Control', 'public, max-age=86400');
-    res.send(Buffer.from(photo, 'base64'));
+    res.setHeader('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
+    res.send(buffer);
   } catch (e) {
     console.error('GET /api/contestants/:id/photo error:', e);
     res.status(500).send('Error');
@@ -404,6 +420,7 @@ app.post('/api/contestants', async (req, res) => {
       `, [c.id, c.event_id || event_id || 'evt_hoakhoi_2026', c.name || '', c.subtitle || '', c.color || '#0057a8', c.photo || '', i, c.faculty || '', c.hometown || '']);
     }
     await client.query('COMMIT');
+    photoBufferCache.clear();
     res.json({ success: true });
   } catch (e) {
     await client.query('ROLLBACK');
@@ -418,6 +435,7 @@ app.post('/api/contestants', async (req, res) => {
 app.delete('/api/contestants/:id', async (req, res) => {
   try {
     await pool.query('DELETE FROM contestants WHERE id = $1', [req.params.id]);
+    photoBufferCache.delete(req.params.id);
     res.json({ success: true });
   } catch (e) {
     console.error('DELETE /api/contestants error:', e);

@@ -3779,89 +3779,86 @@ function onVoteLogSearch(keyword) {
   renderLogTable();
 }
 
-/* ─── LOAD ADMIN DATA ───────────────────────────────────── */
-async function loadAdminData() {
-  try {
-    // 1 API call gộp thay vì 6 calls tuần tự → giảm thời gian load ~6x
-    const data = await api.get('/api/admin-data');
+function applyAdminPayload(data) {
+  if (!data) return;
 
-    if (!data) throw new Error('Không nhận được dữ liệu từ server');
-
-    // Events
-    if (data.events && data.events.length > 0) {
-      adminEvents = data.events;
-      // Lọc các sự kiện không liên quan
-      adminEvents = adminEvents.filter(e => {
-        const text = ((e.title || '') + ' ' + (e.tag || '') + ' ' + (e.description || '')).toLowerCase();
-        return !text.includes('phường') && !text.includes('nctxh') && !text.includes('chuyển đổi số') && !text.includes('hiến máu');
-      });
-      if (!adminEvents.length) adminEvents = DEFAULT_ADMIN_EVENTS;
-      else {
-        adminEvents = adminEvents.map(e => {
-          if (!e.short_url) {
-            const def = DEFAULT_ADMIN_EVENTS.find(d => d.id === e.id);
-            if (def && def.short_url) e.short_url = def.short_url;
-          }
-          return e;
-        });
-      }
-    } else {
-      const local = localStorage.getItem('hh:events');
-      adminEvents = local ? (JSON.parse(local) || DEFAULT_ADMIN_EVENTS) : DEFAULT_ADMIN_EVENTS;
-    }
-
-    // Contestants
-    if (data.contestants && data.contestants.length > 0) {
-      appData.contestants = data.contestants;
-      try { localStorage.setItem('hh:contestants', JSON.stringify(appData.contestants)); } catch(e){}
-    } else {
-      const localC = localStorage.getItem('hh:contestants');
-      appData.contestants = localC ? (JSON.parse(localC) || ALL_DEFAULT_CONTESTANTS.map(c => ({...c})))
-                                   : ALL_DEFAULT_CONTESTANTS.map(c => ({...c}));
-    }
-
-    // Votes
-    appData.votes = data.votes || {};
-
-    // Shares
-    appData.shares = data.shares || {};
-    appData.totalShares = data.totalShares || 0;
-
-    // Vote log
-    appData.voteLog = (data.log || []).map(entry => ({
-      voteId: entry.vote_id,
-      id: entry.id,
-      name: entry.name,
-      contestantSubtitle: entry.contestantSubtitle || '',
-      voterName: entry.voterName,
-      studentId: entry.studentId || '',
-      studentClass: entry.studentClass || '',
-      faculty: entry.faculty || '',
-      comment: entry.comment,
-      ts: new Date(entry.ts).getTime(),
-      eventId: entry.eventId || 'evt_hoakhoi_2026',
-      eventTitle: entry.eventTitle || 'Bình Chọn Hoa Khôi 2026',
-      eventTag: entry.eventTag || '# CUỘC THI'
-    }));
-
-    // Settings
-    const settings = data.settings || {};
-    appData.settings = settings;
-    if (settings.superadmin_email) {
-      SUPERADMIN_EMAIL = settings.superadmin_email.toLowerCase();
-    }
-    appData.endTime = settings.end_time ? new Date(settings.end_time) : null;
-    if (settings.share_url) document.getElementById('setShareUrl').value = settings.share_url;
-
-  } catch(e) {
-    toast('Lỗi tải dữ liệu: ' + e.message, 'error');
+  // Events
+  if (data.events && data.events.length > 0) {
+    adminEvents = data.events.filter(e => {
+      const text = ((e.title || '') + ' ' + (e.tag || '') + ' ' + (e.description || '')).toLowerCase();
+      return !text.includes('phường') && !text.includes('nctxh') && !text.includes('chuyển đổi số') && !text.includes('hiến máu');
+    });
+    if (!adminEvents.length) adminEvents = DEFAULT_ADMIN_EVENTS;
+  } else {
+    const local = localStorage.getItem('hh:events');
+    adminEvents = local ? (JSON.parse(local) || DEFAULT_ADMIN_EVENTS) : DEFAULT_ADMIN_EVENTS;
   }
+
+  // Contestants
+  if (data.contestants && data.contestants.length > 0) {
+    appData.contestants = data.contestants;
+  }
+
+  // Votes
+  appData.votes = data.votes || {};
+
+  // Shares
+  appData.shares = data.shares || {};
+  appData.totalShares = data.totalShares || 0;
+
+  // Vote log
+  appData.voteLog = (data.log || []).map(entry => ({
+    voteId: entry.vote_id,
+    id: entry.id,
+    name: entry.name,
+    contestantSubtitle: entry.contestantSubtitle || '',
+    voterName: entry.voterName,
+    studentId: entry.studentId || '',
+    studentClass: entry.studentClass || '',
+    faculty: entry.faculty || '',
+    comment: entry.comment,
+    ts: new Date(entry.ts).getTime(),
+    eventId: entry.eventId || 'evt_hoakhoi_2026',
+    eventTitle: entry.eventTitle || 'Bình Chọn Hoa Khôi 2026',
+    eventTag: entry.eventTag || '# CUỘC THI'
+  }));
+
+  // Settings
+  const settings = data.settings || {};
+  appData.settings = settings;
+  if (settings.superadmin_email) {
+    SUPERADMIN_EMAIL = settings.superadmin_email.toLowerCase();
+  }
+  appData.endTime = settings.end_time ? new Date(settings.end_time) : null;
+  if (settings.share_url) document.getElementById('setShareUrl').value = settings.share_url;
 
   renderAdminEvents();
   syncAllEventSelectors();
   renderAll();
   applyRolePermissions();
   updateSidebarUserBadge();
+}
+
+async function loadAdminData() {
+  // 1. TỨC THÌ (0s): Nếu có cache từ lần mở trước, hiển thị ngay lập tức
+  const cached = localStorage.getItem('hh:cache_admin_data');
+  if (cached) {
+    try {
+      const data = JSON.parse(cached);
+      applyAdminPayload(data);
+    } catch(e){}
+  }
+
+  // 2. Tải bản mới nhất từ server và cập nhật ngầm
+  try {
+    const data = await api.get('/api/admin-data');
+    if (data) {
+      try { localStorage.setItem('hh:cache_admin_data', JSON.stringify(data)); } catch(e){}
+      applyAdminPayload(data);
+    }
+  } catch(e) {
+    toast('Lỗi tải dữ liệu: ' + e.message, 'error');
+  }
 }
 
 

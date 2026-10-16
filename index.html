@@ -1637,57 +1637,28 @@ window.addEventListener('popstate', () => {
 /* ══════════════════════════════════════════════════════════
    TOPIC VIEW (VIEW 2): BÌNH CHỌN THÍ SINH CỦA CHỦ ĐỀ ĐÓ
    ══════════════════════════════════════════════════════════ */
-async function loadTopicContestantsAndVotes(eventId) {
-  const ev = state.events.find(e => e.id === eventId);
-  let ratio = ev ? (ev.vote_ratio || 80) : 80;
+function applyTopicData(combined, eventId, ev) {
+  if (!combined) return;
+  const ratio = (combined.voteRatio) ? combined.voteRatio : (ev ? (ev.vote_ratio || 80) : 80);
+  state.voteRatio = ratio;
 
-  try {
-    // Dùng 1 API call gộp thay vì 3 calls tuần tự (giảm thời gian load 3x)
-    const studentId = localStorage.getItem('hh:student_id') || '';
-    const combined = await api.get(
-      `/api/topic-data?event=${encodeURIComponent(eventId)}&fp=${encodeURIComponent(VOTER_FP)}&student_id=${encodeURIComponent(studentId)}`
-    );
-
-    if (combined && Array.isArray(combined.contestants)) {
-      state.contestants = combined.contestants;
-    } else {
-      // fallback nếu endpoint chưa có
-      const cRes = await api.get(`/api/contestants?event=${encodeURIComponent(eventId)}&no_photos=1`);
-      state.contestants = (cRes && Array.isArray(cRes.contestants)) ? cRes.contestants
-        : (CONTESTANTS_BY_THEME[eventId] || []);
-    }
-
-    state.votes = (combined && combined.votes) ? combined.votes : {};
-
-    ratio = (combined && combined.voteRatio) ? combined.voteRatio : (ev ? (ev.vote_ratio || 80) : 80);
-    state.voteRatio = ratio;
-
-    if (combined && combined.votedIds) {
-      state.votedIds = combined.votedIds;
-      state.maxAllowed = combined.maxAllowed || Math.max(1, Math.round(((state.contestants || []).length * (ratio / 100))));
-    } else {
-      try {
-        const saved = JSON.parse(localStorage.getItem(`hh:voted:${eventId}`) || '[]');
-        state.votedIds = Array.isArray(saved) ? saved : [];
-      } catch(e) { state.votedIds = []; }
-      state.maxAllowed = Math.max(1, Math.round(((state.contestants || []).length * (ratio / 100))));
-    }
-
-    const isActive = (combined && combined.is_active !== undefined) ? combined.is_active : (ev ? (ev.is_active !== false) : true);
-    const startTimeStr = (combined && combined.start_time) ? combined.start_time : (ev ? ev.start_time : null);
-    const endTimeStr = (combined && combined.end_time) ? combined.end_time : (ev ? ev.end_time : null);
-    state.isActive = isActive;
-    state.startTime = startTimeStr;
-    state.endTime = endTimeStr;
-    startTopicCountdown(startTimeStr, endTimeStr, isActive);
-
-  } catch(err) {
-    console.error('loadTopicContestantsAndVotes error:', err);
-    state.contestants = state.contestants || [];
-    state.votes = state.votes || {};
-    state.votedIds = state.votedIds || [];
-    state.maxAllowed = state.maxAllowed || 1;
+  if (Array.isArray(combined.contestants)) {
+    state.contestants = combined.contestants;
   }
+  state.votes = combined.votes || {};
+
+  if (combined.votedIds) {
+    state.votedIds = combined.votedIds;
+  }
+  state.maxAllowed = combined.maxAllowed || Math.max(1, Math.round(((state.contestants || []).length * (ratio / 100))));
+
+  const isActive = (combined.is_active !== undefined) ? combined.is_active : (ev ? (ev.is_active !== false) : true);
+  const startTimeStr = combined.start_time || (ev ? ev.start_time : null);
+  const endTimeStr = combined.end_time || (ev ? ev.end_time : null);
+  state.isActive = isActive;
+  state.startTime = startTimeStr;
+  state.endTime = endTimeStr;
+  startTopicCountdown(startTimeStr, endTimeStr, isActive);
 
   // Update Voting Rule Bar
   const myVotesCount = (state.votedIds || []).length;
@@ -1723,6 +1694,44 @@ async function loadTopicContestantsAndVotes(eventId) {
   if (heroStatVotes) heroStatVotes.textContent = `${totalVotesTopic.toLocaleString('vi-VN')} lượt bình chọn`;
 
   renderTopicContestants();
+}
+
+async function loadTopicContestantsAndVotes(eventId) {
+  const ev = state.events.find(e => e.id === eventId);
+  const cacheKey = `hh:cache_topic:${eventId}`;
+
+  // 1. TỨC THÌ (0s): Nếu có cache cục bộ thì áp dụng và vẽ ngay lập tức
+  const cachedStr = localStorage.getItem(cacheKey);
+  if (cachedStr) {
+    try {
+      const cached = JSON.parse(cachedStr);
+      if (cached && Array.isArray(cached.contestants) && cached.contestants.length > 0) {
+        applyTopicData(cached, eventId, ev);
+      }
+    } catch(e){}
+  }
+
+  // 2. Chạy ngầm tải dữ liệu mới nhất từ server và cập nhật mượt mà
+  try {
+    const studentId = localStorage.getItem('hh:student_id') || '';
+    const combined = await api.get(
+      `/api/topic-data?event=${encodeURIComponent(eventId)}&fp=${encodeURIComponent(VOTER_FP)}&student_id=${encodeURIComponent(studentId)}`
+    );
+
+    if (combined && Array.isArray(combined.contestants)) {
+      try { localStorage.setItem(cacheKey, JSON.stringify(combined)); } catch(e){}
+      applyTopicData(combined, eventId, ev);
+    } else {
+      const cRes = await api.get(`/api/contestants?event=${encodeURIComponent(eventId)}&no_photos=1`);
+      if (cRes && Array.isArray(cRes.contestants)) {
+        state.contestants = cRes.contestants;
+        renderTopicContestants();
+      }
+    }
+  } catch(err) {
+    console.error('loadTopicContestantsAndVotes error:', err);
+  }
+
   await loadTopicComments(eventId);
 }
 
@@ -2201,6 +2210,22 @@ async function init() {
   } else {
     renderPortalEvents();
   }
+
+  // 3. Tự động pre-fetch trước toàn bộ dữ liệu cuộc thi ở background
+  // Giúp người dùng khi bấm vào bất kỳ cuộc thi nào là hiển thị ngay lập tức 0s!
+  setTimeout(() => {
+    (state.events || []).forEach(e => {
+      const studentId = localStorage.getItem('hh:student_id') || '';
+      fetch(`/api/topic-data?event=${encodeURIComponent(e.id)}&fp=${encodeURIComponent(VOTER_FP)}&student_id=${encodeURIComponent(studentId)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data && Array.isArray(data.contestants)) {
+            localStorage.setItem(`hh:cache_topic:${e.id}`, JSON.stringify(data));
+          }
+        })
+        .catch(() => {});
+    });
+  }, 350);
 }
 
 function toSlug(str) {
