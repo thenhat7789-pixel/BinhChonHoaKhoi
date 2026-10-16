@@ -21,14 +21,6 @@
   <meta name="apple-mobile-web-app-title" content="Bình Chọn MUCE" />
   <link rel="apple-touch-icon" href="/app-icon-512.png" />
   <link rel="stylesheet" href="/pwa-install.css?v=1.0" />
-  <!-- Cloudflare Turnstile CAPTCHA (Xác minh con người không làm phiền) -->
-  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
-  <script>
-    if (sessionStorage.getItem('hh:turnstile_gate_passed') === '1') {
-      document.documentElement.classList.add('cf-gate-passed');
-    }
-  </script>
-
   <style>
     /* ── BASE & SAKURA BACKGROUND ── */
     body {
@@ -1073,173 +1065,9 @@
         font-size: 0.88rem !important;
       }
     }
-    /* ── CLOUDFLARE SECURITY GATEKEEPER OVERLAY (XÁC MINH KHI MỞ TRÌNH DUYỆT SỰ KIỆN) ── */
-    html.cf-gate-passed #cfGatekeeperOverlay {
-      display: none !important;
-    }
-    .cf-gatekeeper-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      background: radial-gradient(circle at 50% 25%, #0f172a 0%, #020617 100%);
-      z-index: 99999999;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 1.25rem;
-      box-sizing: border-box;
-      opacity: 1;
-      visibility: visible;
-      transition: opacity 0.4s ease, visibility 0.4s ease, transform 0.4s ease;
-    }
-    .cf-gatekeeper-overlay.passed {
-      opacity: 0;
-      visibility: hidden;
-      transform: scale(1.02);
-      pointer-events: none;
-    }
-    .cf-gatekeeper-card {
-      background: rgba(15, 23, 42, 0.92);
-      border: 1px solid rgba(56, 189, 248, 0.3);
-      border-radius: 24px;
-      max-width: 440px;
-      width: 100%;
-      padding: 2.2rem 1.75rem;
-      text-align: center;
-      box-shadow: 0 25px 60px -15px rgba(0, 0, 0, 0.8), 0 0 40px rgba(2, 132, 199, 0.18);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      animation: gatekeeperPopIn 0.35s cubic-bezier(0.16, 1, 0.3, 1);
-    }
-    @keyframes gatekeeperPopIn {
-      from { transform: scale(0.92); opacity: 0; }
-      to { transform: scale(1); opacity: 1; }
-    }
-    .cf-gatekeeper-badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      background: rgba(2, 132, 199, 0.18);
-      color: #38bdf8;
-      border: 1px solid rgba(56, 189, 248, 0.35);
-      padding: 5px 14px;
-      border-radius: 999px;
-      font-size: 0.74rem;
-      font-weight: 700;
-      letter-spacing: 0.5px;
-      margin-bottom: 1.1rem;
-    }
-    .cf-gatekeeper-logo {
-      height: 60px;
-      width: auto;
-      object-fit: contain;
-      margin-bottom: 0.85rem;
-      filter: drop-shadow(0 4px 12px rgba(0,0,0,0.5));
-    }
-    .cf-gatekeeper-title {
-      color: #ffffff;
-      font-size: 1.25rem;
-      font-weight: 800;
-      letter-spacing: 0.3px;
-      margin: 0 0 4px 0;
-    }
-    .cf-gatekeeper-sub {
-      color: #94a3b8;
-      font-size: 0.82rem;
-      font-weight: 600;
-      margin-bottom: 0.85rem;
-    }
-    .cf-gatekeeper-desc {
-      color: #cbd5e1;
-      font-size: 0.88rem;
-      line-height: 1.5;
-      margin-bottom: 1.35rem;
-      max-width: 360px;
-    }
-    .cf-turnstile-slot {
-      min-height: 70px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      width: 100%;
-      margin-bottom: 1.25rem;
-    }
-    .cf-turnstile-status {
-      margin-top: 10px;
-      font-size: 0.8rem;
-      color: #94a3b8;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-    }
-    .pulse-dot {
-      width: 8px;
-      height: 8px;
-      border-radius: 50%;
-      background: #38bdf8;
-      animation: pulseAnim 1.2s infinite;
-      display: inline-block;
-    }
-    @keyframes pulseAnim {
-      0%, 100% { transform: scale(0.8); opacity: 0.5; }
-      50% { transform: scale(1.3); opacity: 1; }
-    }
-    .cf-gatekeeper-footer {
-      font-size: 0.72rem;
-      color: #64748b;
-      margin-top: 0.5rem;
-      display: flex;
-      flex-wrap: wrap;
-      justify-content: center;
-      gap: 6px;
-    }
   </style>
 </head>
 <body>
-
-<!-- ═══════════════════ CLOUDFLARE SECURITY GATEKEEPER OVERLAY (XÁC MINH KHI MỞ TRÌNH DUYỆT SỰ KIỆN) ═══════════════════ -->
-<div id="cfGatekeeperOverlay" class="cf-gatekeeper-overlay">
-  <div class="cf-gatekeeper-card">
-    <div class="cf-gatekeeper-badge">
-      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-      </svg>
-      <span>BẢO MẬT & XÁC MINH TRUY CẬP</span>
-    </div>
-
-    <img src="/logo-muce.png" alt="Logo MUCE" class="cf-gatekeeper-logo" onerror="this.style.display='none'" />
-    <h2 class="cf-gatekeeper-title">CỔNG BÌNH CHỌN TRỰC TUYẾN</h2>
-    <div class="cf-gatekeeper-sub">TRƯỜNG ĐẠI HỌC XÂY DỰNG MIỀN TRUNG</div>
-
-    <div class="cf-gatekeeper-desc">
-      Hệ thống đang kiểm tra kết nối an toàn. Vui lòng xác minh bạn là con người để tiếp tục vào cuộc thi:
-    </div>
-
-    <!-- Khung Turnstile chứa ô tích xác minh con người -->
-    <div class="cf-turnstile-slot">
-      <div id="gatekeeperTurnstileWidget"></div>
-      <div id="gatekeeperTurnstileStatus" class="cf-turnstile-status">
-        <span class="pulse-dot"></span> Đang khởi tạo xác minh an toàn...
-      </div>
-    </div>
-
-    <div class="cf-gatekeeper-footer">
-      <span>🛡️ Bảo vệ bởi Cloudflare Turnstile</span>
-      <span>•</span>
-      <span>Xác minh 1 lần</span>
-      <span>•</span>
-      <span>Không cần đăng nhập</span>
-    </div>
-  </div>
-</div>
-
 
 <!-- Sakura Falling Background -->
 <div class="sakura-bg" id="sakuraBg"></div>
@@ -1447,24 +1275,6 @@
       <label class="form-label">Lời chúc / Bình luận <span style="color:#94a3b8;font-size:0.75rem">(tùy chọn)</span></label>
       <textarea class="form-input" id="voterCommentInput" rows="3" placeholder="Chúc bạn tỏa sáng và đạt giải cao nhất!" style="resize:vertical;min-height:75px;"></textarea>
     </div>
-
-    <!-- Cloudflare Turnstile Box (Xác minh con người hiện dấu tích xanh) -->
-    <div style="margin:10px 0 4px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:48px;">
-      <!-- Badge hiển thị khi đã xác minh từ cổng an ninh mở trình duyệt -->
-      <div id="voteModalTurnstileBadge" style="display:flex;align-items:center;justify-content:center;gap:6px;background:rgba(22,163,74,0.08);border:1px solid rgba(34,197,94,0.3);border-radius:10px;padding:8px 14px;width:100%;box-sizing:border-box;">
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-          <polyline points="22 4 12 14.01 9 11.01"></polyline>
-        </svg>
-        <span style="color:#16a34a;font-weight:700;font-size:0.78rem;">Đã xác minh người thật bởi Cloudflare ✓</span>
-      </div>
-      <!-- Widget dự phòng nếu token hết hạn -->
-      <div id="turnstileWidgetContainer" style="display:none;margin-top:6px;"></div>
-      <div id="turnstileStatusText" style="display:none;font-size:0.75rem;color:#64748b;margin-top:4px;text-align:center;">
-        <span style="color:#0284c7;font-weight:600;">🛡️ Bảo vệ bởi Cloudflare:</span> Vui lòng tích vào ô để xác minh bạn là con người
-      </div>
-    </div>
-
 
     <div style="display:flex;gap:.65rem;margin-top:1.25rem;">
       <button class="vote-action-btn btn-default" id="confirmVoteBtn" style="flex:1;">
@@ -2539,162 +2349,6 @@ function isAutomatedEnvironment() {
   return false;
 }
 
-/* ─── CLOUDFLARE TURNSTILE CAPTCHA (XÁC MINH KHI MỞ TRÌNH DUYỆT SỰ KIỆN) ─── */
-let TURNSTILE_SITEKEY = '1x00000000000000000000AA'; // Testing key (luôn hợp lệ hoặc click tick xanh)
-let gatekeeperTurnstileWidgetId = null;
-let modalTurnstileWidgetId = null;
-let currentTurnstileToken = sessionStorage.getItem('hh:turnstile_verified_token') || '';
-
-async function loadTurnstileConfig() {
-  try {
-    const res = await fetch('/api/turnstile-config');
-    const data = await res.json();
-    if (data && data.sitekey) {
-      TURNSTILE_SITEKEY = data.sitekey;
-    }
-  } catch (e) {}
-}
-
-function initGatekeeper() {
-  const overlay = document.getElementById('cfGatekeeperOverlay');
-  if (!overlay) return;
-
-  const passed = sessionStorage.getItem('hh:turnstile_gate_passed');
-  const token = sessionStorage.getItem('hh:turnstile_verified_token');
-
-  if (passed === '1' && token) {
-    document.documentElement.classList.add('cf-gate-passed');
-    overlay.classList.add('passed');
-    overlay.style.display = 'none';
-    currentTurnstileToken = token;
-    return;
-  }
-
-  // Nếu chưa xác minh trong phiên này, hiển thị Gatekeeper overlay
-  overlay.style.display = 'flex';
-  overlay.classList.remove('passed');
-  renderGatekeeperTurnstile();
-}
-
-function renderGatekeeperTurnstile() {
-  const container = document.getElementById('gatekeeperTurnstileWidget');
-  const statusEl = document.getElementById('gatekeeperTurnstileStatus');
-  if (!container) return;
-
-  if (window.turnstile) {
-    try {
-      container.innerHTML = '';
-      gatekeeperTurnstileWidgetId = turnstile.render('#gatekeeperTurnstileWidget', {
-        sitekey: TURNSTILE_SITEKEY,
-        theme: 'dark',
-        language: 'vi',
-        callback: async function(token) {
-          currentTurnstileToken = token;
-          sessionStorage.setItem('hh:turnstile_verified_token', token);
-          sessionStorage.setItem('hh:turnstile_gate_passed', '1');
-          document.documentElement.classList.add('cf-gate-passed');
-
-          if (statusEl) {
-            statusEl.innerHTML = '<span style="color:#22c55e;font-weight:700;">✓ Đã xác minh bạn là con người!</span> Đang chuyển vào cuộc thi...';
-          }
-
-          // Gửi xác thực ngay với server để cache session con người
-          try {
-            fetch('/api/verify-gatekeeper', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ cf_turnstile_response: token })
-            }).catch(() => {});
-          } catch(e) {}
-
-          setTimeout(() => {
-            const overlay = document.getElementById('cfGatekeeperOverlay');
-            if (overlay) {
-              overlay.classList.add('passed');
-              setTimeout(() => {
-                overlay.style.display = 'none';
-              }, 450);
-            }
-          }, 450);
-        },
-        'expired-callback': function() {
-          currentTurnstileToken = '';
-          sessionStorage.removeItem('hh:turnstile_verified_token');
-          sessionStorage.removeItem('hh:turnstile_gate_passed');
-          if (statusEl) {
-            statusEl.innerHTML = '<span style="color:#f59e0b;font-weight:600;">⚠️ Phiên xác minh đã hết hạn, vui lòng tích lại vào ô.</span>';
-          }
-        },
-        'error-callback': function() {
-          currentTurnstileToken = 'turnstile_fallback_token';
-          sessionStorage.setItem('hh:turnstile_verified_token', currentTurnstileToken);
-          sessionStorage.setItem('hh:turnstile_gate_passed', '1');
-          setTimeout(() => {
-            const overlay = document.getElementById('cfGatekeeperOverlay');
-            if (overlay) {
-              overlay.classList.add('passed');
-              setTimeout(() => { overlay.style.display = 'none'; }, 450);
-            }
-          }, 600);
-        }
-      });
-    } catch (err) {
-      console.warn('Turnstile gatekeeper render error:', err);
-    }
-  } else {
-    setTimeout(renderGatekeeperTurnstile, 150);
-  }
-}
-
-function renderModalTurnstile() {
-  const container = document.getElementById('turnstileWidgetContainer');
-  const badge = document.getElementById('voteModalTurnstileBadge');
-  const statusText = document.getElementById('turnstileStatusText');
-  if (!container) return;
-
-  const validToken = currentTurnstileToken || sessionStorage.getItem('hh:turnstile_verified_token');
-  if (validToken) {
-    if (badge) badge.style.display = 'flex';
-    container.style.display = 'none';
-    if (statusText) statusText.style.display = 'none';
-    return;
-  }
-
-  if (badge) badge.style.display = 'none';
-  container.style.display = 'block';
-  if (statusText) {
-    statusText.style.display = 'block';
-    statusText.innerHTML = '<span style="color:#0284c7;font-weight:600;">🛡️ Bảo vệ bởi Cloudflare:</span> Vui lòng tích vào ô để xác minh bạn là con người';
-  }
-
-  if (window.turnstile) {
-    try {
-      container.innerHTML = '';
-      modalTurnstileWidgetId = turnstile.render('#turnstileWidgetContainer', {
-        sitekey: TURNSTILE_SITEKEY,
-        theme: 'light',
-        language: 'vi',
-        callback: function(token) {
-          currentTurnstileToken = token;
-          sessionStorage.setItem('hh:turnstile_verified_token', token);
-          sessionStorage.setItem('hh:turnstile_gate_passed', '1');
-          if (badge) badge.style.display = 'flex';
-          container.style.display = 'none';
-          if (statusText) statusText.style.display = 'none';
-        },
-        'expired-callback': function() {
-          currentTurnstileToken = '';
-        },
-        'error-callback': function() {
-          currentTurnstileToken = 'turnstile_fallback_token';
-        }
-      });
-    } catch (e) {}
-  } else {
-    setTimeout(renderModalTurnstile, 300);
-  }
-}
-
 function openVoteModal(id) {
   if (!state.isActive || state.isClosed) {
     toast('🔴 Cổng bình chọn cho cuộc thi này hiện đang tạm đóng!', 'warning');
@@ -2727,9 +2381,7 @@ function openVoteModal(id) {
   document.getElementById('voterCommentInput').value = '';
 
   document.getElementById('voteModal').classList.remove('hidden');
-  renderModalTurnstile();
 }
-
 
 function closeVoteModal() {
   document.getElementById('voteModal').classList.add('hidden');
@@ -2919,23 +2571,6 @@ document.getElementById('confirmVoteBtn').addEventListener('click', async () => 
   // 4. Honeypot Trap
   const trapVal = document.getElementById('voterTrapInput')?.value || '';
 
-  // 5. Kiểm tra xác minh Cloudflare Turnstile
-  const activeTurnstileToken = currentTurnstileToken || sessionStorage.getItem('hh:turnstile_verified_token') || '';
-  if (window.turnstile && !activeTurnstileToken) {
-    toast('Vui lòng tích vào ô "Xác minh bạn là con người" của Cloudflare bên dưới!', 'warning');
-    const badge = document.getElementById('voteModalTurnstileBadge');
-    const container = document.getElementById('turnstileWidgetContainer');
-    const statusText = document.getElementById('turnstileStatusText');
-    if (badge) badge.style.display = 'none';
-    if (container) container.style.display = 'block';
-    if (statusText) {
-      statusText.style.display = 'block';
-      statusText.innerHTML = '<span style="color:#dc2626;font-weight:700;">⚠️ Vui lòng tích vào ô xác minh bên trên để tiếp tục!</span>';
-    }
-    renderModalTurnstile();
-    return;
-  }
-
   localStorage.setItem('hh:voter_name', name);
 
   const confirmBtn = document.getElementById('confirmVoteBtn');
@@ -2955,8 +2590,7 @@ document.getElementById('confirmVoteBtn').addEventListener('click', async () => 
     voter_fingerprint: VOTER_FP,
     hp_token: trapVal,
     is_automated: isAutomated,
-    vote_duration: elapsedVoteMs,
-    cf_turnstile_response: activeTurnstileToken || 'turnstile_fallback_token'
+    vote_duration: elapsedVoteMs
   });
 
   confirmBtn.disabled = false;
@@ -2968,18 +2602,11 @@ document.getElementById('confirmVoteBtn').addEventListener('click', async () => 
       toast('⛔ Thời gian bình chọn cho cuộc thi này đã kết thúc!', 'error');
       closeVoteModal();
       renderTopicContestants();
-    } else if (res.code === 'TURNSTILE_REQUIRED' || res.code === 'TURNSTILE_FAILED') {
-      currentTurnstileToken = '';
-      sessionStorage.removeItem('hh:turnstile_verified_token');
-      sessionStorage.removeItem('hh:turnstile_gate_passed');
-      renderModalTurnstile();
-      toast(res.error || 'Phiên xác minh đã hết hạn. Vui lòng tích lại vào ô xác minh bên dưới!', 'warning');
     } else {
       toast(res.error || 'Lỗi khi gửi phiếu bầu', 'error');
     }
     return;
   }
-
 
   // Server ghi phiếu thành công 100% -> cập nhật giao diện, localStorage & cookie
   state.votes[cId] = (state.votes[cId] || 0) + 1;
@@ -3202,11 +2829,7 @@ function detectTargetEventId() {
   return null;
 }
 
-// Khởi tạo cổng xác minh bảo vệ sự kiện & nạp dữ liệu
-loadTurnstileConfig().then(initGatekeeper);
-initGatekeeper();
 init();
-
 </script>
 <script src="/pwa-install.js?v=1.0"></script>
 </body>
