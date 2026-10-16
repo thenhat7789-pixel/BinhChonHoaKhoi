@@ -35,18 +35,80 @@ app.get('/admin.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
-// Kiểm tra DB pool trước khi xử lý API
-app.use('/api', (req, res, next) => {
-  if (!pool) {
-    return res.status(503).json({ error: 'Database chưa được kết nối. Hãy cấu hình DATABASE_URL trong Render Environment.' });
+const FALLBACK_EVENTS = [
+  {
+    id: 'evt_net_dep_nu_sinh_muce_qua_ong_kinh_mvasalg8',
+    tag: '# NÉT ĐẸP NỮ SINH 2026',
+    benefit_badge: '👑 HOA KHÔI',
+    title: 'Nét Đẹp Nữ Sinh MUCE Qua Ống Kính',
+    description: 'Bình chọn nét đẹp duyên dáng, thanh lịch của nữ sinh Trường Đại học Xây dựng Miền Trung',
+    location: 'Trường ĐH Xây dựng Miền Trung',
+    radius: 5000,
+    event_time: '✦ NĂM HỌC 2025 – 2026 ✦',
+    benefit: 'Vương miện & Giấy khen Đoàn trường',
+    creator: 'Đoàn TN – Hội Sinh viên MUCE',
+    checked_in_count: 520,
+    total_attendees: 520,
+    sort_order: 1,
+    is_active: true
+  },
+  {
+    id: 'evt_net_dep_nu_sinh_muce_qua_anh_2026',
+    tag: '# NÉT ĐẸP NỮ SINH 2026',
+    benefit_badge: '👑 HOA KHÔI',
+    title: 'Nét Đẹp Nữ Sinh MUCE Qua Ảnh 2026',
+    description: 'Bình chọn nét đẹp duyên dáng, thanh lịch của nữ sinh Trường Đại học Xây dựng Miền Trung',
+    location: 'Trường ĐH Xây dựng Miền Trung',
+    radius: 5000,
+    event_time: '✦ NĂM HỌC 2025 – 2026 ✦',
+    benefit: 'Vương miện & Giấy khen Đoàn trường',
+    creator: 'Đoàn TN – Hội Sinh viên MUCE',
+    checked_in_count: 520,
+    total_attendees: 520,
+    sort_order: 2,
+    is_active: true
+  },
+  {
+    id: 'evt_hoakhoi_2026',
+    tag: '# HOA KHÔI 2026',
+    benefit_badge: '👑 VƯƠNG MIỆN',
+    title: 'Bình Chọn Hoa Khôi',
+    description: 'Chạm để trao vương miện cho thí sinh bạn yêu thích nhất',
+    location: 'Hội trường A – Trường ĐH Xây dựng Miền Trung',
+    radius: 5000,
+    event_time: '✦ NĂM HỌC 2025 – 2026 ✦',
+    benefit: 'Vương miện Hoa khôi & Kỷ niệm chương',
+    creator: 'Đoàn TN – Hội Sinh viên MUCE',
+    checked_in_count: 245,
+    total_attendees: 245,
+    sort_order: 3,
+    is_active: true
+  },
+  {
+    id: 'evt_namvuong_2026',
+    tag: '# NAM VƯƠNG 2026',
+    benefit_badge: '🏆 CÚP VÀNG',
+    title: 'Bình Chọn Nam Vương',
+    description: 'Bình chọn nam sinh tài năng, phong cách và ưu tú nhất',
+    location: 'Hội trường A – Trường ĐH Xây dựng Miền Trung',
+    radius: 5000,
+    event_time: '✦ NĂM HỌC 2025 – 2026 ✦',
+    benefit: 'Danh hiệu Nam Vương & Cúp Vàng',
+    creator: 'Đoàn TN – Hội Sinh viên MUCE',
+    checked_in_count: 182,
+    total_attendees: 182,
+    sort_order: 4,
+    is_active: true
   }
-  next();
-});
+];
 
 // ═══════════════════ API ROUTES ═══════════════════
 
 // ─── GET /api/events ──────────────────────────────
 app.get('/api/events', async (req, res) => {
+  if (!pool) {
+    return res.json({ events: FALLBACK_EVENTS });
+  }
   try {
     const { rows } = await pool.query(`
       SELECT e.*, 
@@ -56,10 +118,13 @@ app.get('/api/events', async (req, res) => {
       GROUP BY e.id
       ORDER BY e.sort_order, e.created_at
     `);
-    res.json({ events: rows });
+    if (rows && rows.length > 0) {
+      return res.json({ events: rows });
+    }
+    return res.json({ events: FALLBACK_EVENTS });
   } catch (e) {
-    console.error('GET /api/events error:', e);
-    res.status(500).json({ error: 'Lỗi server', details: e.message });
+    console.warn('⚠️ [DB Fallback] GET /api/events using fallback due to:', e.message);
+    return res.json({ events: FALLBACK_EVENTS });
   }
 });
 
@@ -320,8 +385,20 @@ app.get('/api/topic-data', async (req, res) => {
       end_time: ev.end_time || null
     });
   } catch (e) {
-    console.error('GET /api/topic-data error:', e);
-    res.status(500).json({ error: 'Lỗi server' });
+    console.warn('⚠️ [DB Fallback] GET /api/topic-data using fallback due to:', e.message);
+    const eventContestants = DEFAULT_CONTESTANTS.filter(c => c.event_id === eventId || eventId.includes('net_dep') || eventId.includes('hoakhoi'));
+    const finalContestants = eventContestants.length ? eventContestants : DEFAULT_CONTESTANTS.slice(0, 7);
+    return res.json({
+      contestants: finalContestants,
+      votes: {},
+      totalVotes: 0,
+      votedIds: [],
+      maxAllowed: 5,
+      voteRatio: 80,
+      is_active: true,
+      start_time: null,
+      end_time: null
+    });
   }
 });
 
@@ -400,8 +477,9 @@ app.get('/api/contestants', async (req, res) => {
     let { rows } = await pool.query(query, params);
     res.json({ contestants: rows });
   } catch (e) {
-    console.error('GET /api/contestants error:', e);
-    res.status(500).json({ error: 'Lỗi server' });
+    console.warn('⚠️ [DB Fallback] GET /api/contestants using fallback due to:', e.message);
+    const list = eventId ? DEFAULT_CONTESTANTS.filter(c => c.event_id === eventId) : DEFAULT_CONTESTANTS;
+    return res.json({ contestants: list });
   }
 });
 
