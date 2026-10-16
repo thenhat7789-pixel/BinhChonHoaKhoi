@@ -1539,14 +1539,16 @@ function getHardwareFingerprint() {
       cachedFp = decodeURIComponent(cookieMatch[1]);
     }
 
-    // 2. Nhận diện thiết bị Apple / Safari (iOS, iPadOS, Safari trên macOS)
-    // Trên iOS Safari 17+, Apple tự động inject noise vào canvas.toDataURL() ở tab ẩn danh (Private Browsing).
-    // Do đó với Apple/Safari, ta dùng DOM Font Metrics & WebGL Shader Precision thay vì canvas để chống nhiễu 100%!
+    // 2. Nhận diện thiết bị Apple / Safari hoặc In-App Webview (Zalo, Facebook, Messenger, TikTok, Instagram)
+    // Các In-App Browser này (đặc biệt là Zalo, Facebook) và Safari 17+ có thể thay đổi/làm nhiễu canvas.toDataURL()
+    // Do đó với các trình duyệt này, ta dùng DOM Font Metrics & WebGL Shader Precision cố định để đồng nhất 100%!
     const isApple = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
       (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
       (/^((?!chrome|android).)*safari/i.test(navigator.userAgent));
+    const isInApp = /Zalo|FBAN|FBAV|Instagram|TikTok|Line|Snapchat|MicroMessenger|WeChat/i.test(navigator.userAgent);
+    const useDomEngine = isApple || isInApp;
 
-    // A. Màn hình vật lý (Độ phân giải, tỷ lệ điểm ảnh Retina phần cứng)
+    // A. Màn hình vật lý (Độ phân giải, tỷ lệ điểm ảnh phần cứng)
     const screenSig = [
       screen.width || 0,
       screen.height || 0,
@@ -1556,10 +1558,10 @@ function getHardwareFingerprint() {
     ].join('x');
 
     // B. Vi xử lý CPU, số lõi, cảm ứng phần cứng
+    // TUYỆT ĐỐI không dùng deviceMemory vì Chrome có còn Zalo WebView không có -> làm lệch vân tay!
     const cpuSig = [
       navigator.hardwareConcurrency || 4, // Số lõi CPU thực tế
-      navigator.maxTouchPoints || 0,       // Màn hình cảm ứng (5 trên iPhone/iPad, 0 trên PC)
-      navigator.deviceMemory || 0          // RAM phần cứng (Chromium)
+      navigator.maxTouchPoints || 0        // Màn hình cảm ứng
     ].join('|');
 
     // C. Múi giờ hệ điều hành
@@ -1593,7 +1595,7 @@ function getHardwareFingerprint() {
         const maxRender = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) || 0;
         const maxVarying = gl.getParameter(gl.MAX_VARYING_VECTORS) || 0;
 
-        // Đặc tả độ chính xác Shader Float (phần cứng chip GPU, Apple GPU có thông số cố định)
+        // Đặc tả độ chính xác Shader Float (phần cứng chip GPU, cố định bất biến)
         let shaderPrecision = '';
         try {
           const hp = gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT);
@@ -1604,12 +1606,12 @@ function getHardwareFingerprint() {
       }
     } catch (e) {}
 
-    // E. Hình học font chữ DOM (Bất biến trên cả Safari thường & Safari ẩn danh Private Browsing)
+    // E. Hình học font chữ DOM (Bất biến trên cả Safari, Zalo, Facebook & Chrome)
     const domFontSig = getDomFontMetrics();
 
-    // F. Khử răng cưa subpixel Canvas 2D (Chỉ dùng cho non-Apple để tránh cơ chế inject noise của Apple Safari Private Browsing)
-    let canvasSig = 'skip_apple';
-    if (!isApple) {
+    // F. Khử răng cưa subpixel Canvas 2D (Chỉ dùng khi không phải Apple / In-App WebView)
+    let canvasSig = 'skip_canvas';
+    if (!useDomEngine) {
       try {
         const c = document.createElement('canvas');
         c.width = 240;
@@ -1630,8 +1632,8 @@ function getHardwareFingerprint() {
     }
 
     // 3. Kết hợp các tín hiệu phần cứng thuần túy
-    const rawHardwareSig = [screenSig, cpuSig, tzSig, gpuSig, domFontSig, canvasSig, isApple ? 'apple_device' : 'other_device'].join('###');
-    const computedHwFp = (isApple ? 'hw_ap_' : 'hw_') + fastMurmurHash(rawHardwareSig);
+    const rawHardwareSig = [screenSig, cpuSig, tzSig, gpuSig, domFontSig, canvasSig, useDomEngine ? 'dom_engine' : 'canvas_engine'].join('###');
+    const computedHwFp = (isApple ? 'hw_ap_' : (isInApp ? 'hw_app_' : 'hw_')) + fastMurmurHash(rawHardwareSig);
 
     // Lưu cache để tăng tốc
     try {

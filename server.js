@@ -345,6 +345,12 @@ app.post('/api/check-in', async (req, res) => {
       dupeParams.push(`%_${cleanFp}`);
       dupeQuery += ` OR voter_ip LIKE $${dupeParams.length}`;
     }
+    if (voterIp && voterIp !== 'unknown') {
+      dupeParams.push(`${voterIp}_%`);
+      dupeQuery += ` OR voter_ip LIKE $${dupeParams.length}`;
+      dupeParams.push(voterIp);
+      dupeQuery += ` OR voter_ip = $${dupeParams.length}`;
+    }
     if (cleanStudentId) {
       dupeParams.push(cleanStudentId);
       dupeQuery += ` OR (student_id = $${dupeParams.length} AND student_id != '')`;
@@ -412,7 +418,7 @@ app.get('/api/topic-data', async (req, res) => {
         WHERE c.event_id = $1
         GROUP BY c.id
       `, [eventId]),
-      // 3. My votes (Kiểm tra theo cả Hardware Fingerprint, IP và MSSV để chống đổi trình duyệt / ẩn danh)
+      // 3. My votes (Kiểm tra theo cả Hardware Fingerprint, IP và MSSV để chống đổi trình duyệt / ẩn danh / Zalo / Facebook)
       (() => {
         let q = 'SELECT DISTINCT contestant_id FROM votes WHERE (event_id = $1 OR event_id IS NULL) AND (voter_ip = $2';
         const p = [eventId, voterId];
@@ -421,6 +427,12 @@ app.get('/api/topic-data', async (req, res) => {
           q += ` OR voter_fp = $${p.length}`;
           p.push(`%_${fp}`);
           q += ` OR voter_ip LIKE $${p.length}`;
+        }
+        if (voterIp && voterIp !== 'unknown') {
+          p.push(`${voterIp}_%`);
+          q += ` OR voter_ip LIKE $${p.length}`;
+          p.push(voterIp);
+          q += ` OR voter_ip = $${p.length}`;
         }
         if (studentId) {
           p.push(studentId);
@@ -869,7 +881,7 @@ app.post('/api/vote', async (req, res) => {
       }
     }
 
-    // 1. Kiểm tra đã vote cho thí sinh này chưa (Nhận diện phần cứng thiết bị chống đổi trình duyệt / ẩn danh)
+    // 1. Kiểm tra đã vote cho thí sinh này chưa (Nhận diện phần cứng thiết bị chống đổi trình duyệt / ẩn danh / Zalo / Facebook)
     let dupeQuery = 'SELECT COUNT(*)::int as cnt FROM votes WHERE contestant_id = $1 AND (event_id = $2 OR event_id IS NULL) AND (voter_ip = $3';
     const dupeParams = [contestant_id, currentEventId, voterId];
     if (cleanFp) {
@@ -877,6 +889,12 @@ app.post('/api/vote', async (req, res) => {
       dupeQuery += ` OR voter_fp = $${dupeParams.length}`;
       dupeParams.push(`%_${cleanFp}`);
       dupeQuery += ` OR voter_ip LIKE $${dupeParams.length}`;
+    }
+    if (voterIp && voterIp !== 'unknown') {
+      dupeParams.push(`${voterIp}_%`);
+      dupeQuery += ` OR voter_ip LIKE $${dupeParams.length}`;
+      dupeParams.push(voterIp);
+      dupeQuery += ` OR voter_ip = $${dupeParams.length}`;
     }
     if (cleanStudentId) {
       dupeParams.push(cleanStudentId);
@@ -936,6 +954,12 @@ app.post('/api/vote', async (req, res) => {
       quotaQuery += ` OR voter_fp = $${quotaParams.length}`;
       quotaParams.push(`%_${cleanFp}`);
       quotaQuery += ` OR voter_ip LIKE $${quotaParams.length}`;
+    }
+    if (voterIp && voterIp !== 'unknown') {
+      quotaParams.push(`${voterIp}_%`);
+      quotaQuery += ` OR voter_ip LIKE $${quotaParams.length}`;
+      quotaParams.push(voterIp);
+      quotaQuery += ` OR voter_ip = $${quotaParams.length}`;
     }
     if (cleanStudentId) {
       quotaParams.push(cleanStudentId);
@@ -1000,6 +1024,12 @@ app.get('/api/my-votes', async (req, res) => {
       myVotesQuery += ` OR voter_fp = $${myVotesParams.length}`;
       myVotesParams.push(`%_${fp}`);
       myVotesQuery += ` OR voter_ip LIKE $${myVotesParams.length}`;
+    }
+    if (voterIp && voterIp !== 'unknown') {
+      myVotesParams.push(`${voterIp}_%`);
+      myVotesQuery += ` OR voter_ip LIKE $${myVotesParams.length}`;
+      myVotesParams.push(voterIp);
+      myVotesQuery += ` OR voter_ip = $${myVotesParams.length}`;
     }
     if (studentId) {
       myVotesParams.push(studentId);
