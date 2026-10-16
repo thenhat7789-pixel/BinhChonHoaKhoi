@@ -239,6 +239,81 @@ app.post('/api/check-in', async (req, res) => {
   }
 });
 
+// ─── GET /api/topic-data (gộp contestants + votes + my-votes) ────────────────
+// Giảm từ 3 API calls tuần tự → 1 call song song để tăng tốc load trang
+app.get('/api/topic-data', async (req, res) => {
+  const eventId = req.query.event || req.query.event_id || 'evt_hoakhoi_2026';
+  const voterIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
+    || req.headers['x-real-ip']
+    || req.socket?.remoteAddress
+    || 'unknown';
+  const fp = req.query.fp || '';
+  const voterId = fp ? `${voterIp}_${fp}` : voterIp;
+  const studentId = (req.query.student_id || '').trim();
+
+  try {
+    // Chạy tất cả queries song song (Promise.all) thay vì tuần tự
+    const [
+      contestantsResult,
+      votesResult,
+      myVotesResult,
+      eventResult,
+      settingsResult
+    ] = await Promise.all([
+      // 1. Contestants
+      pool.query('SELECT * FROM contestants WHERE event_id = $1 ORDER BY sort_order, id', [eventId]),
+      // 2. Votes count
+      pool.query(`
+        SELECT c.id, COUNT(v.id)::int as count
+        FROM contestants c
+        LEFT JOIN votes v ON v.contestant_id = c.id AND (v.event_id = $1 OR v.event_id IS NULL)
+        WHERE c.event_id = $1
+        GROUP BY c.id
+      `, [eventId]),
+      // 3. My votes
+      (() => {
+        let q = 'SELECT DISTINCT contestant_id FROM votes WHERE (event_id = $1 OR event_id IS NULL) AND (voter_ip = $2';
+        const p = [eventId, voterId];
+        if (studentId) { q += ' OR (student_id = $3 AND student_id != \'\'))'; p.push(studentId); }
+        else { q += ')'; }
+        return pool.query(q, p);
+      })(),
+      // 4. Event info
+      pool.query('SELECT is_active, vote_ratio, end_time, start_time FROM events WHERE id = $1', [eventId]),
+      // 5. Global settings
+      pool.query("SELECT value FROM settings WHERE key = 'vote_ratio'")
+    ]);
+
+    const contestants = contestantsResult.rows;
+
+    const votes = {};
+    let totalVotes = 0;
+    votesResult.rows.forEach(r => { votes[r.id] = r.count; totalVotes += r.count; });
+
+    const votedIds = myVotesResult.rows.map(r => r.contestant_id);
+
+    const ev = eventResult.rows[0] || {};
+    const globalRatio = settingsResult.rows.length ? parseInt(settingsResult.rows[0].value) || 80 : 80;
+    const voteRatio = ev.vote_ratio ? parseInt(ev.vote_ratio) : globalRatio;
+    const maxAllowed = Math.max(1, Math.round((contestants.length * voteRatio) / 100));
+
+    res.json({
+      contestants,
+      votes,
+      totalVotes,
+      votedIds,
+      maxAllowed,
+      voteRatio,
+      is_active: ev.is_active !== false,
+      start_time: ev.start_time || null,
+      end_time: ev.end_time || null
+    });
+  } catch (e) {
+    console.error('GET /api/topic-data error:', e);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
 // ─── GET /api/contestants ─────────────────────────
 app.get('/api/contestants', async (req, res) => {
   const eventId = req.query.event || req.query.event_id;

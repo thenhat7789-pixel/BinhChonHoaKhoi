@@ -1611,48 +1611,55 @@ window.addEventListener('popstate', () => {
 async function loadTopicContestantsAndVotes(eventId) {
   const ev = state.events.find(e => e.id === eventId);
 
-  // 1. Contestants
-  let contestants = [];
-  const cRes = await api.get(`/api/contestants?event=${encodeURIComponent(eventId)}`);
-  if (cRes && Array.isArray(cRes.contestants)) {
-    contestants = cRes.contestants;
-  } else if (CONTESTANTS_BY_THEME[eventId]) {
-    contestants = CONTESTANTS_BY_THEME[eventId];
-  } else {
-    contestants = [];
+  try {
+    // Dùng 1 API call gộp thay vì 3 calls tuần tự (giảm thời gian load 3x)
+    const studentId = localStorage.getItem('hh:student_id') || '';
+    const combined = await api.get(
+      `/api/topic-data?event=${encodeURIComponent(eventId)}&fp=${encodeURIComponent(VOTER_FP)}&student_id=${encodeURIComponent(studentId)}`
+    );
+
+    if (combined && Array.isArray(combined.contestants)) {
+      state.contestants = combined.contestants;
+    } else {
+      // fallback nếu endpoint chưa có
+      const cRes = await api.get(`/api/contestants?event=${encodeURIComponent(eventId)}`);
+      state.contestants = (cRes && Array.isArray(cRes.contestants)) ? cRes.contestants
+        : (CONTESTANTS_BY_THEME[eventId] || []);
+    }
+
+    state.votes = (combined && combined.votes) ? combined.votes : {};
+
+    const ratio = (combined && combined.voteRatio) ? combined.voteRatio : (ev ? (ev.vote_ratio || 80) : 80);
+    state.voteRatio = ratio;
+
+    if (combined && combined.votedIds) {
+      state.votedIds = combined.votedIds;
+      state.maxAllowed = combined.maxAllowed || Math.max(1, Math.round((state.contestants.length * (ratio / 100))));
+    } else {
+      try {
+        const saved = JSON.parse(localStorage.getItem(`hh:voted:${eventId}`) || '[]');
+        state.votedIds = Array.isArray(saved) ? saved : [];
+      } catch(e) { state.votedIds = []; }
+      state.maxAllowed = Math.max(1, Math.round((state.contestants.length * (ratio / 100))));
+    }
+
+    const isActive = (combined && combined.is_active !== undefined) ? combined.is_active : (ev ? (ev.is_active !== false) : true);
+    const startTimeStr = (combined && combined.start_time) ? combined.start_time : (ev ? ev.start_time : null);
+    const endTimeStr = (combined && combined.end_time) ? combined.end_time : (ev ? ev.end_time : null);
+    state.isActive = isActive;
+    state.startTime = startTimeStr;
+    state.endTime = endTimeStr;
+    startTopicCountdown(startTimeStr, endTimeStr, isActive);
+
+  } catch(err) {
+    console.error('loadTopicContestantsAndVotes error:', err);
+    state.contestants = state.contestants || [];
+    state.votes = state.votes || {};
+    state.votedIds = state.votedIds || [];
+    state.maxAllowed = state.maxAllowed || 1;
   }
-  state.contestants = contestants;
 
-  // 2. Votes
-  const vRes = await api.get(`/api/votes?event=${encodeURIComponent(eventId)}`);
-  state.votes = (vRes && vRes.votes) ? vRes.votes : {};
 
-  // 3. My Votes, Time & Ratio for this event
-  const studentId = localStorage.getItem('hh:student_id') || '';
-  const myVRes = await api.get(`/api/my-votes?event=${encodeURIComponent(eventId)}&fp=${encodeURIComponent(VOTER_FP)}&student_id=${encodeURIComponent(studentId)}`);
-  
-  const ratio = (myVRes && myVRes.voteRatio) ? myVRes.voteRatio : (ev ? (ev.vote_ratio || 80) : 80);
-  state.voteRatio = ratio;
-
-  if (myVRes && myVRes.votedIds) {
-    state.votedIds = myVRes.votedIds;
-    state.maxAllowed = myVRes.maxAllowed || Math.max(1, Math.round((contestants.length * (ratio / 100))));
-  } else {
-    try {
-      const saved = JSON.parse(localStorage.getItem(`hh:voted:${eventId}`) || '[]');
-      state.votedIds = Array.isArray(saved) ? saved : [];
-    } catch(e) { state.votedIds = []; }
-    state.maxAllowed = Math.max(1, Math.round((contestants.length * (ratio / 100))));
-  }
-
-  // Update Countdown & Active Status
-  const isActive = (myVRes && myVRes.is_active !== undefined) ? myVRes.is_active : (ev ? (ev.is_active !== false) : true);
-  const startTimeStr = (myVRes && myVRes.start_time) ? myVRes.start_time : (ev ? ev.start_time : null);
-  const endTimeStr = (myVRes && myVRes.end_time) ? myVRes.end_time : (ev ? ev.end_time : null);
-  state.isActive = isActive;
-  state.startTime = startTimeStr;
-  state.endTime = endTimeStr;
-  startTopicCountdown(startTimeStr, endTimeStr, isActive);
 
   // Update Voting Rule Bar
   const myVotesCount = (state.votedIds || []).length;
