@@ -1517,7 +1517,7 @@ function getDomFontMetrics() {
     const metrics = [];
     for (let i = 0; i < container.children.length; i++) {
       const r = container.children[i].getBoundingClientRect();
-      metrics.push(r.width.toFixed(2) + 'x' + r.height.toFixed(2));
+      metrics.push(Math.round(r.width) + 'x' + Math.round(r.height));
     }
     (document.body || document.documentElement).removeChild(container);
     return metrics.join('|');
@@ -1528,15 +1528,26 @@ function getDomFontMetrics() {
 
 function getHardwareFingerprint() {
   try {
-    // 1. Kiểm tra cache cookie hoặc localStorage nếu đã từng lưu trên phiên này
+    // 1. Kiểm tra cache cookie hoặc localStorage nếu đã từng lưu trên trình duyệt này -> DÙNG NGAY 100% để chống F5 làm mới đổi vân tay!
     let cachedFp = '';
     try {
-      cachedFp = localStorage.getItem('hh:voter_hw_fp') || '';
+      cachedFp = localStorage.getItem('hh:voter_hw_fp') || localStorage.getItem('hh:voter_fp') || '';
     } catch (e) {}
 
-    const cookieMatch = document.cookie.match(/(?:^|; )hh_voter_hw_fp=([^;]*)/);
-    if (!cachedFp && cookieMatch) {
-      cachedFp = decodeURIComponent(cookieMatch[1]);
+    if (!cachedFp) {
+      const cookieMatch = document.cookie.match(/(?:^|; )hh_voter_hw_fp=([^;]*)/);
+      if (cookieMatch) {
+        cachedFp = decodeURIComponent(cookieMatch[1]);
+      }
+    }
+
+    if (cachedFp && typeof cachedFp === 'string' && cachedFp.length >= 6) {
+      try {
+        localStorage.setItem('hh:voter_hw_fp', cachedFp);
+        localStorage.setItem('hh:voter_fp', cachedFp);
+        document.cookie = `hh_voter_hw_fp=${cachedFp}; path=/; max-age=31536000; SameSite=Lax`;
+      } catch (e) {}
+      return cachedFp;
     }
 
     // 2. Nhận diện thiết bị Apple / Safari hoặc In-App Webview (Zalo, Facebook, Messenger, TikTok, Instagram)
@@ -2076,9 +2087,31 @@ function applyTopicData(combined, eventId, ev) {
   }
   state.votes = combined.votes || {};
 
-  if (combined.votedIds) {
-    state.votedIds = combined.votedIds;
-  }
+  // Luôn hợp nhất danh sách đã bình chọn từ Server, localStorage và Cookie
+  // Đảm bảo tuyệt đối không bị reset hay mất trạng thái khi người dùng nhấn F5 / làm mới trang
+  let localVoted = [];
+  try {
+    localVoted = JSON.parse(localStorage.getItem(`hh:voted:${eventId}`) || '[]');
+    if (!Array.isArray(localVoted)) localVoted = [];
+  } catch (e) {}
+
+  let cookieVoted = [];
+  try {
+    const cMatch = document.cookie.match(new RegExp(`(?:^|; )hh_voted_${eventId}=([^;]*)`));
+    if (cMatch) {
+      cookieVoted = JSON.parse(decodeURIComponent(cMatch[1]));
+      if (!Array.isArray(cookieVoted)) cookieVoted = [];
+    }
+  } catch (e) {}
+
+  const serverVoted = Array.isArray(combined.votedIds) ? combined.votedIds : [];
+  state.votedIds = Array.from(new Set([...serverVoted, ...localVoted, ...cookieVoted]));
+
+  try {
+    localStorage.setItem(`hh:voted:${eventId}`, JSON.stringify(state.votedIds));
+    document.cookie = `hh_voted_${eventId}=${encodeURIComponent(JSON.stringify(state.votedIds))}; path=/; max-age=31536000; SameSite=Lax`;
+  } catch (e) {}
+
   state.maxAllowed = combined.maxAllowed || Math.max(1, Math.round(((state.contestants || []).length * (ratio / 100))));
 
   const isActive = (combined.is_active !== undefined) ? combined.is_active : (ev ? (ev.is_active !== false) : true);
@@ -2138,6 +2171,9 @@ async function loadTopicContestantsAndVotes(eventId) {
         applyTopicData(cached, eventId, ev);
       }
     } catch(e){}
+  } else {
+    // Nếu chưa có cache, vẫn gọi applyTopicData để lấy votedIds từ localStorage & cookie
+    applyTopicData({ votedIds: [] }, eventId, ev);
   }
 
   // 2. Chạy ngầm tải dữ liệu mới nhất từ server và cập nhật mượt mà
@@ -2148,6 +2184,12 @@ async function loadTopicContestantsAndVotes(eventId) {
     );
 
     if (combined && Array.isArray(combined.contestants)) {
+      // Luôn gộp votedIds với localStorage trước khi lưu cache
+      let localVoted = [];
+      try {
+        localVoted = JSON.parse(localStorage.getItem(`hh:voted:${eventId}`) || '[]');
+      } catch (e) {}
+      combined.votedIds = Array.from(new Set([...(combined.votedIds || []), ...localVoted]));
       try { localStorage.setItem(cacheKey, JSON.stringify(combined)); } catch(e){}
       applyTopicData(combined, eventId, ev);
     } else {
@@ -2520,12 +2562,26 @@ document.getElementById('confirmVoteBtn').addEventListener('click', async () => 
     return;
   }
 
-  // Server ghi phiếu thành công 100% -> cập nhật giao diện & localStorage
+  // Server ghi phiếu thành công 100% -> cập nhật giao diện, localStorage & cookie
   state.votes[cId] = (state.votes[cId] || 0) + 1;
   if (!state.votedIds.includes(cId)) {
     state.votedIds.push(cId);
   }
-  localStorage.setItem(`hh:voted:${eventId}`, JSON.stringify(state.votedIds));
+  try {
+    localStorage.setItem(`hh:voted:${eventId}`, JSON.stringify(state.votedIds));
+    document.cookie = `hh_voted_${eventId}=${encodeURIComponent(JSON.stringify(state.votedIds))}; path=/; max-age=31536000; SameSite=Lax`;
+  } catch (e) {}
+
+  // Cập nhật ngay vào cache cuộc thi hh:cache_topic:${eventId} để F5 lập tức vẫn chuẩn xác 100%
+  try {
+    const cacheKey = `hh:cache_topic:${eventId}`;
+    const rawCache = localStorage.getItem(cacheKey);
+    let parsedCache = rawCache ? JSON.parse(rawCache) : {};
+    parsedCache.votedIds = state.votedIds;
+    parsedCache.votes = state.votes;
+    localStorage.setItem(cacheKey, JSON.stringify(parsedCache));
+  } catch (e) {}
+
   renderTopicContestants();
   closeVoteModal();
 
@@ -2635,6 +2691,12 @@ async function init() {
         .then(r => r.json())
         .then(data => {
           if (data && Array.isArray(data.contestants)) {
+            // Hợp nhất với localVoted trước khi lưu đè cache
+            let localVoted = [];
+            try {
+              localVoted = JSON.parse(localStorage.getItem(`hh:voted:${e.id}`) || '[]');
+            } catch (err) {}
+            data.votedIds = Array.from(new Set([...(data.votedIds || []), ...localVoted]));
             localStorage.setItem(`hh:cache_topic:${e.id}`, JSON.stringify(data));
           }
         })
