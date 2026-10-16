@@ -260,8 +260,8 @@ app.get('/api/topic-data', async (req, res) => {
       eventResult,
       settingsResult
     ] = await Promise.all([
-      // 1. Contestants
-      pool.query('SELECT * FROM contestants WHERE event_id = $1 ORDER BY sort_order, id', [eventId]),
+      // 1. Contestants (KHÔNG lấy trường photo để giảm payload - ảnh load riêng)
+      pool.query('SELECT id, event_id, name, subtitle, color, sort_order, faculty, hometown FROM contestants WHERE event_id = $1 ORDER BY sort_order, id', [eventId]),
       // 2. Votes count
       pool.query(`
         SELECT c.id, COUNT(v.id)::int as count
@@ -314,11 +314,32 @@ app.get('/api/topic-data', async (req, res) => {
   }
 });
 
+// ─── GET /api/contestants/:id/photo ──────────────
+// Endpoint riêng để lấy ảnh base64 từng thí sinh (lazy load)
+app.get('/api/contestants/:id/photo', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT id, photo FROM contestants WHERE id = $1', [req.params.id]);
+    if (!rows.length || !rows[0].photo) {
+      return res.status(404).json({ photo: null });
+    }
+    // Cache ảnh trên CDN/browser 1 giờ vì ảnh ít thay đổi
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.json({ photo: rows[0].photo });
+  } catch (e) {
+    console.error('GET /api/contestants/:id/photo error:', e);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
 // ─── GET /api/contestants ─────────────────────────
 app.get('/api/contestants', async (req, res) => {
   const eventId = req.query.event || req.query.event_id;
+  const noPhotos = req.query.no_photos === '1';
   try {
-    let query = 'SELECT * FROM contestants';
+    const fields = noPhotos
+      ? 'id, event_id, name, subtitle, color, sort_order, faculty, hometown'
+      : '*';
+    let query = `SELECT ${fields} FROM contestants`;
     let params = [];
     if (eventId) {
       query += ' WHERE event_id = $1';
@@ -326,7 +347,6 @@ app.get('/api/contestants', async (req, res) => {
     }
     query += ' ORDER BY sort_order, id';
     let { rows } = await pool.query(query, params);
-
     res.json({ contestants: rows });
   } catch (e) {
     console.error('GET /api/contestants error:', e);
@@ -773,8 +793,8 @@ app.get('/api/admin-data', async (req, res) => {
         GROUP BY e.id
         ORDER BY e.sort_order, e.created_at
       `),
-      // 2. Contestants
-      pool.query('SELECT * FROM contestants ORDER BY sort_order, id'),
+      // 2. Contestants (KHÔNG lấy photo để giảm payload - ảnh load riêng qua /api/contestants/:id/photo)
+      pool.query('SELECT id, event_id, name, subtitle, color, sort_order, faculty, hometown FROM contestants ORDER BY sort_order, id'),
       // 3. Votes
       pool.query(`
         SELECT c.id, c.event_id, COUNT(v.id)::int as count
