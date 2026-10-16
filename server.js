@@ -132,7 +132,7 @@ const FALLBACK_EVENTS = [
 // ─── GET /api/events ──────────────────────────────
 app.get('/api/events', async (req, res) => {
   if (!pool) {
-    return res.json({ events: FALLBACK_EVENTS });
+    return res.json({ events: [] });
   }
   try {
     const { rows } = await pool.query(`
@@ -143,13 +143,11 @@ app.get('/api/events', async (req, res) => {
       GROUP BY e.id
       ORDER BY e.sort_order, e.created_at
     `);
-    if (rows && rows.length > 0) {
-      return res.json({ events: rows });
-    }
-    return res.json({ events: FALLBACK_EVENTS });
+    // Trả về đúng danh sách từ Neon DB. Nếu người dùng xóa hết thì trả về mảng rỗng []
+    return res.json({ events: rows || [] });
   } catch (e) {
-    console.warn('⚠️ [DB Fallback] GET /api/events using fallback due to:', e.message);
-    return res.json({ events: FALLBACK_EVENTS });
+    console.warn('⚠️ [DB Warning] GET /api/events error:', e.message);
+    return res.json({ events: [] });
   }
 });
 

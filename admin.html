@@ -2754,38 +2754,27 @@ let adminEvents = [];
 async function loadAdminEvents() {
   try {
     const res = await api.get('/api/events');
-    if (res && Array.isArray(res.events) && res.events.length > 0) {
+    if (res && Array.isArray(res.events)) {
       adminEvents = res.events;
+      localStorage.setItem('hh:events', JSON.stringify(adminEvents));
     } else {
       const local = localStorage.getItem('hh:events');
       if (local) {
         try { adminEvents = JSON.parse(local); } catch(e){}
       }
-      if (!adminEvents || !adminEvents.length) {
-        adminEvents = DEFAULT_ADMIN_EVENTS;
-      }
     }
   } catch(e) {
-    adminEvents = DEFAULT_ADMIN_EVENTS;
+    const local = localStorage.getItem('hh:events');
+    if (local) {
+      try { adminEvents = JSON.parse(local); } catch(e){}
+    }
   }
 
   // Filter out any stale attendance events (PHƯỜNG, NCTXH, Chuyển đổi số, Hiến máu)
-  adminEvents = adminEvents.filter(e => {
+  adminEvents = (adminEvents || []).filter(e => {
     const text = ((e.title || '') + ' ' + (e.tag || '') + ' ' + (e.description || '')).toLowerCase();
     return !text.includes('phường') && !text.includes('nctxh') && !text.includes('chuyển đổi số') && !text.includes('hiến máu');
   });
-  if (!adminEvents || !adminEvents.length) {
-    adminEvents = DEFAULT_ADMIN_EVENTS;
-    localStorage.setItem('hh:events', JSON.stringify(DEFAULT_ADMIN_EVENTS));
-  } else {
-    adminEvents = adminEvents.map(e => {
-      if (!e.short_url) {
-        const def = DEFAULT_ADMIN_EVENTS.find(d => d.id === e.id);
-        if (def && def.short_url) e.short_url = def.short_url;
-      }
-      return e;
-    });
-  }
 
   renderAdminEvents();
 }

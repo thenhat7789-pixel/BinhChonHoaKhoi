@@ -1569,7 +1569,19 @@ function renderPortalEvents() {
            (e.location && e.location.toLowerCase().includes(query));
   });
 
-  document.getElementById('portalEventCountBadge').textContent = `${filtered.length} cuộc thi`;
+  const countBadge = document.getElementById('portalEventCountBadge');
+  if (countBadge) countBadge.textContent = `${filtered.length} cuộc thi`;
+
+  if (!filtered.length) {
+    grid.innerHTML = `
+      <div style="grid-column: 1 / -1; text-align: center; padding: 4rem 1.5rem; background: rgba(255,255,255,0.85); border-radius: 20px; border: 1.5px dashed #cbd5e1; box-shadow: 0 10px 30px rgba(0,0,0,0.03);">
+        <div style="font-size: 3.5rem; margin-bottom: 0.75rem;">👑</div>
+        <h3 style="font-size: 1.35rem; color: #0f172a; margin-bottom: 0.5rem; font-weight: 800;">Hiện chưa có cuộc thi nào đang mở bình chọn</h3>
+        <p style="color: #64748b; font-size: 0.95rem; max-width: 460px; margin: 0 auto; line-height: 1.6;">Ban tổ chức đang chuẩn bị danh sách sự kiện và thí sinh. Vui lòng quay lại sau hoặc liên hệ Đoàn trường để biết thêm thông tin!</p>
+      </div>
+    `;
+    return;
+  }
 
   grid.innerHTML = filtered.map(e => {
     const cleanTitle = (e.title || '').replace(/<[^>]*>?/gm, '');
@@ -2417,36 +2429,22 @@ function formatTimeAgo(ts) {
 async function init() {
   initSakuraPetals();
 
-  // 1. Load competitions list (from API or settings or localStorage or defaults)
+  // 1. Tải danh sách cuộc thi trực tiếp từ máy chủ
   let eventsList = [];
-  const evRes = await api.get('/api/events');
-  if (evRes && Array.isArray(evRes.events) && evRes.events.length > 0) {
-    eventsList = evRes.events;
-  } else {
-    // Check saved events from settings
-    const settings = await api.get('/api/settings');
-    if (settings && settings.saved_events) {
-      try { eventsList = JSON.parse(settings.saved_events); } catch(e){}
+  try {
+    const evRes = await api.get('/api/events');
+    if (evRes && Array.isArray(evRes.events)) {
+      eventsList = evRes.events;
     }
-    if (!eventsList || !eventsList.length) {
-      const local = localStorage.getItem('hh:saved_events') || localStorage.getItem('hh:events');
-      if (local) {
-        try { eventsList = JSON.parse(local); } catch(e){}
-      }
-    }
-    if (!eventsList || !eventsList.length) {
-      eventsList = DEFAULT_SAVED_EVENTS;
-    }
+  } catch(e) {
+    console.warn('Lỗi tải danh sách sự kiện:', e);
   }
 
-  // Filter out any stale attendance events (PHƯỜNG, NCTXH, Chuyển đổi số, Hiến máu)
-  eventsList = eventsList.filter(e => {
+  // Lọc bỏ sự kiện cũ nếu có
+  eventsList = (eventsList || []).filter(e => {
     const text = ((e.title || '') + ' ' + (e.tag || '') + ' ' + (e.description || '')).toLowerCase();
     return !text.includes('phường') && !text.includes('nctxh') && !text.includes('chuyển đổi số') && !text.includes('hiến máu');
   });
-  if (!eventsList || !eventsList.length) {
-    eventsList = DEFAULT_SAVED_EVENTS;
-  }
 
   // Ensure each event has full tags and data for competitions
   state.events = eventsList.map((e, idx) => ({
