@@ -491,7 +491,7 @@
       box-shadow: 0 0 8px #60a5fa;
     }
     .c-card-img {
-      height: auto; /* auto height to fit image without cropping */
+      height: 380px;
       width: 100%;
       position: relative;
       overflow: hidden;
@@ -501,18 +501,31 @@
       justify-content: center;
       cursor: pointer;
     }
-    .c-card-photo-bg {
+    @media (max-width: 640px) {
+      .c-card-img {
+        height: 320px;
+      }
+    }
+    .c-card-img-inner {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .c-card-img-inner .c-card-photo-bg {
       position: absolute;
       inset: -25px;
       width: calc(100% + 50px);
       height: calc(100% + 50px);
       object-fit: cover;
-      filter: blur(28px) brightness(0.6) saturate(1.25);
+      filter: blur(28px) brightness(0.5) saturate(1.3);
       transform: scale(1.15);
       pointer-events: none;
       z-index: 1;
     }
-    .c-card-photo {
+    .c-card-img-inner .c-card-photo {
       width: 100%;
       height: 100%;
       object-fit: contain;
@@ -523,34 +536,6 @@
     }
     .c-card:hover .c-card-photo {
       transform: scale(1.035);
-    }
-    .c-card-img-inner {
-      width: 100%;
-      height: 100%;
-      position: relative;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 280px;
-    }
-    .c-card-img-inner .c-card-photo-bg {
-      position: absolute;
-      inset: -25px;
-      width: calc(100% + 50px);
-      height: calc(100% + 50px);
-      object-fit: cover;
-      filter: blur(28px) brightness(0.6) saturate(1.25);
-      transform: scale(1.15);
-      pointer-events: none;
-      z-index: 1;
-    }
-    .c-card-img-inner .c-card-photo {
-      width: 100%;
-      height: auto;
-      object-fit: contain;
-      object-position: center;
-      position: relative;
-      z-index: 2;
     }
     .c-card-placeholder {
       display: flex;
@@ -614,7 +599,8 @@
       transition: width 0.4s ease;
     }
     .c-card-actions {
-      margin-top: 1.15rem;
+      margin-top: auto;
+      padding-top: 1.15rem;
       display: flex;
       flex-direction: column;
       gap: 0.5rem;
