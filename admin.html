@@ -709,7 +709,7 @@
         <label class="form-label">Hình ảnh thí sinh</label>
         <div style="display:flex;align-items:flex-start;gap:1rem">
           <label for="editPhoto" style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:90px;height:90px;border:2px dashed var(--border);border-radius:.5rem;cursor:pointer;flex-shrink:0;overflow:hidden;background:var(--bg2);transition:border-color .2s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">
-            <img id="editPhotoPreview" src="" style="display:none;width:100%;height:100%;object-fit:cover;border-radius:.4rem" />
+            <img id="editPhotoPreview" src="" style="display:none;width:100%;height:100%;object-fit:contain;background:#0f172a;border-radius:.4rem" />
             <span id="editPhotoPlaceholder" style="font-size:1.6rem">📷</span>
             <span id="editPhotoHint" style="font-size:.6rem;color:var(--text-dim);margin-top:.2rem">Chọn ảnh</span>
           </label>
@@ -4559,7 +4559,7 @@ function renderContestantList(targetEventId) {
       <!-- Photo / Avatar -->
       <div style="width:54px;height:54px;border-radius:.65rem;overflow:hidden;flex-shrink:0;background:${c.color || '#0057a8'};display:flex;align-items:center;justify-content:center;border:1.5px solid #e2e8f0;">
         ${c.photo
-          ? `<img src="${c.photo}" style="width:100%;height:100%;object-fit:cover;" />`
+          ? `<img src="${c.photo}" style="width:100%;height:100%;object-fit:contain;background:#0f172a;" />`
           : `<span style="font-size:1.6rem">👤</span>`
         }
       </div>

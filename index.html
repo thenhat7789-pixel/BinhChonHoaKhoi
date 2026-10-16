@@ -491,26 +491,38 @@
       box-shadow: 0 0 8px #60a5fa;
     }
     .c-card-img {
-      height: 280px;
+      height: 320px;
       width: 100%;
       position: relative;
       overflow: hidden;
-      background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+      background: #0b1120;
       display: flex;
       align-items: center;
       justify-content: center;
+      cursor: pointer;
+    }
+    .c-card-photo-bg {
+      position: absolute;
+      inset: -25px;
+      width: calc(100% + 50px);
+      height: calc(100% + 50px);
+      object-fit: cover;
+      filter: blur(28px) brightness(0.6) saturate(1.25);
+      transform: scale(1.15);
+      pointer-events: none;
+      z-index: 1;
     }
     .c-card-photo {
       width: 100%;
       height: 100%;
-      object-fit: cover;
-      object-position: center top;
-      position: absolute;
-      inset: 0;
-      transition: transform 0.5s ease;
+      object-fit: contain;
+      object-position: center;
+      position: relative;
+      z-index: 2;
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
     }
     .c-card:hover .c-card-photo {
-      transform: scale(1.07);
+      transform: scale(1.035);
     }
     .c-card-placeholder {
       display: flex;
@@ -520,6 +532,8 @@
       gap: 0.4rem;
       color: rgba(255, 255, 255, 0.9);
       user-select: none;
+      position: relative;
+      z-index: 2;
     }
     .c-card-placeholder-icon {
       font-size: 2.5rem;
@@ -1035,6 +1049,15 @@
         </button>
       </div>
     </div>
+  </div>
+</div>
+
+<!-- ═══════════════════ PHOTO LIGHTBOX MODAL ═══════════════════ -->
+<div class="modal-overlay hidden" id="photoViewModal" onclick="if(event.target===this)closePhotoViewModal()" style="padding:1rem;z-index:99999;background:rgba(0,0,0,0.85);backdrop-filter:blur(10px);">
+  <div style="position:relative;max-width:92vw;max-height:92vh;display:flex;flex-direction:column;align-items:center;">
+    <button type="button" onclick="closePhotoViewModal()" style="position:absolute;top:-44px;right:0;background:rgba(255,255,255,0.25);color:#fff;border:none;border-radius:50%;width:36px;height:36px;cursor:pointer;font-size:1.15rem;font-weight:700;display:flex;align-items:center;justify-content:center;transition:background .2s;" onmouseover="this.style.background='rgba(255,255,255,0.45)'" onmouseout="this.style.background='rgba(255,255,255,0.25)'" title="Đóng">✕</button>
+    <img id="photoViewImg" src="" alt="Hình ảnh thí sinh" style="max-width:90vw;max-height:82vh;object-fit:contain;border-radius:12px;box-shadow:0 20px 60px rgba(0,0,0,0.6);" />
+    <div id="photoViewCaption" style="color:#ffffff;font-weight:700;font-size:1.05rem;margin-top:.75rem;text-align:center;text-shadow:0 2px 4px rgba(0,0,0,0.8);"></div>
   </div>
 </div>
 
@@ -1741,7 +1764,8 @@ function renderTopicContestants() {
       }
     }
     const photoHtml = c.photo
-      ? `<img class="c-card-photo" src="${c.photo}" alt="${esc(c.name)}" loading="lazy" />`
+      ? `<img class="c-card-photo-bg" src="${c.photo}" alt="" aria-hidden="true" />
+         <img class="c-card-photo" src="${c.photo}" alt="${esc(c.name)}" loading="lazy" />`
       : `<div class="c-card-placeholder">
            <div class="c-card-placeholder-icon">👑</div>
            <div class="c-card-img-num">${esc(sbd)}</div>
@@ -1750,7 +1774,7 @@ function renderTopicContestants() {
     return `
     <div class="c-card ${isMine ? 'voted-card' : ''}">
       <div class="sbd-badge">SBD ${esc(sbd)}</div>
-      <div class="c-card-img" style="background:linear-gradient(135deg, ${c.color || '#1e293b'} 0%, #0f172a 100%)">
+      <div class="c-card-img" style="background:linear-gradient(135deg, ${c.color || '#1e293b'} 0%, #0f172a 100%)" ${c.photo ? `onclick="viewCandidatePhoto('${c.id}')" title="Nhấn để xem toàn bộ ảnh thí sinh"` : ''}>
         ${photoHtml}
       </div>
       <div class="c-card-body">
@@ -1885,6 +1909,28 @@ function openPublicQrModal(eventId) {
 
 function closePublicQrModal() {
   const modal = document.getElementById('publicQrModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
+}
+
+function viewCandidatePhoto(cId) {
+  const c = (state.contestants || []).find(x => x.id === cId);
+  if (!c || !c.photo) return;
+  const modal = document.getElementById('photoViewModal');
+  const img = document.getElementById('photoViewImg');
+  const cap = document.getElementById('photoViewCaption');
+  if (!modal || !img) return;
+  img.src = c.photo;
+  const sbd = getContestantSbd(c.id);
+  if (cap) cap.textContent = `SBD ${sbd} · ${c.name}`;
+  modal.classList.remove('hidden');
+  modal.style.display = 'flex';
+}
+
+function closePhotoViewModal() {
+  const modal = document.getElementById('photoViewModal');
   if (modal) {
     modal.classList.add('hidden');
     modal.style.display = 'none';
