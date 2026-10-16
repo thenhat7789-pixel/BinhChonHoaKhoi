@@ -35,6 +35,16 @@ app.get('/admin.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
 });
 
+app.get('/api/test-db', async (req, res) => {
+  if (!pool) return res.json({ ok: false, error: 'No pool' });
+  try {
+    const { rows } = await pool.query("SELECT id, event_id, name, faculty, hometown, (photo IS NOT NULL AND photo != '') as has_photo FROM contestants LIMIT 20");
+    res.json({ ok: true, count: rows.length, rows });
+  } catch (e) {
+    res.json({ ok: false, error: e.message, code: e.code });
+  }
+});
+
 const FALLBACK_EVENTS = [
   {
     id: 'evt_net_dep_nu_sinh_muce_qua_ong_kinh_mvasalg8',
