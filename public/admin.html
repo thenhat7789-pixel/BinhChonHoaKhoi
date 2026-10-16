@@ -719,7 +719,7 @@
           </label>
           <div style="flex:1;display:flex;flex-direction:column;gap:.4rem">
             <input type="file" id="editPhoto" accept="image/*" style="display:none" onchange="previewPhoto(this)" />
-            <p style="font-size:.75rem;color:var(--text-dim);margin:0">Hỗ trợ JPG, PNG, WebP. Ảnh sẽ được lưu dưới dạng Base64 trực tiếp trong dữ liệu.</p>
+            <p style="font-size:.75rem;color:var(--text-dim);margin:0">Hỗ trợ JPG, PNG, WebP. Ảnh được nén tự động và lưu an toàn vào máy tính / server (không tốn dung lượng Neon DB).</p>
             <button type="button" class="btn btn-ghost btn-sm" onclick="document.getElementById('editPhoto').click()">📂 Chọn từ máy tính</button>
             <button type="button" class="btn btn-ghost btn-sm" id="editPhotoClearBtn" onclick="clearPhoto()" style="display:none">✕ Xóa ảnh</button>
           </div>
@@ -5405,15 +5405,47 @@ function previewPhoto(input) {
   if (!file) return;
   const reader = new FileReader();
   reader.onload = e => {
-    _pendingPhoto = e.target.result;
-    const preview = document.getElementById('editPhotoPreview');
-    const placeholder = document.getElementById('editPhotoPlaceholder');
-    const hint = document.getElementById('editPhotoHint');
-    preview.src = _pendingPhoto;
-    preview.style.display = 'block';
-    placeholder.style.display = 'none';
-    hint.style.display = 'none';
-    document.getElementById('editPhotoClearBtn').style.display = '';
+    const img = new Image();
+    img.onload = () => {
+      // Tự động thu gọn kích thước (tối đa 900x1200) và nén JPEG 82%
+      // Giúp ảnh siêu nhẹ (chỉ ~50KB - 80KB), upload tức thì và lưu ổ cứng cực nhanh
+      const MAX_WIDTH = 900;
+      const MAX_HEIGHT = 1200;
+      let width = img.width;
+      let height = img.height;
+
+      if (width > height) {
+        if (width > MAX_WIDTH) {
+          height = Math.round((height * MAX_WIDTH) / width);
+          width = MAX_WIDTH;
+        }
+      } else {
+        if (height > MAX_HEIGHT) {
+          width = Math.round((width * MAX_HEIGHT) / height);
+          height = MAX_HEIGHT;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Nén sang JPEG chất lượng 82%
+      const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.82);
+      _pendingPhoto = compressedDataUrl;
+
+      const preview = document.getElementById('editPhotoPreview');
+      const placeholder = document.getElementById('editPhotoPlaceholder');
+      const hint = document.getElementById('editPhotoHint');
+      preview.src = _pendingPhoto;
+      preview.style.display = 'block';
+      placeholder.style.display = 'none';
+      hint.style.display = 'none';
+      document.getElementById('editPhotoClearBtn').style.display = '';
+    };
+    img.src = e.target.result;
   };
   reader.readAsDataURL(file);
 }
@@ -5692,13 +5724,20 @@ async function saveEdit() {
   renderAdminEvents();
   renderKPI();
 
-  // Đồng bộ lên database máy chủ
+  // Đồng bộ lên database máy chủ (ảnh được tự động lưu ra đĩa máy tính/server)
   try {
     const res = await api.post('/api/contestants', { contestants: appData.contestants, event_id });
+    if (res && res.contestants) {
+      appData.contestants = res.contestants;
+      try {
+        localStorage.setItem('hh:contestants', JSON.stringify(appData.contestants));
+      } catch(e) {}
+      renderContestantList(currentContestantEventId);
+    }
     if (res && res.error) {
       toast('Cảnh báo: ' + res.error, 'warning');
     } else {
-      toast(`Đã lưu thí sinh "${name}" thành công!`, 'success');
+      toast(`Đã lưu thí sinh "${name}" và tệp ảnh an toàn vào máy tính!`, 'success');
     }
   } catch(e) {
     console.error('Lỗi lưu contestants lên máy chủ:', e);

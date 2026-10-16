@@ -2,11 +2,22 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
+const fs = require('fs');
 const { pool, initDB, DEFAULT_CONTESTANTS } = require('./db');
 const { getRandomVietnameseName, getRandomVietnameseComment, getRandomVoterIp } = require('./vietnameseData');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Đảm bảo thư mục lưu trữ ảnh trên máy tính / server luôn tồn tại
+const UPLOADS_DIR_PUBLIC = path.join(__dirname, 'public', 'uploads');
+const UPLOADS_DIR_ROOT = path.join(__dirname, 'uploads');
+if (!fs.existsSync(UPLOADS_DIR_PUBLIC)) {
+  fs.mkdirSync(UPLOADS_DIR_PUBLIC, { recursive: true });
+}
+if (!fs.existsSync(UPLOADS_DIR_ROOT)) {
+  fs.mkdirSync(UPLOADS_DIR_ROOT, { recursive: true });
+}
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -21,6 +32,10 @@ app.use((req, res, next) => {
   }
   next();
 });
+
+// Phục vụ ảnh trực tiếp từ thư mục uploads máy tính/server
+app.use('/uploads', express.static(UPLOADS_DIR_PUBLIC));
+app.use('/uploads', express.static(UPLOADS_DIR_ROOT));
 
 app.use(express.static(__dirname));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -419,12 +434,36 @@ const photoBufferCache = new Map();
 app.get('/api/contestants/:id/photo', async (req, res) => {
   const id = req.params.id;
 
-  // 1. Phục vụ ngay từ RAM máy chủ nếu đã có trong cache (0.5ms)
+  // 1. Phục vụ TRỰC TIẾP TỪ ĐĨA MÁY TÍNH / SERVER (cực nhanh, không tốn tài nguyên DB)
+  const possiblePaths = [
+    path.join(__dirname, 'public', 'uploads', `${id}.jpg`),
+    path.join(__dirname, 'public', 'uploads', `${id}.png`),
+    path.join(__dirname, 'public', 'uploads', `${id}.webp`),
+    path.join(__dirname, 'uploads', `${id}.jpg`),
+    path.join(__dirname, 'uploads', `${id}.png`),
+    path.join(__dirname, 'uploads', `${id}.webp`)
+  ];
+
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      const ext = path.extname(p).toLowerCase();
+      const mime = ext === '.png' ? 'image/png' : (ext === '.webp' ? 'image/webp' : 'image/jpeg');
+      res.setHeader('Content-Type', mime);
+      res.setHeader('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
+      return res.sendFile(p);
+    }
+  }
+
+  // 2. Phục vụ ngay từ RAM máy chủ nếu đã có trong cache (0.5ms)
   if (req.query.json !== '1' && photoBufferCache.has(id)) {
     const cached = photoBufferCache.get(id);
     res.setHeader('Content-Type', cached.mime);
     res.setHeader('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
     return res.send(cached.buffer);
+  }
+
+  if (!pool) {
+    return res.status(404).send('Photo not found');
   }
 
   try {
@@ -434,18 +473,37 @@ app.get('/api/contestants/:id/photo', async (req, res) => {
     }
     const photo = rows[0].photo;
 
+    // Nếu là đường dẫn tương đối lưu trên đĩa (vd: /uploads/hk_01.jpg)
+    if (photo.startsWith('/uploads/') || photo.startsWith('uploads/')) {
+      const relPath = photo.startsWith('/') ? photo.slice(1) : photo;
+      const onDisk1 = path.join(__dirname, 'public', relPath);
+      const onDisk2 = path.join(__dirname, relPath);
+      if (fs.existsSync(onDisk1)) {
+        res.setHeader('Cache-Control', 'public, max-age=604800');
+        return res.sendFile(onDisk1);
+      }
+      if (fs.existsSync(onDisk2)) {
+        res.setHeader('Cache-Control', 'public, max-age=604800');
+        return res.sendFile(onDisk2);
+      }
+    }
+
     // Nếu client yêu cầu JSON rõ ràng
     if (req.query.json === '1') {
       res.setHeader('Cache-Control', 'public, max-age=604800');
       return res.json({ photo });
     }
 
-    // Nếu là data URL (data:image/...;base64,...)
+    // Nếu là data URL (data:image/...;base64,...) -> Lưu ngay ra đĩa máy tính để lần sau không đọc DB nữa!
     const match = photo.match(/^data:([a-zA-Z0-9/+-]+);base64,(.+)$/);
     if (match) {
       const mime = match[1];
       const buffer = Buffer.from(match[2], 'base64');
-      // Lưu vào RAM cache để các lần sau trả về ngay lập tức
+      const ext = mime.includes('png') ? 'png' : (mime.includes('webp') ? 'webp' : 'jpg');
+      try {
+        fs.writeFileSync(path.join(__dirname, 'public', 'uploads', `${id}.${ext}`), buffer);
+        fs.writeFileSync(path.join(__dirname, 'uploads', `${id}.${ext}`), buffer);
+      } catch (err) {}
       photoBufferCache.set(id, { mime, buffer });
       res.setHeader('Content-Type', mime);
       res.setHeader('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
@@ -459,6 +517,10 @@ app.get('/api/contestants/:id/photo', async (req, res) => {
 
     // Mặc định buffer base64
     const buffer = Buffer.from(photo, 'base64');
+    try {
+      fs.writeFileSync(path.join(__dirname, 'public', 'uploads', `${id}.jpg`), buffer);
+      fs.writeFileSync(path.join(__dirname, 'uploads', `${id}.jpg`), buffer);
+    } catch (err) {}
     photoBufferCache.set(id, { mime: 'image/jpeg', buffer });
     res.setHeader('Content-Type', 'image/jpeg');
     res.setHeader('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
@@ -498,10 +560,40 @@ app.post('/api/contestants', async (req, res) => {
   const { contestants, event_id } = req.body;
   if (!Array.isArray(contestants)) return res.status(400).json({ error: 'Invalid data' });
 
+  // 1. Tách và lưu toàn bộ ảnh ra ổ đĩa máy tính / server (public/uploads/)
+  // Giúp Neon database chỉ lưu đường dẫn text siêu nhẹ (/uploads/ts_01.jpg), tuyệt đối không bị quá hạn quota 500MB!
+  for (let i = 0; i < contestants.length; i++) {
+    const c = contestants[i];
+    let photoVal = c.photo || '';
+    if (photoVal && (photoVal.startsWith('data:image/') || photoVal.length > 500)) {
+      try {
+        const match = photoVal.match(/^data:([a-zA-Z0-9/+-]+);base64,(.+)$/);
+        const rawBase64 = match ? match[2] : photoVal;
+        const mime = match ? match[1] : 'image/jpeg';
+        const ext = mime.includes('png') ? 'png' : (mime.includes('webp') ? 'webp' : 'jpg');
+        const filename = `${c.id}.${ext}`;
+        const buf = Buffer.from(rawBase64, 'base64');
+
+        fs.writeFileSync(path.join(__dirname, 'public', 'uploads', filename), buf);
+        fs.writeFileSync(path.join(__dirname, 'uploads', filename), buf);
+
+        // Thay thế chuỗi base64 khổng lồ bằng đường dẫn tệp ngắn gọn 20 byte
+        c.photo = `/uploads/${filename}`;
+        photoBufferCache.set(c.id, { mime, buffer: buf });
+      } catch (err) {
+        console.error(`Lỗi ghi ảnh vào đĩa cho thí sinh ${c.id}:`, err);
+      }
+    }
+  }
+
+  if (!pool) {
+    return res.json({ success: true, contestants, warning: 'Không có kết nối DB, ảnh đã lưu vào máy tính' });
+  }
+
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    // Upsert each contestant
+    // Upsert each contestant with ultra-lightweight photo URL
     for (let i = 0; i < contestants.length; i++) {
       const c = contestants[i];
       await client.query(`
@@ -519,8 +611,7 @@ app.post('/api/contestants', async (req, res) => {
       `, [c.id, c.event_id || event_id || 'evt_hoakhoi_2026', c.name || '', c.subtitle || '', c.color || '#0057a8', c.photo || '', i, c.faculty || '', c.hometown || '']);
     }
     await client.query('COMMIT');
-    photoBufferCache.clear();
-    res.json({ success: true });
+    res.json({ success: true, contestants });
   } catch (e) {
     await client.query('ROLLBACK');
     console.error('POST /api/contestants error:', e);
