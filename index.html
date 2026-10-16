@@ -1499,6 +1499,33 @@ function fastMurmurHash(str) {
   return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
 }
 
+// Đo đạc hình học font chữ DOM thật (Apple không bao giờ làm nhiễu DOM layout vì sẽ vỡ giao diện web)
+function getDomFontMetrics() {
+  try {
+    const testStr = 'MUCE 2026 \u2764 \uD83D\uDC51 hoa khoi MMwwii123';
+    const container = document.createElement('div');
+    container.style.cssText = 'position:fixed;left:-9999px;top:-9999px;visibility:hidden;font-size:20px;line-height:normal;letter-spacing:0;';
+    
+    const fonts = ['-apple-system', 'Helvetica Neue', 'Arial', 'Times New Roman', 'sans-serif'];
+    for (let i = 0; i < fonts.length; i++) {
+      const span = document.createElement('span');
+      span.style.fontFamily = fonts[i];
+      span.textContent = testStr;
+      container.appendChild(span);
+    }
+    (document.body || document.documentElement).appendChild(container);
+    const metrics = [];
+    for (let i = 0; i < container.children.length; i++) {
+      const r = container.children[i].getBoundingClientRect();
+      metrics.push(r.width.toFixed(2) + 'x' + r.height.toFixed(2));
+    }
+    (document.body || document.documentElement).removeChild(container);
+    return metrics.join('|');
+  } catch (e) {
+    return 'font_def';
+  }
+}
+
 function getHardwareFingerprint() {
   try {
     // 1. Kiểm tra cache cookie hoặc localStorage nếu đã từng lưu trên phiên này
@@ -1512,8 +1539,14 @@ function getHardwareFingerprint() {
       cachedFp = decodeURIComponent(cookieMatch[1]);
     }
 
-    // 2. Thu thập các thông số PHẦN CỨNG BẤT BIẾN trên cùng một máy tính / điện thoại:
-    // A. Màn hình vật lý (Độ phân giải, tỷ lệ điểm ảnh phần cứng)
+    // 2. Nhận diện thiết bị Apple / Safari (iOS, iPadOS, Safari trên macOS)
+    // Trên iOS Safari 17+, Apple tự động inject noise vào canvas.toDataURL() ở tab ẩn danh (Private Browsing).
+    // Do đó với Apple/Safari, ta dùng DOM Font Metrics & WebGL Shader Precision thay vì canvas để chống nhiễu 100%!
+    const isApple = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
+      (/^((?!chrome|android).)*safari/i.test(navigator.userAgent));
+
+    // A. Màn hình vật lý (Độ phân giải, tỷ lệ điểm ảnh Retina phần cứng)
     const screenSig = [
       screen.width || 0,
       screen.height || 0,
@@ -1525,7 +1558,7 @@ function getHardwareFingerprint() {
     // B. Vi xử lý CPU, số lõi, cảm ứng phần cứng
     const cpuSig = [
       navigator.hardwareConcurrency || 4, // Số lõi CPU thực tế
-      navigator.maxTouchPoints || 0,       // Màn hình cảm ứng (0 trên PC)
+      navigator.maxTouchPoints || 0,       // Màn hình cảm ứng (5 trên iPhone/iPad, 0 trên PC)
       navigator.deviceMemory || 0          // RAM phần cứng (Chromium)
     ].join('|');
 
@@ -1534,8 +1567,7 @@ function getHardwareFingerprint() {
     try { tzName = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
     const tzSig = [new Date().getTimezoneOffset(), tzName].join('|');
 
-    // D. Card đồ họa GPU (WebGL Hardware Renderer)
-    // Các trình duyệt trên Windows (Chrome, Edge, Cốc Cốc, Opera) đều dùng chung driver GPU Direct3D/ANGLE
+    // D. Card đồ họa GPU (WebGL Hardware Renderer & Shader Precision Format)
     let gpuSig = 'no_webgl';
     try {
       const canvas = document.createElement('canvas');
@@ -1548,7 +1580,7 @@ function getHardwareFingerprint() {
           renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '';
           vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) || '';
         }
-        // Chuẩn hóa tên GPU (bỏ ANGLE, vs_5_0, Direct3D để đồng nhất giữa Chrome/Edge/Firefox...)
+        // Chuẩn hóa tên GPU
         const cleanRenderer = renderer
           .replace(/ANGLE\s*\(/i, '')
           .replace(/Google Inc\.\s*\(/i, '')
@@ -1558,33 +1590,48 @@ function getHardwareFingerprint() {
           .replace(/\s+/g, ' ')
           .trim();
         const maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 0;
-        gpuSig = `${cleanRenderer || renderer}|${vendor}|${maxTex}`;
+        const maxRender = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) || 0;
+        const maxVarying = gl.getParameter(gl.MAX_VARYING_VECTORS) || 0;
+
+        // Đặc tả độ chính xác Shader Float (phần cứng chip GPU, Apple GPU có thông số cố định)
+        let shaderPrecision = '';
+        try {
+          const hp = gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT);
+          if (hp) shaderPrecision = `${hp.precision}_${hp.rangeMin}_${hp.rangeMax}`;
+        } catch (e) {}
+
+        gpuSig = `${cleanRenderer || renderer}|${vendor}|${maxTex}|${maxRender}|${maxVarying}|${shaderPrecision}`;
       }
     } catch (e) {}
 
-    // E. Khử răng cưa subpixel & font engine (Canvas 2D)
-    let canvasSig = 'no_c2d';
-    try {
-      const c = document.createElement('canvas');
-      c.width = 240;
-      c.height = 60;
-      const ctx = c.getContext('2d');
-      if (ctx) {
-        ctx.textBaseline = 'top';
-        ctx.font = "14px 'Arial', 'Segoe UI', sans-serif";
-        ctx.fillStyle = '#f60';
-        ctx.fillRect(110, 1, 62, 20);
-        ctx.fillStyle = '#069';
-        ctx.fillText('MUCE HoaKhoi 2026 \u2764 \uD83D\uDC51', 2, 15);
-        ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
-        ctx.fillText('MUCE HoaKhoi 2026 \u2764 \uD83D\uDC51', 4, 17);
-        canvasSig = fastMurmurHash(c.toDataURL());
-      }
-    } catch (e) {}
+    // E. Hình học font chữ DOM (Bất biến trên cả Safari thường & Safari ẩn danh Private Browsing)
+    const domFontSig = getDomFontMetrics();
 
-    // 3. Kết hợp các tín hiệu phần cứng (TUYỆT ĐỐI KHÔNG dùng UserAgent để tránh bị đổi khi đổi trình duyệt)
-    const rawHardwareSig = [screenSig, cpuSig, tzSig, gpuSig, canvasSig].join('###');
-    const computedHwFp = 'hw_' + fastMurmurHash(rawHardwareSig);
+    // F. Khử răng cưa subpixel Canvas 2D (Chỉ dùng cho non-Apple để tránh cơ chế inject noise của Apple Safari Private Browsing)
+    let canvasSig = 'skip_apple';
+    if (!isApple) {
+      try {
+        const c = document.createElement('canvas');
+        c.width = 240;
+        c.height = 60;
+        const ctx = c.getContext('2d');
+        if (ctx) {
+          ctx.textBaseline = 'top';
+          ctx.font = "14px 'Arial', 'Segoe UI', sans-serif";
+          ctx.fillStyle = '#f60';
+          ctx.fillRect(110, 1, 62, 20);
+          ctx.fillStyle = '#069';
+          ctx.fillText('MUCE HoaKhoi 2026 \u2764 \uD83D\uDC51', 2, 15);
+          ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
+          ctx.fillText('MUCE HoaKhoi 2026 \u2764 \uD83D\uDC51', 4, 17);
+          canvasSig = fastMurmurHash(c.toDataURL());
+        }
+      } catch (e) {}
+    }
+
+    // 3. Kết hợp các tín hiệu phần cứng thuần túy
+    const rawHardwareSig = [screenSig, cpuSig, tzSig, gpuSig, domFontSig, canvasSig, isApple ? 'apple_device' : 'other_device'].join('###');
+    const computedHwFp = (isApple ? 'hw_ap_' : 'hw_') + fastMurmurHash(rawHardwareSig);
 
     // Lưu cache để tăng tốc
     try {
