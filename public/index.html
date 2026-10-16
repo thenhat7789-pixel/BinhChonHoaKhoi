@@ -491,7 +491,7 @@
       box-shadow: 0 0 8px #60a5fa;
     }
     .c-card-img {
-      height: 320px;
+      height: auto; /* auto height to fit image without cropping */
       width: 100%;
       position: relative;
       overflow: hidden;
@@ -524,6 +524,34 @@
     .c-card:hover .c-card-photo {
       transform: scale(1.035);
     }
+    .c-card-img-inner {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 280px;
+    }
+    .c-card-img-inner .c-card-photo-bg {
+      position: absolute;
+      inset: -25px;
+      width: calc(100% + 50px);
+      height: calc(100% + 50px);
+      object-fit: cover;
+      filter: blur(28px) brightness(0.6) saturate(1.25);
+      transform: scale(1.15);
+      pointer-events: none;
+      z-index: 1;
+    }
+    .c-card-img-inner .c-card-photo {
+      width: 100%;
+      height: auto;
+      object-fit: contain;
+      object-position: center;
+      position: relative;
+      z-index: 2;
+    }
     .c-card-placeholder {
       display: flex;
       flex-direction: column;
@@ -535,6 +563,7 @@
       position: relative;
       z-index: 2;
     }
+
     .c-card-placeholder-icon {
       font-size: 2.5rem;
     }
@@ -1608,47 +1637,24 @@ window.addEventListener('popstate', () => {
 /* ══════════════════════════════════════════════════════════
    TOPIC VIEW (VIEW 2): BÌNH CHỌN THÍ SINH CỦA CHỦ ĐỀ ĐÓ
    ══════════════════════════════════════════════════════════ */
-async function loadTopicContestantsAndVotes(eventId) {
-  const ev = state.events.find(e => e.id === eventId);
-
-  // 1. Contestants
-  let contestants = [];
-  const cRes = await api.get(`/api/contestants?event=${encodeURIComponent(eventId)}`);
-  if (cRes && Array.isArray(cRes.contestants)) {
-    contestants = cRes.contestants;
-  } else if (CONTESTANTS_BY_THEME[eventId]) {
-    contestants = CONTESTANTS_BY_THEME[eventId];
-  } else {
-    contestants = [];
-  }
-  state.contestants = contestants;
-
-  // 2. Votes
-  const vRes = await api.get(`/api/votes?event=${encodeURIComponent(eventId)}`);
-  state.votes = (vRes && vRes.votes) ? vRes.votes : {};
-
-  // 3. My Votes, Time & Ratio for this event
-  const studentId = localStorage.getItem('hh:student_id') || '';
-  const myVRes = await api.get(`/api/my-votes?event=${encodeURIComponent(eventId)}&fp=${encodeURIComponent(VOTER_FP)}&student_id=${encodeURIComponent(studentId)}`);
-  
-  const ratio = (myVRes && myVRes.voteRatio) ? myVRes.voteRatio : (ev ? (ev.vote_ratio || 80) : 80);
+function applyTopicData(combined, eventId, ev) {
+  if (!combined) return;
+  const ratio = (combined.voteRatio) ? combined.voteRatio : (ev ? (ev.vote_ratio || 80) : 80);
   state.voteRatio = ratio;
 
-  if (myVRes && myVRes.votedIds) {
-    state.votedIds = myVRes.votedIds;
-    state.maxAllowed = myVRes.maxAllowed || Math.max(1, Math.round((contestants.length * (ratio / 100))));
-  } else {
-    try {
-      const saved = JSON.parse(localStorage.getItem(`hh:voted:${eventId}`) || '[]');
-      state.votedIds = Array.isArray(saved) ? saved : [];
-    } catch(e) { state.votedIds = []; }
-    state.maxAllowed = Math.max(1, Math.round((contestants.length * (ratio / 100))));
+  if (Array.isArray(combined.contestants)) {
+    state.contestants = combined.contestants;
   }
+  state.votes = combined.votes || {};
 
-  // Update Countdown & Active Status
-  const isActive = (myVRes && myVRes.is_active !== undefined) ? myVRes.is_active : (ev ? (ev.is_active !== false) : true);
-  const startTimeStr = (myVRes && myVRes.start_time) ? myVRes.start_time : (ev ? ev.start_time : null);
-  const endTimeStr = (myVRes && myVRes.end_time) ? myVRes.end_time : (ev ? ev.end_time : null);
+  if (combined.votedIds) {
+    state.votedIds = combined.votedIds;
+  }
+  state.maxAllowed = combined.maxAllowed || Math.max(1, Math.round(((state.contestants || []).length * (ratio / 100))));
+
+  const isActive = (combined.is_active !== undefined) ? combined.is_active : (ev ? (ev.is_active !== false) : true);
+  const startTimeStr = combined.start_time || (ev ? ev.start_time : null);
+  const endTimeStr = combined.end_time || (ev ? ev.end_time : null);
   state.isActive = isActive;
   state.startTime = startTimeStr;
   state.endTime = endTimeStr;
@@ -1674,17 +1680,58 @@ async function loadTopicContestantsAndVotes(eventId) {
     ratioEl.textContent = ratioLabel;
   }
 
+  const cCount = (state.contestants || []).length;
   const ruleEl = document.getElementById('topicRuleText');
   if (ruleEl) {
-    ruleEl.textContent = `Hiện có ${contestants.length} thí sinh, mỗi sinh viên được bình chọn tối đa ${state.maxAllowed} thí sinh khác nhau.`;
+    ruleEl.textContent = `Hiện có ${cCount} thí sinh, mỗi sinh viên được bình chọn tối đa ${state.maxAllowed} thí sinh khác nhau.`;
   }
 
   // Update Hero Stats for Topic
   const totalVotesTopic = Object.values(state.votes).reduce((a, b) => a + b, 0);
-  document.getElementById('heroStatEvents').textContent = `Số thí sinh: ${contestants.length} bạn`;
-  document.getElementById('heroStatVotes').textContent = `${totalVotesTopic.toLocaleString('vi-VN')} lượt bình chọn`;
+  const heroStatEvents = document.getElementById('heroStatEvents');
+  if (heroStatEvents) heroStatEvents.textContent = `Số thí sinh: ${cCount} bạn`;
+  const heroStatVotes = document.getElementById('heroStatVotes');
+  if (heroStatVotes) heroStatVotes.textContent = `${totalVotesTopic.toLocaleString('vi-VN')} lượt bình chọn`;
 
   renderTopicContestants();
+}
+
+async function loadTopicContestantsAndVotes(eventId) {
+  const ev = state.events.find(e => e.id === eventId);
+  const cacheKey = `hh:cache_topic:${eventId}`;
+
+  // 1. TỨC THÌ (0s): Nếu có cache cục bộ thì áp dụng và vẽ ngay lập tức
+  const cachedStr = localStorage.getItem(cacheKey);
+  if (cachedStr) {
+    try {
+      const cached = JSON.parse(cachedStr);
+      if (cached && Array.isArray(cached.contestants) && cached.contestants.length > 0) {
+        applyTopicData(cached, eventId, ev);
+      }
+    } catch(e){}
+  }
+
+  // 2. Chạy ngầm tải dữ liệu mới nhất từ server và cập nhật mượt mà
+  try {
+    const studentId = localStorage.getItem('hh:student_id') || '';
+    const combined = await api.get(
+      `/api/topic-data?event=${encodeURIComponent(eventId)}&fp=${encodeURIComponent(VOTER_FP)}&student_id=${encodeURIComponent(studentId)}`
+    );
+
+    if (combined && Array.isArray(combined.contestants)) {
+      try { localStorage.setItem(cacheKey, JSON.stringify(combined)); } catch(e){}
+      applyTopicData(combined, eventId, ev);
+    } else {
+      const cRes = await api.get(`/api/contestants?event=${encodeURIComponent(eventId)}&no_photos=1`);
+      if (cRes && Array.isArray(cRes.contestants)) {
+        state.contestants = cRes.contestants;
+        renderTopicContestants();
+      }
+    }
+  } catch(err) {
+    console.error('loadTopicContestantsAndVotes error:', err);
+  }
+
   await loadTopicComments(eventId);
 }
 
@@ -1763,18 +1810,23 @@ function renderTopicContestants() {
         if (parts.length > 1) hometown = parts[1];
       }
     }
-    const photoHtml = c.photo
-      ? `<img class="c-card-photo-bg" src="${c.photo}" alt="" aria-hidden="true" />
-         <img class="c-card-photo" src="${c.photo}" alt="${esc(c.name)}" loading="lazy" />`
-      : `<div class="c-card-placeholder">
-           <div class="c-card-placeholder-icon">👑</div>
-           <div class="c-card-img-num">${esc(sbd)}</div>
-         </div>`;
+
+    // Ảnh thí sinh được tải lazy native qua endpoint /api/contestants/:id/photo
+    const photoUrl = `/api/contestants/${encodeURIComponent(c.id)}/photo`;
+    const photoHtml = `
+      <div class="c-card-img-inner">
+        <img class="c-card-photo-bg" src="${photoUrl}" alt="" aria-hidden="true" loading="lazy" />
+        <img class="c-card-photo" src="${photoUrl}" alt="${esc(c.name)}" loading="lazy" onerror="this.style.display='none'; if(this.previousElementSibling) this.previousElementSibling.style.display='none'; const p=this.parentElement.querySelector('.c-card-placeholder'); if(p) p.style.display='flex';" />
+        <div class="c-card-placeholder" style="display:none;">
+          <div class="c-card-placeholder-icon">👑</div>
+          <div class="c-card-img-num">${esc(sbd)}</div>
+        </div>
+      </div>`;
 
     return `
     <div class="c-card ${isMine ? 'voted-card' : ''}">
       <div class="sbd-badge">SBD ${esc(sbd)}</div>
-      <div class="c-card-img" style="background:linear-gradient(135deg, ${c.color || '#1e293b'} 0%, #0f172a 100%)" ${c.photo ? `onclick="viewCandidatePhoto('${c.id}')" title="Nhấn để xem toàn bộ ảnh thí sinh"` : ''}>
+      <div class="c-card-img" style="background:linear-gradient(135deg, ${c.color || '#1e293b'} 0%, #0f172a 100%)" onclick="viewCandidatePhoto('${c.id}')" title="Nhấn để xem toàn bộ ảnh thí sinh">
         ${photoHtml}
       </div>
       <div class="c-card-body">
@@ -1802,6 +1854,7 @@ function renderTopicContestants() {
     </div>`;
   }).join('');
 }
+
 
 /* ─── VOTE MODAL ACTIONS ─── */
 let pendingContestantId = null;
@@ -1917,12 +1970,12 @@ function closePublicQrModal() {
 
 function viewCandidatePhoto(cId) {
   const c = (state.contestants || []).find(x => x.id === cId);
-  if (!c || !c.photo) return;
+  if (!c) return;
   const modal = document.getElementById('photoViewModal');
   const img = document.getElementById('photoViewImg');
   const cap = document.getElementById('photoViewCaption');
   if (!modal || !img) return;
-  img.src = c.photo;
+  img.src = c.photo || `/api/contestants/${encodeURIComponent(cId)}/photo`;
   const sbd = getContestantSbd(c.id);
   if (cap) cap.textContent = `SBD ${sbd} · ${c.name}`;
   modal.classList.remove('hidden');
@@ -2157,6 +2210,22 @@ async function init() {
   } else {
     renderPortalEvents();
   }
+
+  // 3. Tự động pre-fetch trước toàn bộ dữ liệu cuộc thi ở background
+  // Giúp người dùng khi bấm vào bất kỳ cuộc thi nào là hiển thị ngay lập tức 0s!
+  setTimeout(() => {
+    (state.events || []).forEach(e => {
+      const studentId = localStorage.getItem('hh:student_id') || '';
+      fetch(`/api/topic-data?event=${encodeURIComponent(e.id)}&fp=${encodeURIComponent(VOTER_FP)}&student_id=${encodeURIComponent(studentId)}`)
+        .then(r => r.json())
+        .then(data => {
+          if (data && Array.isArray(data.contestants)) {
+            localStorage.setItem(`hh:cache_topic:${e.id}`, JSON.stringify(data));
+          }
+        })
+        .catch(() => {});
+    });
+  }, 350);
 }
 
 function toSlug(str) {

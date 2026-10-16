@@ -22,7 +22,18 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(express.static(__dirname));
 app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+app.get('/index.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'index.html'));
+});
+app.get('/admin.html', (req, res) => {
+  res.sendFile(path.join(__dirname, 'admin.html'));
+});
 
 // Kiểm tra DB pool trước khi xử lý API
 app.use('/api', (req, res, next) => {
