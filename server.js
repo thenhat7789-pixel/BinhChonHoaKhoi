@@ -588,11 +588,10 @@ app.post('/api/contestants', async (req, res) => {
   if (!Array.isArray(contestants)) return res.status(400).json({ error: 'Invalid data' });
 
   // 1. Tách và lưu toàn bộ ảnh ra ổ đĩa máy tính (public/uploads/)
-  // Neon CHỈ LƯU CHỮ (Họ tên, SBD, Khoa, Lớp, Quê quán...) và đường dẫn text ngắn 20 ký tự!
   for (let i = 0; i < contestants.length; i++) {
     const c = contestants[i];
     let photoVal = c.photo || '';
-    if (photoVal && (photoVal.startsWith('data:image/') || photoVal.length > 250)) {
+    if (photoVal && photoVal.startsWith('data:image/')) {
       try {
         const match = photoVal.match(/^data:([a-zA-Z0-9/+-]+);base64,(.+)$/);
         const rawBase64 = match ? match[2] : photoVal;
@@ -605,20 +604,13 @@ app.post('/api/contestants', async (req, res) => {
         fs.writeFileSync(path.join(UPLOADS_DIR_PUBLIC, filename), buf);
         fs.writeFileSync(path.join(UPLOADS_DIR_ROOT, filename), buf);
 
-        // Neon chỉ lưu chuỗi đường dẫn tệp ngắn gọn 20 byte
-        c.photo = `/uploads/${filename}`;
+        // Lưu ảnh nén nhẹ (~50KB) vào Neon để backup vĩnh viễn, F5 hay Render restart đều không mất!
         photoBufferCache.set(c.id, { mime, buffer: buf });
       } catch (err) {
         console.error(`Lỗi ghi ảnh vào đĩa cho thí sinh ${c.id}:`, err);
       }
-    } else if (photoVal === '' || photoVal === null) {
-      // Nếu người dùng chọn xóa ảnh của thí sinh -> Xóa file ảnh trên máy tính
+    } else if (photoVal === '__DELETE__') {
       deleteLocalPhotoFiles(c.id);
-    }
-
-    // Bảo vệ tuyệt đối: không để bất kỳ chuỗi Base64 dài nào lưu vào Neon
-    if (c.photo && c.photo.length > 250) {
-      c.photo = `/uploads/${c.id}.jpg`;
     }
   }
 
@@ -629,22 +621,27 @@ app.post('/api/contestants', async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    // Upsert each contestant with purely text metadata into Neon
+    // Upsert each contestant. Giữ nguyên ảnh của các thí sinh khác nếu không gửi ảnh mới!
     for (let i = 0; i < contestants.length; i++) {
       const c = contestants[i];
+      const photoParam = (c.photo === '__DELETE__') ? '__DELETE__' : (c.photo || '');
       await client.query(`
         INSERT INTO contestants (id, event_id, name, subtitle, color, photo, sort_order, faculty, hometown)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        VALUES ($1, $2, $3, $4, $5, CASE WHEN $6 = '__DELETE__' THEN '' ELSE $6 END, $7, $8, $9)
         ON CONFLICT (id) DO UPDATE SET
           event_id = EXCLUDED.event_id,
           name = EXCLUDED.name,
           subtitle = EXCLUDED.subtitle,
           color = EXCLUDED.color,
-          photo = EXCLUDED.photo,
+          photo = CASE 
+            WHEN $6 = '__DELETE__' THEN ''
+            WHEN $6 IS NOT NULL AND $6 != '' AND $6 NOT LIKE '/uploads/%' THEN $6 
+            ELSE contestants.photo 
+          END,
           sort_order = EXCLUDED.sort_order,
           faculty = EXCLUDED.faculty,
           hometown = EXCLUDED.hometown
-      `, [c.id, c.event_id || event_id || 'evt_hoakhoi_2026', c.name || '', c.subtitle || '', c.color || '#0057a8', c.photo || '', i, c.faculty || '', c.hometown || '']);
+      `, [c.id, c.event_id || event_id || 'evt_hoakhoi_2026', c.name || '', c.subtitle || '', c.color || '#0057a8', photoParam, i, c.faculty || '', c.hometown || '']);
     }
     await client.query('COMMIT');
     res.json({ success: true, contestants });
@@ -1069,8 +1066,8 @@ app.get('/api/admin-data', async (req, res) => {
         GROUP BY e.id
         ORDER BY e.sort_order, e.created_at
       `),
-      // 2. Contestants (KHÔNG lấy photo để giảm payload - ảnh load riêng qua /api/contestants/:id/photo)
-      pool.query('SELECT id, event_id, name, subtitle, color, sort_order, faculty, hometown FROM contestants ORDER BY sort_order, id'),
+      // 2. Contestants
+      pool.query('SELECT id, event_id, name, subtitle, color, photo, sort_order, faculty, hometown FROM contestants ORDER BY sort_order, id'),
       // 3. Votes
       pool.query(`
         SELECT c.id, c.event_id, COUNT(v.id)::int as count

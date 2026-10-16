@@ -713,7 +713,7 @@
         <label class="form-label">Hình ảnh thí sinh</label>
         <div style="display:flex;align-items:flex-start;gap:1rem">
           <label for="editPhoto" style="display:flex;flex-direction:column;align-items:center;justify-content:center;width:90px;height:90px;border:2px dashed var(--border);border-radius:.5rem;cursor:pointer;flex-shrink:0;overflow:hidden;background:var(--bg2);transition:border-color .2s" onmouseover="this.style.borderColor='var(--gold)'" onmouseout="this.style.borderColor='var(--border)'">
-            <img id="editPhotoPreview" src="" style="display:none;width:100%;height:100%;object-fit:contain;background:#0f172a;border-radius:.4rem" />
+            <img id="editPhotoPreview" src="" style="display:none;width:100%;height:100%;object-fit:contain;background:#0f172a;border-radius:.4rem" onerror="this.style.display='none'; document.getElementById('editPhotoPlaceholder').style.display=''; document.getElementById('editPhotoHint').style.display=''; document.getElementById('editPhotoClearBtn').style.display='none';" />
             <span id="editPhotoPlaceholder" style="font-size:1.6rem">📷</span>
             <span id="editPhotoHint" style="font-size:.6rem;color:var(--text-dim);margin-top:.2rem">Chọn ảnh</span>
           </label>
@@ -5496,7 +5496,7 @@ function previewPhoto(input) {
 }
 
 function clearPhoto() {
-  _pendingPhoto = null;
+  _pendingPhoto = '__DELETE__';
   document.getElementById('editPhoto').value = '';
   document.getElementById('editPhotoPreview').style.display = 'none';
   document.getElementById('editPhotoPreview').src = '';
@@ -5650,7 +5650,8 @@ function openEdit(id) {
 
   document.getElementById('editColor').value = c.color || '#0057a8';
   document.getElementById('editColorHex').value = c.color || '#0057a8';
-  _setPhotoPreview(c.photo || `/api/contestants/${encodeURIComponent(c.id)}/photo`);
+  const pUrl = (c.photo && c.photo.trim() !== '') ? c.photo : `/api/contestants/${encodeURIComponent(c.id)}/photo`;
+  _setPhotoPreview(pUrl);
   openModal();
 }
 
@@ -5667,6 +5668,8 @@ function openModal() {
 
 function closeModal() {
   document.getElementById('editModal').classList.add('hidden');
+  _pendingPhoto = undefined;
+  editingId = null;
 }
 
 function selectQuickFaculty(val) {
@@ -5737,7 +5740,7 @@ async function saveEdit() {
     fullId = candidateId;
 
     const newC = { id: fullId, event_id, name, faculty, hometown, subtitle: sub, color };
-    if (_pendingPhoto) newC.photo = _pendingPhoto;
+    if (_pendingPhoto && _pendingPhoto !== '__DELETE__') newC.photo = _pendingPhoto;
     appData.contestants.push(newC);
     appData.votes[fullId] = 0;
   } else {
@@ -5754,9 +5757,12 @@ async function saveEdit() {
         appData.votes[fullId] = appData.votes[editingId] || 0;
         delete appData.votes[editingId];
       }
-      let photo = appData.contestants[idx].photo || null;
-      if (_pendingPhoto === null) photo = null;
-      else if (_pendingPhoto) photo = _pendingPhoto;
+      let photo = appData.contestants[idx].photo || '';
+      if (_pendingPhoto === '__DELETE__') {
+        photo = '__DELETE__';
+      } else if (_pendingPhoto) {
+        photo = _pendingPhoto;
+      }
 
       const updated = { id: fullId, event_id, name, faculty, hometown, subtitle: sub, color };
       if (photo) updated.photo = photo;
@@ -5779,7 +5785,14 @@ async function saveEdit() {
   try {
     const res = await api.post('/api/contestants', { contestants: appData.contestants, event_id });
     if (res && res.contestants) {
-      appData.contestants = res.contestants;
+      appData.contestants = res.contestants.map(rc => {
+        const local = appData.contestants.find(x => x.id === rc.id);
+        if ((!rc.photo || rc.photo === '') && local && local.photo && local.photo !== '__DELETE__') {
+          return { ...rc, photo: local.photo };
+        }
+        if (rc.photo === '__DELETE__') return { ...rc, photo: '' };
+        return rc;
+      });
       try {
         localStorage.setItem('hh:contestants', JSON.stringify(appData.contestants));
       } catch(e) {}
