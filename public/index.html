@@ -1550,16 +1550,11 @@ function getHardwareFingerprint() {
       return cachedFp;
     }
 
-    // 2. Nhận diện thiết bị Apple / Safari hoặc In-App Webview (Zalo, Facebook, Messenger, TikTok, Instagram)
-    // Các In-App Browser này (đặc biệt là Zalo, Facebook) và Safari 17+ có thể thay đổi/làm nhiễu canvas.toDataURL()
-    // Do đó với các trình duyệt này, ta dùng DOM Font Metrics & WebGL Shader Precision cố định để đồng nhất 100%!
-    const isApple = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-      (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
-      (/^((?!chrome|android).)*safari/i.test(navigator.userAgent));
-    const isInApp = /Zalo|FBAN|FBAV|Instagram|TikTok|Line|Snapchat|MicroMessenger|WeChat/i.test(navigator.userAgent);
-    const useDomEngine = isApple || isInApp;
+    // 2. KHÓA PHẦN CỨNG THUẦN TÚY (TUYỆT ĐỐI KHÔNG DÙNG USER-AGENT)
+    // Để triệt tiêu hoàn toàn các thủ thuật dùng Launcher / User-Agent Switcher đổi từ Android sang iPhone hoặc ngược lại!
+    // Các phần mềm giả lập này chỉ đổi được chuỗi User-Agent, KHÔNG THỂ THAY ĐỔI ĐƯỢC CHIP GPU, CPU, MÀN HÌNH VÀ FONT HỆ ĐIỀU HÀNH!
 
-    // A. Màn hình vật lý (Độ phân giải, tỷ lệ điểm ảnh phần cứng)
+    // A. Màn hình vật lý (Độ phân giải thực, tỉ lệ điểm ảnh phần cứng)
     const screenSig = [
       screen.width || 0,
       screen.height || 0,
@@ -1568,11 +1563,10 @@ function getHardwareFingerprint() {
       window.devicePixelRatio || 1
     ].join('x');
 
-    // B. Vi xử lý CPU, số lõi, cảm ứng phần cứng
-    // TUYỆT ĐỐI không dùng deviceMemory vì Chrome có còn Zalo WebView không có -> làm lệch vân tay!
+    // B. Vi xử lý CPU, số lõi, cảm ứng phần cứng (Android thường 8 lõi, iPhone 6 lõi - launcher không can thiệp được)
     const cpuSig = [
       navigator.hardwareConcurrency || 4, // Số lõi CPU thực tế
-      navigator.maxTouchPoints || 0        // Màn hình cảm ứng
+      navigator.maxTouchPoints || 0        // Cảm ứng màn hình
     ].join('|');
 
     // C. Múi giờ hệ điều hành
@@ -1580,7 +1574,8 @@ function getHardwareFingerprint() {
     try { tzName = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
     const tzSig = [new Date().getTimezoneOffset(), tzName].join('|');
 
-    // D. Card đồ họa GPU (WebGL Hardware Renderer & Shader Precision Format)
+    // D. Card đồ họa GPU (Chip xử lý WebGL Unmasked Renderer & Shader Precision Format)
+    // Dù có đổi User-Agent qua iPhone thì Chip GPU trên máy Android vẫn trả về Qualcomm Adreno / ARM Mali
     let gpuSig = 'no_webgl';
     try {
       const canvas = document.createElement('canvas');
@@ -1606,7 +1601,7 @@ function getHardwareFingerprint() {
         const maxRender = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) || 0;
         const maxVarying = gl.getParameter(gl.MAX_VARYING_VECTORS) || 0;
 
-        // Đặc tả độ chính xác Shader Float (phần cứng chip GPU, cố định bất biến)
+        // Đặc tả độ chính xác Shader Float (phần cứng chip GPU cố định bất biến)
         let shaderPrecision = '';
         try {
           const hp = gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT);
@@ -1617,41 +1612,18 @@ function getHardwareFingerprint() {
       }
     } catch (e) {}
 
-    // E. Hình học font chữ DOM (Bất biến trên cả Safari, Zalo, Facebook & Chrome)
+    // E. Hình học font chữ DOM chuẩn hóa số nguyên (Đồng nhất bất biến trên mọi trình duyệt)
     const domFontSig = getDomFontMetrics();
 
-    // F. Khử răng cưa subpixel Canvas 2D (Chỉ dùng khi không phải Apple / In-App WebView)
-    let canvasSig = 'skip_canvas';
-    if (!useDomEngine) {
-      try {
-        const c = document.createElement('canvas');
-        c.width = 240;
-        c.height = 60;
-        const ctx = c.getContext('2d');
-        if (ctx) {
-          ctx.textBaseline = 'top';
-          ctx.font = "14px 'Arial', 'Segoe UI', sans-serif";
-          ctx.fillStyle = '#f60';
-          ctx.fillRect(110, 1, 62, 20);
-          ctx.fillStyle = '#069';
-          ctx.fillText('MUCE HoaKhoi 2026 \u2764 \uD83D\uDC51', 2, 15);
-          ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
-          ctx.fillText('MUCE HoaKhoi 2026 \u2764 \uD83D\uDC51', 4, 17);
-          canvasSig = fastMurmurHash(c.toDataURL());
-        }
-      } catch (e) {}
-    }
+    // 3. Kết hợp các tín hiệu phần cứng vật lý thuần túy (Đồng nhất tiền tố 'hw_', miễn nhiễm hoàn toàn với User-Agent)
+    const rawHardwareSig = [screenSig, cpuSig, tzSig, gpuSig, domFontSig].join('###');
+    const computedHwFp = 'hw_' + fastMurmurHash(rawHardwareSig);
 
-    // 3. Kết hợp các tín hiệu phần cứng thuần túy
-    const rawHardwareSig = [screenSig, cpuSig, tzSig, gpuSig, domFontSig, canvasSig, useDomEngine ? 'dom_engine' : 'canvas_engine'].join('###');
-    const computedHwFp = (isApple ? 'hw_ap_' : (isInApp ? 'hw_app_' : 'hw_')) + fastMurmurHash(rawHardwareSig);
-
-    // Lưu cache để tăng tốc
+    // Lưu cache đa tầng để bảo vệ phiên
     try {
       localStorage.setItem('hh:voter_hw_fp', computedHwFp);
       localStorage.setItem('hh:voter_fp', computedHwFp);
-    } catch (e) {}
-    try {
+      sessionStorage.setItem('hh:voter_hw_fp', computedHwFp);
       document.cookie = `hh_voter_hw_fp=${computedHwFp}; path=/; max-age=31536000; SameSite=Lax`;
     } catch (e) {}
 

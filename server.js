@@ -19,6 +19,46 @@ if (!fs.existsSync(UPLOADS_DIR_ROOT)) {
   fs.mkdirSync(UPLOADS_DIR_ROOT, { recursive: true });
 }
 
+// ─── PHÁT HIỆN VÀ CHẶN VPN (1.1.1.1 / WARP / DATACENTER PROXY) ───
+const VPN_CIDR_RANGES = [
+  '8.20.0.0/14',    // Cloudflare WARP / WARP+ (8.20.0.0 - 8.23.255.255)
+  '8.24.0.0/14',    // Cloudflare WARP (8.24.0.0 - 8.27.255.255)
+  '104.16.0.0/12',  // Cloudflare Datacenter & WARP (104.16.x.x - 104.31.x.x bao gồm 104.28.x.x)
+  '162.158.0.0/15', // Cloudflare WARP / Proxy
+  '172.64.0.0/13',  // Cloudflare WARP / Proxy (172.64.x.x - 172.71.x.x)
+  '108.162.192.0/18',
+  '198.41.128.0/17',
+  '197.234.240.0/22',
+  '141.101.64.0/18',
+  '103.21.244.0/22',
+  '103.22.200.0/22',
+  '103.31.4.0/22',
+  '173.245.48.0/20',
+  '188.114.96.0/20',
+  '190.93.240.0/20',
+  '131.0.72.0/22'
+];
+
+function ipToLong(ip) {
+  if (!ip) return 0;
+  return ip.split('.').reduce((acc, octet) => ((acc << 8) + (parseInt(octet, 10) || 0)) >>> 0, 0);
+}
+
+function inCidr(ip, cidr) {
+  const [range, bits = 32] = cidr.split('/');
+  const mask = bits === '0' ? 0 : (~0 << (32 - parseInt(bits, 10))) >>> 0;
+  return (ipToLong(ip) & mask) === (ipToLong(range) & mask);
+}
+
+function isVpnOrProxy(ip) {
+  if (!ip || ip === 'unknown') return false;
+  // Cloudflare WARP IPv6
+  if (ip.startsWith('2a09:bac') || ip.startsWith('2606:4700') || ip.startsWith('2400:cb00')) return true;
+  if (!ip.includes('.')) return false;
+  const cleanIp = ip.replace(/^::ffff:/, '');
+  return VPN_CIDR_RANGES.some(cidr => inCidr(cleanIp, cidr));
+}
+
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -335,6 +375,13 @@ app.post('/api/check-in', async (req, res) => {
     || 'unknown';
   const cleanFp = (voter_fingerprint || '').trim();
   const voterId = cleanFp ? `${voterIp}_${cleanFp}` : voterIp;
+
+  if (isVpnOrProxy(voterIp)) {
+    return res.status(400).json({
+      error: 'Hệ thống phát hiện thiết bị đang bật VPN (1.1.1.1 / Proxy / Fake IP). Để đảm bảo tính minh bạch, bạn vui lòng TẮT VPN trên điện thoại rồi điểm danh!',
+      code: 'VPN_DETECTED'
+    });
+  }
 
   try {
     let dupeQuery = 'SELECT COUNT(*)::int as cnt FROM votes WHERE contestant_id = $1 AND (voter_ip = $2';
@@ -857,6 +904,14 @@ app.post('/api/vote', async (req, res) => {
     || req.socket?.remoteAddress
     || 'unknown';
   const voterId = cleanFp ? `${voterIp}_${cleanFp}` : voterIp;
+
+  // 0. CHẶN VPN 1.1.1.1 (Cloudflare WARP) & PROXY FAKE IP
+  if (isVpnOrProxy(voterIp)) {
+    return res.status(400).json({
+      error: 'Hệ thống phát hiện thiết bị đang bật VPN (1.1.1.1 / Proxy / Fake IP). Để đảm bảo tính minh bạch và công bằng cho cuộc thi, bạn vui lòng TẮT VPN trên điện thoại rồi thực hiện bình chọn!',
+      code: 'VPN_DETECTED'
+    });
+  }
 
   try {
     // 0. Kiểm tra thí sinh có tồn tại trong database không
