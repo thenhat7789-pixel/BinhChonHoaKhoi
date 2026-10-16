@@ -276,10 +276,39 @@ app.post('/api/events/:id/time-ratio', async (req, res) => {
   }
 });
 
+// ─── HÀM XÓA FILE ẢNH TRÊN Ổ CỨNG MÁY TÍNH / SERVER ──────────────
+function deleteLocalPhotoFiles(contestantId) {
+  if (!contestantId) return;
+  const safeId = String(contestantId).replace(/[^a-zA-Z0-9_-]/g, '');
+  const extensions = ['jpg', 'png', 'webp', 'jpeg'];
+  extensions.forEach(ext => {
+    const p1 = path.join(UPLOADS_DIR_PUBLIC, `${safeId}.${ext}`);
+    const p2 = path.join(UPLOADS_DIR_ROOT, `${safeId}.${ext}`);
+    try {
+      if (fs.existsSync(p1)) fs.unlinkSync(p1);
+    } catch (e) {
+      console.warn(`[Xóa ảnh máy tính] Lỗi xóa ${p1}:`, e.message);
+    }
+    try {
+      if (fs.existsSync(p2)) fs.unlinkSync(p2);
+    } catch (e) {
+      console.warn(`[Xóa ảnh máy tính] Lỗi xóa ${p2}:`, e.message);
+    }
+  });
+  if (typeof photoBufferCache !== 'undefined') {
+    photoBufferCache.delete(contestantId);
+  }
+}
+
 // ─── DELETE /api/events/:id ───────────────────────
 app.delete('/api/events/:id', async (req, res) => {
   try {
-    await pool.query('DELETE FROM events WHERE id = $1', [req.params.id]);
+    if (pool) {
+      // Tìm các thí sinh thuộc sự kiện này để xóa tệp ảnh trên máy tính
+      const { rows } = await pool.query('SELECT id FROM contestants WHERE event_id = $1', [req.params.id]);
+      rows.forEach(r => deleteLocalPhotoFiles(r.id));
+      await pool.query('DELETE FROM events WHERE id = $1', [req.params.id]);
+    }
     res.json({ success: true });
   } catch (e) {
     console.error('DELETE /api/events/:id error:', e);
@@ -560,12 +589,12 @@ app.post('/api/contestants', async (req, res) => {
   const { contestants, event_id } = req.body;
   if (!Array.isArray(contestants)) return res.status(400).json({ error: 'Invalid data' });
 
-  // 1. Tách và lưu toàn bộ ảnh ra ổ đĩa máy tính / server (public/uploads/)
-  // Giúp Neon database chỉ lưu đường dẫn text siêu nhẹ (/uploads/ts_01.jpg), tuyệt đối không bị quá hạn quota 500MB!
+  // 1. Tách và lưu toàn bộ ảnh ra ổ đĩa máy tính (public/uploads/)
+  // Neon CHỈ LƯU CHỮ (Họ tên, SBD, Khoa, Lớp, Quê quán...) và đường dẫn text ngắn 20 ký tự!
   for (let i = 0; i < contestants.length; i++) {
     const c = contestants[i];
     let photoVal = c.photo || '';
-    if (photoVal && (photoVal.startsWith('data:image/') || photoVal.length > 500)) {
+    if (photoVal && (photoVal.startsWith('data:image/') || photoVal.length > 250)) {
       try {
         const match = photoVal.match(/^data:([a-zA-Z0-9/+-]+);base64,(.+)$/);
         const rawBase64 = match ? match[2] : photoVal;
@@ -574,15 +603,24 @@ app.post('/api/contestants', async (req, res) => {
         const filename = `${c.id}.${ext}`;
         const buf = Buffer.from(rawBase64, 'base64');
 
-        fs.writeFileSync(path.join(__dirname, 'public', 'uploads', filename), buf);
-        fs.writeFileSync(path.join(__dirname, 'uploads', filename), buf);
+        // Ghi trực tiếp vào ổ đĩa máy tính
+        fs.writeFileSync(path.join(UPLOADS_DIR_PUBLIC, filename), buf);
+        fs.writeFileSync(path.join(UPLOADS_DIR_ROOT, filename), buf);
 
-        // Thay thế chuỗi base64 khổng lồ bằng đường dẫn tệp ngắn gọn 20 byte
+        // Neon chỉ lưu chuỗi đường dẫn tệp ngắn gọn 20 byte
         c.photo = `/uploads/${filename}`;
         photoBufferCache.set(c.id, { mime, buffer: buf });
       } catch (err) {
         console.error(`Lỗi ghi ảnh vào đĩa cho thí sinh ${c.id}:`, err);
       }
+    } else if (photoVal === '' || photoVal === null) {
+      // Nếu người dùng chọn xóa ảnh của thí sinh -> Xóa file ảnh trên máy tính
+      deleteLocalPhotoFiles(c.id);
+    }
+
+    // Bảo vệ tuyệt đối: không để bất kỳ chuỗi Base64 dài nào lưu vào Neon
+    if (c.photo && c.photo.length > 250) {
+      c.photo = `/uploads/${c.id}.jpg`;
     }
   }
 
@@ -593,7 +631,7 @@ app.post('/api/contestants', async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    // Upsert each contestant with ultra-lightweight photo URL
+    // Upsert each contestant with purely text metadata into Neon
     for (let i = 0; i < contestants.length; i++) {
       const c = contestants[i];
       await client.query(`
@@ -604,7 +642,7 @@ app.post('/api/contestants', async (req, res) => {
           name = EXCLUDED.name,
           subtitle = EXCLUDED.subtitle,
           color = EXCLUDED.color,
-          photo = CASE WHEN EXCLUDED.photo IS NOT NULL AND EXCLUDED.photo != '' THEN EXCLUDED.photo ELSE contestants.photo END,
+          photo = EXCLUDED.photo,
           sort_order = EXCLUDED.sort_order,
           faculty = EXCLUDED.faculty,
           hometown = EXCLUDED.hometown
@@ -623,13 +661,21 @@ app.post('/api/contestants', async (req, res) => {
 
 // ─── DELETE /api/contestants/:id ──────────────────
 app.delete('/api/contestants/:id', async (req, res) => {
+  const id = req.params.id;
   try {
-    await pool.query('DELETE FROM contestants WHERE id = $1', [req.params.id]);
-    photoBufferCache.delete(req.params.id);
-    res.json({ success: true });
+    // 1. Xóa dòng thí sinh trên cơ sở dữ liệu Neon (chỉ chứa text)
+    if (pool) {
+      await pool.query('DELETE FROM contestants WHERE id = $1', [id]);
+    }
+    // 2. Xóa đồng thời toàn bộ tệp ảnh trên ổ cứng máy tính
+    deleteLocalPhotoFiles(id);
+
+    res.json({ success: true, message: `Đã xóa thí sinh ${id} trên Neon và xóa ảnh khỏi máy tính.` });
   } catch (e) {
     console.error('DELETE /api/contestants error:', e);
-    res.status(500).json({ error: 'Lỗi server' });
+    // Vẫn đảm bảo xóa tệp ảnh trên máy tính
+    deleteLocalPhotoFiles(id);
+    res.status(500).json({ error: 'Lỗi server: ' + (e.message || '') });
   }
 });
 
