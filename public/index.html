@@ -1485,18 +1485,123 @@ let state = {
   searchQuery: ''
 };
 
-/* ─── FINGERPRINT ─── */
-function getVoterFingerprint() {
-  let fp = localStorage.getItem('hh:voter_fp');
-  if (fp) return fp;
-  const raw = [navigator.userAgent, navigator.language, screen.width + 'x' + screen.height, new Date().getTimezoneOffset()].join('|');
-  let hash = 0;
-  for (let i = 0; i < raw.length; i++) { hash = ((hash << 5) - hash) + raw.charCodeAt(i); hash |= 0; }
-  fp = 'fp_' + Math.abs(hash).toString(36);
-  localStorage.setItem('hh:voter_fp', fp);
-  return fp;
+/* ─── ROBUST CROSS-BROWSER HARDWARE FINGERPRINTING (DEVICE ANTI-CHEAT) ─── */
+// Nhận diện phần cứng thiết bị (chống đổi trình duyệt, tab ẩn danh, đổi profile Gmail)
+function fastMurmurHash(str) {
+  let h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+  for (let i = 0, ch; i < str.length; i++) {
+    ch = str.charCodeAt(i);
+    h1 = Math.imul(h1 ^ ch, 2654435761);
+    h2 = Math.imul(h2 ^ ch, 1597334677);
+  }
+  h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+  h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+  return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(36);
 }
-const VOTER_FP = getVoterFingerprint();
+
+function getHardwareFingerprint() {
+  try {
+    // 1. Kiểm tra cache cookie hoặc localStorage nếu đã từng lưu trên phiên này
+    let cachedFp = '';
+    try {
+      cachedFp = localStorage.getItem('hh:voter_hw_fp') || '';
+    } catch (e) {}
+
+    const cookieMatch = document.cookie.match(/(?:^|; )hh_voter_hw_fp=([^;]*)/);
+    if (!cachedFp && cookieMatch) {
+      cachedFp = decodeURIComponent(cookieMatch[1]);
+    }
+
+    // 2. Thu thập các thông số PHẦN CỨNG BẤT BIẾN trên cùng một máy tính / điện thoại:
+    // A. Màn hình vật lý (Độ phân giải, tỷ lệ điểm ảnh phần cứng)
+    const screenSig = [
+      screen.width || 0,
+      screen.height || 0,
+      screen.colorDepth || 24,
+      screen.pixelDepth || 24,
+      window.devicePixelRatio || 1
+    ].join('x');
+
+    // B. Vi xử lý CPU, số lõi, cảm ứng phần cứng
+    const cpuSig = [
+      navigator.hardwareConcurrency || 4, // Số lõi CPU thực tế
+      navigator.maxTouchPoints || 0,       // Màn hình cảm ứng (0 trên PC)
+      navigator.deviceMemory || 0          // RAM phần cứng (Chromium)
+    ].join('|');
+
+    // C. Múi giờ hệ điều hành
+    let tzName = '';
+    try { tzName = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
+    const tzSig = [new Date().getTimezoneOffset(), tzName].join('|');
+
+    // D. Card đồ họa GPU (WebGL Hardware Renderer)
+    // Các trình duyệt trên Windows (Chrome, Edge, Cốc Cốc, Opera) đều dùng chung driver GPU Direct3D/ANGLE
+    let gpuSig = 'no_webgl';
+    try {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (gl) {
+        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+        let renderer = '';
+        let vendor = '';
+        if (debugInfo) {
+          renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '';
+          vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) || '';
+        }
+        // Chuẩn hóa tên GPU (bỏ ANGLE, vs_5_0, Direct3D để đồng nhất giữa Chrome/Edge/Firefox...)
+        const cleanRenderer = renderer
+          .replace(/ANGLE\s*\(/i, '')
+          .replace(/Google Inc\.\s*\(/i, '')
+          .replace(/Direct3D\d+.*$/i, '')
+          .replace(/vs_\d+_\d+.*$/i, '')
+          .replace(/[(),]/g, ' ')
+          .replace(/\s+/g, ' ')
+          .trim();
+        const maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 0;
+        gpuSig = `${cleanRenderer || renderer}|${vendor}|${maxTex}`;
+      }
+    } catch (e) {}
+
+    // E. Khử răng cưa subpixel & font engine (Canvas 2D)
+    let canvasSig = 'no_c2d';
+    try {
+      const c = document.createElement('canvas');
+      c.width = 240;
+      c.height = 60;
+      const ctx = c.getContext('2d');
+      if (ctx) {
+        ctx.textBaseline = 'top';
+        ctx.font = "14px 'Arial', 'Segoe UI', sans-serif";
+        ctx.fillStyle = '#f60';
+        ctx.fillRect(110, 1, 62, 20);
+        ctx.fillStyle = '#069';
+        ctx.fillText('MUCE HoaKhoi 2026 \u2764 \uD83D\uDC51', 2, 15);
+        ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
+        ctx.fillText('MUCE HoaKhoi 2026 \u2764 \uD83D\uDC51', 4, 17);
+        canvasSig = fastMurmurHash(c.toDataURL());
+      }
+    } catch (e) {}
+
+    // 3. Kết hợp các tín hiệu phần cứng (TUYỆT ĐỐI KHÔNG dùng UserAgent để tránh bị đổi khi đổi trình duyệt)
+    const rawHardwareSig = [screenSig, cpuSig, tzSig, gpuSig, canvasSig].join('###');
+    const computedHwFp = 'hw_' + fastMurmurHash(rawHardwareSig);
+
+    // Lưu cache để tăng tốc
+    try {
+      localStorage.setItem('hh:voter_hw_fp', computedHwFp);
+      localStorage.setItem('hh:voter_fp', computedHwFp);
+    } catch (e) {}
+    try {
+      document.cookie = `hh_voter_hw_fp=${computedHwFp}; path=/; max-age=31536000; SameSite=Lax`;
+    } catch (e) {}
+
+    return computedHwFp;
+  } catch (err) {
+    return 'hw_' + Math.abs((screen.width * 31 + screen.height * 17) ^ new Date().getTimezoneOffset()).toString(36);
+  }
+}
+
+const VOTER_FP = getHardwareFingerprint();
 
 /* ─── API HELPER ─── */
 const api = {
