@@ -3246,7 +3246,8 @@ function openAdminTimeRatioModal(eventId) {
   if (!select) return;
 
   if (!adminEvents || !adminEvents.length) {
-    adminEvents = DEFAULT_ADMIN_EVENTS;
+    toast('Chưa có cuộc thi nào trên hệ thống! Vui lòng tạo cuộc thi trước.', 'warning');
+    return;
   }
 
   // Populate events in the dropdown
@@ -3668,65 +3669,89 @@ let currentContestantEventId = 'evt_hoakhoi_2026';
 let voteLogSearchKeyword = '';
 
 function syncAllEventSelectors() {
-  const eventsList = (adminEvents && adminEvents.length > 0) ? adminEvents : DEFAULT_ADMIN_EVENTS;
+  const eventsList = (adminEvents && Array.isArray(adminEvents)) ? adminEvents : [];
 
   // Đảm bảo currentActiveEventId luôn hợp lệ
-  if (currentActiveEventId !== 'all' && !eventsList.some(e => e.id === currentActiveEventId)) {
-    currentActiveEventId = eventsList[0]?.id || 'evt_hoakhoi_2026';
-  }
-  // Đảm bảo currentContestantEventId luôn hợp lệ
-  if (!eventsList.some(e => e.id === currentContestantEventId)) {
-    currentContestantEventId = (currentActiveEventId !== 'all' ? currentActiveEventId : null) || eventsList[0]?.id || 'evt_hoakhoi_2026';
+  if (!eventsList.length) {
+    currentActiveEventId = '';
+    currentContestantEventId = '';
+  } else {
+    if (currentActiveEventId !== 'all' && !eventsList.some(e => e.id === currentActiveEventId)) {
+      currentActiveEventId = eventsList[0]?.id || 'all';
+    }
+    if (!eventsList.some(e => e.id === currentContestantEventId)) {
+      currentContestantEventId = (currentActiveEventId !== 'all' ? currentActiveEventId : null) || eventsList[0]?.id || '';
+    }
   }
 
   // 1. Global header selector
   const gSelect = document.getElementById('globalEventSelect');
   if (gSelect) {
-    const opts = [
-      `<option value="all" ${currentActiveEventId === 'all' ? 'selected' : ''}>🌐 Tất cả cuộc thi (${eventsList.length})</option>`
-    ].concat(eventsList.map(e => {
-      const cleanTitle = (e.title || 'Cuộc thi').replace(/<[^>]*>?/gm, '');
-      const tagStr = e.tag || '# CUỘC THI';
-      return `<option value="${esc(e.id)}" ${e.id === currentActiveEventId ? 'selected' : ''}>🏆 ${esc(cleanTitle)} (${esc(tagStr)})</option>`;
-    }));
-    gSelect.innerHTML = opts.join('');
-    gSelect.value = currentActiveEventId;
+    if (!eventsList.length) {
+      gSelect.innerHTML = '<option value="">(Chưa có cuộc thi nào)</option>';
+      gSelect.value = '';
+    } else {
+      const opts = [
+        `<option value="all" ${currentActiveEventId === 'all' ? 'selected' : ''}>🌐 Tất cả cuộc thi (${eventsList.length})</option>`
+      ].concat(eventsList.map(e => {
+        const cleanTitle = (e.title || 'Cuộc thi').replace(/<[^>]*>?/gm, '');
+        const tagStr = e.tag || '# CUỘC THI';
+        return `<option value="${esc(e.id)}" ${e.id === currentActiveEventId ? 'selected' : ''}>🏆 ${esc(cleanTitle)} (${esc(tagStr)})</option>`;
+      }));
+      gSelect.innerHTML = opts.join('');
+      gSelect.value = currentActiveEventId;
+    }
   }
 
   // 2. Contestant tab selector
   const cSelect = document.getElementById('contestantEventFilterSelect');
   if (cSelect) {
-    cSelect.innerHTML = eventsList.map(e => {
-      const cleanTitle = (e.title || 'Cuộc thi').replace(/<[^>]*>?/gm, '');
-      const tagStr = e.tag || '# CUỘC THI';
-      return `<option value="${esc(e.id)}" ${e.id === currentContestantEventId ? 'selected' : ''}>🏆 ${esc(cleanTitle)} (${esc(tagStr)})</option>`;
-    }).join('');
-    cSelect.value = currentContestantEventId;
+    if (!eventsList.length) {
+      cSelect.innerHTML = '<option value="">(Chưa có cuộc thi nào)</option>';
+      cSelect.value = '';
+    } else {
+      cSelect.innerHTML = eventsList.map(e => {
+        const cleanTitle = (e.title || 'Cuộc thi').replace(/<[^>]*>?/gm, '');
+        const tagStr = e.tag || '# CUỘC THI';
+        return `<option value="${esc(e.id)}" ${e.id === currentContestantEventId ? 'selected' : ''}>🏆 ${esc(cleanTitle)} (${esc(tagStr)})</option>`;
+      }).join('');
+      cSelect.value = currentContestantEventId;
+    }
   }
 
   // 3. Vote log tab selector
   const vSelect = document.getElementById('voteLogEventFilterSelect');
   if (vSelect) {
-    const opts = [
-      `<option value="all" ${currentActiveEventId === 'all' ? 'selected' : ''}>🌐 Tất cả cuộc thi (${eventsList.length})</option>`
-    ].concat(eventsList.map(e => {
-      const cleanTitle = (e.title || 'Cuộc thi').replace(/<[^>]*>?/gm, '');
-      const tagStr = e.tag || '# CUỘC THI';
-      return `<option value="${esc(e.id)}" ${e.id === currentActiveEventId ? 'selected' : ''}>🏆 ${esc(cleanTitle)} (${esc(tagStr)})</option>`;
-    }));
-    vSelect.innerHTML = opts.join('');
-    vSelect.value = currentActiveEventId;
+    if (!eventsList.length) {
+      vSelect.innerHTML = '<option value="">(Chưa có cuộc thi nào)</option>';
+      vSelect.value = '';
+    } else {
+      const opts = [
+        `<option value="all" ${currentActiveEventId === 'all' ? 'selected' : ''}>🌐 Tất cả cuộc thi (${eventsList.length})</option>`
+      ].concat(eventsList.map(e => {
+        const cleanTitle = (e.title || 'Cuộc thi').replace(/<[^>]*>?/gm, '');
+        const tagStr = e.tag || '# CUỘC THI';
+        return `<option value="${esc(e.id)}" ${e.id === currentActiveEventId ? 'selected' : ''}>🏆 ${esc(cleanTitle)} (${esc(tagStr)})</option>`;
+      }));
+      vSelect.innerHTML = opts.join('');
+      vSelect.value = currentActiveEventId;
+    }
   }
 
   // 4. Modal contestant selector
   const mSelect = document.getElementById('editContestantEventSelect');
   if (mSelect) {
-    mSelect.innerHTML = eventsList.map(e => {
-      const cleanTitle = (e.title || 'Cuộc thi').replace(/<[^>]*>?/gm, '');
-      const tagStr = e.tag || '# CUỘC THI';
-      return `<option value="${esc(e.id)}" ${e.id === currentContestantEventId ? 'selected' : ''}>${esc(cleanTitle)} (${esc(tagStr)})</option>`;
-    }).join('');
-    mSelect.value = currentContestantEventId;
+    if (!eventsList.length) {
+      mSelect.innerHTML = '<option value="">(Chưa có cuộc thi nào - Vui lòng tạo cuộc thi trước)</option>';
+      mSelect.value = '';
+    } else {
+      mSelect.innerHTML = eventsList.map(e => {
+        const cleanTitle = (e.title || 'Cuộc thi').replace(/<[^>]*>?/gm, '');
+        const tagStr = e.tag || '# CUỘC THI';
+        return `<option value="${esc(e.id)}" ${e.id === currentContestantEventId ? 'selected' : ''}>${esc(cleanTitle)} (${esc(tagStr)})</option>`;
+      }).join('');
+      mSelect.value = currentContestantEventId;
+    }
   }
 }
 
@@ -3776,21 +3801,23 @@ function applyAdminPayload(data) {
   if (!data) return;
 
   // Events
-  if (data.events && data.events.length > 0) {
+  if (data.events && Array.isArray(data.events)) {
     adminEvents = data.events.filter(e => {
       const text = ((e.title || '') + ' ' + (e.tag || '') + ' ' + (e.description || '')).toLowerCase();
       return !text.includes('phường') && !text.includes('nctxh') && !text.includes('chuyển đổi số') && !text.includes('hiến máu');
     });
-    if (!adminEvents.length) adminEvents = DEFAULT_ADMIN_EVENTS;
   } else {
-    const local = localStorage.getItem('hh:events');
-    adminEvents = local ? (JSON.parse(local) || DEFAULT_ADMIN_EVENTS) : DEFAULT_ADMIN_EVENTS;
+    adminEvents = [];
   }
+  try { localStorage.setItem('hh:events', JSON.stringify(adminEvents)); } catch(e){}
 
   // Contestants
-  if (data.contestants && data.contestants.length > 0) {
+  if (data.contestants && Array.isArray(data.contestants)) {
     appData.contestants = data.contestants;
+  } else {
+    appData.contestants = [];
   }
+  try { localStorage.setItem('hh:contestants', JSON.stringify(appData.contestants)); } catch(e){}
 
   // Votes
   appData.votes = data.votes || {};
@@ -4449,13 +4476,13 @@ function setVoteButtonsCooldown(contestantId, seconds) {
 /* ─── CONTESTANT MANAGEMENT CONTROLLER ──────────────────── */
 
 function renderContestantList(targetEventId) {
-  const eventsList = (adminEvents && adminEvents.length > 0) ? adminEvents : DEFAULT_ADMIN_EVENTS;
+  const eventsList = (adminEvents && Array.isArray(adminEvents)) ? adminEvents : [];
 
   if (targetEventId && eventsList.some(e => e.id === targetEventId)) {
     currentContestantEventId = targetEventId;
   }
   if (!eventsList.some(e => e.id === currentContestantEventId)) {
-    currentContestantEventId = eventsList[0]?.id || 'evt_hoakhoi_2026';
+    currentContestantEventId = eventsList[0]?.id || '';
   }
   // Đồng bộ với header selector nếu không đang chọn 'all'
   if (currentActiveEventId !== 'all' && currentActiveEventId !== currentContestantEventId) {
@@ -4467,29 +4494,42 @@ function renderContestantList(targetEventId) {
   // 1. Sync dropdown in filter bar
   const filterSelect = document.getElementById('contestantEventFilterSelect');
   if (filterSelect) {
-    filterSelect.innerHTML = eventsList.map(e => {
-      const cleanTitle = (e.title || 'Cuộc thi').replace(/<[^>]*>?/gm, '');
-      const tagStr = e.tag || '# CUỘC THI';
-      return `<option value="${esc(e.id)}" ${e.id === currentContestantEventId ? 'selected' : ''}>🏆 ${esc(cleanTitle)} (${esc(tagStr)})</option>`;
-    }).join('');
-    filterSelect.value = currentContestantEventId;
+    if (!eventsList.length) {
+      filterSelect.innerHTML = '<option value="">(Chưa có cuộc thi nào)</option>';
+      filterSelect.value = '';
+    } else {
+      filterSelect.innerHTML = eventsList.map(e => {
+        const cleanTitle = (e.title || 'Cuộc thi').replace(/<[^>]*>?/gm, '');
+        const tagStr = e.tag || '# CUỘC THI';
+        return `<option value="${esc(e.id)}" ${e.id === currentContestantEventId ? 'selected' : ''}>🏆 ${esc(cleanTitle)} (${esc(tagStr)})</option>`;
+      }).join('');
+      filterSelect.value = currentContestantEventId;
+    }
   }
 
   // 2. Sync dropdown in edit modal
   const modalEventSelect = document.getElementById('editContestantEventSelect');
   if (modalEventSelect) {
-    modalEventSelect.innerHTML = eventsList.map(e => {
-      const cleanTitle = (e.title || 'Cuộc thi').replace(/<[^>]*>?/gm, '');
-      const tagStr = e.tag || '# CUỘC THI';
-      return `<option value="${esc(e.id)}" ${e.id === currentContestantEventId ? 'selected' : ''}>${esc(cleanTitle)} (${esc(tagStr)})</option>`;
-    }).join('');
-    modalEventSelect.value = currentContestantEventId;
+    if (!eventsList.length) {
+      modalEventSelect.innerHTML = '<option value="">(Chưa có cuộc thi nào - Hãy tạo cuộc thi trước)</option>';
+      modalEventSelect.value = '';
+    } else {
+      modalEventSelect.innerHTML = eventsList.map(e => {
+        const cleanTitle = (e.title || 'Cuộc thi').replace(/<[^>]*>?/gm, '');
+        const tagStr = e.tag || '# CUỘC THI';
+        return `<option value="${esc(e.id)}" ${e.id === currentContestantEventId ? 'selected' : ''}>${esc(cleanTitle)} (${esc(tagStr)})</option>`;
+      }).join('');
+      modalEventSelect.value = currentContestantEventId;
+    }
   }
 
-  // 3. Filter contestants for this specific event (hoàn toàn không tự nạp mẫu)
-  let contestantsForEvent = (appData.contestants || []).filter(c => {
-    return c.event_id === currentContestantEventId || (!c.event_id && currentContestantEventId === 'evt_hoakhoi_2026');
-  });
+  // 3. Filter contestants for this specific event
+  let contestantsForEvent = [];
+  if (currentContestantEventId) {
+    contestantsForEvent = (appData.contestants || []).filter(c => {
+      return c.event_id === currentContestantEventId;
+    });
+  }
 
   // Luôn sắp xếp thứ tự theo SBD (01, 02, 03...) để danh sách không bị lộn xộn
   contestantsForEvent.sort((a, b) => {
@@ -4501,7 +4541,7 @@ function renderContestantList(targetEventId) {
 
   // 5. Update Header Title and Badge
   const currentEvt = eventsList.find(e => e.id === currentContestantEventId);
-  const evtTitle = currentEvt ? (currentEvt.title || 'Cuộc Thi Bình Chọn').replace(/<[^>]*>?/gm, '') : 'Cuộc Thi Bình Chọn';
+  const evtTitle = currentEvt ? (currentEvt.title || 'Cuộc Thi Bình Chọn').replace(/<[^>]*>?/gm, '') : (eventsList.length ? 'Cuộc Thi Bình Chọn' : 'Chưa có cuộc thi');
   const headerTitleEl = document.getElementById('contestantsHeaderTitle');
   if (headerTitleEl) headerTitleEl.textContent = `Danh sách thí sinh – ${evtTitle}`;
 
@@ -4511,6 +4551,22 @@ function renderContestantList(targetEventId) {
   // 6. Render contestants list
   const listEl = document.getElementById('contestantList');
   if (!listEl) return;
+
+  if (!eventsList.length) {
+    listEl.innerHTML = `
+      <div style="text-align:center;padding:3rem 1.5rem;background:#f8fafc;border-radius:12px;border:1.5px dashed #cbd5e1;">
+        <div style="font-size:2.5rem;margin-bottom:.5rem;">🏆</div>
+        <div style="font-weight:700;font-size:1.05rem;color:#1e293b;margin-bottom:.35rem;">Chưa có cuộc thi nào trên hệ thống</div>
+        <p style="color:#64748b;font-size:.85rem;margin-bottom:1.25rem;">Bạn vừa xóa hết cuộc thi. Hãy tạo cuộc thi mới trước khi thêm thí sinh!</p>
+        <div style="display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap;">
+          <button class="btn btn-gold btn-sm" onclick="switchTab('events');openAdminEventModal();" style="font-weight:700;padding:.5rem 1.2rem;">
+            ➕ Tạo cuộc thi mới ngay
+          </button>
+        </div>
+      </div>
+    `;
+    return;
+  }
 
   if (contestantsForEvent.length === 0) {
     listEl.innerHTML = `
@@ -5499,8 +5555,14 @@ function openAdd(targetEventId) {
     toast('Tài khoản Thành viên chỉ có quyền xem, không được thêm thí sinh!', 'error');
     return;
   }
+  if (!adminEvents.length) {
+    toast('Chưa có cuộc thi nào! Vui lòng tạo cuộc thi trước khi thêm thí sinh.', 'warning');
+    switchTab('events');
+    openAdminEventModal();
+    return;
+  }
   editingId = null;
-  const evtId = targetEventId || currentContestantEventId || 'evt_hoakhoi_2026';
+  const evtId = targetEventId || currentContestantEventId || adminEvents[0]?.id || '';
   document.getElementById('modalTitle').textContent = 'Thêm thí sinh mới';
   
   const eventSelect = document.getElementById('editContestantEventSelect');
@@ -5784,7 +5846,12 @@ function openEditVote(voteId) {
 
   // Populate contestants dropdown grouped by competition
   const select = document.getElementById('editVoteContestantSelect');
-  const eventsList = (adminEvents && adminEvents.length > 0) ? adminEvents : DEFAULT_ADMIN_EVENTS;
+  const eventsList = (adminEvents && Array.isArray(adminEvents)) ? adminEvents : [];
+  if (!eventsList.length) {
+    select.innerHTML = '<option value="">(Chưa có thí sinh)</option>';
+    document.getElementById('editVoteModal').classList.remove('hidden');
+    return;
+  }
   select.innerHTML = eventsList.map(ev => {
     const cList = (appData.contestants || []).filter(c => (c.event_id || 'evt_hoakhoi_2026') === ev.id);
     if (!cList.length) return '';
