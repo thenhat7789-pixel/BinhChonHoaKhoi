@@ -59,7 +59,7 @@ app.get('/api/events', async (req, res) => {
     res.json({ events: rows });
   } catch (e) {
     console.error('GET /api/events error:', e);
-    res.status(500).json({ error: 'Lỗi server' });
+    res.status(500).json({ error: 'Lỗi server', details: e.message });
   }
 });
 
