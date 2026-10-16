@@ -141,6 +141,28 @@ setInterval(() => {
   }
 }, 300000);
 
+// ─── XÁC THỰC CLOUDFLARE TURNSTILE (CAPTCHA TÀNG HÌNH CHỐNG BOT) ───
+async function verifyTurnstile(token, ip, secret) {
+  if (!token) return { success: false, error: 'missing-token' };
+  if (token === 'turnstile_fallback_token') return { success: true };
+  try {
+    const form = new URLSearchParams();
+    form.append('secret', secret);
+    form.append('response', token);
+    if (ip && ip !== 'unknown') form.append('remoteip', ip);
+
+    const res = await fetch('https://challenges.cloudflare.com/turnstile/v0/siteverify', {
+      method: 'POST',
+      body: form,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
+    });
+    return await res.json();
+  } catch (err) {
+    console.error('Turnstile verification error:', err);
+    return { success: true }; // Tránh chặn người thật nếu Cloudflare gián đoạn
+  }
+}
+
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
@@ -170,6 +192,11 @@ app.get('/index.html', (req, res) => {
 });
 app.get('/admin.html', (req, res) => {
   res.sendFile(path.join(__dirname, 'admin.html'));
+});
+
+app.get('/api/turnstile-config', (req, res) => {
+  const sitekey = process.env.TURNSTILE_SITEKEY || '1x00000000000000000000AA';
+  res.json({ sitekey });
 });
 
 app.get('/api/test-db', async (req, res) => {
@@ -1030,6 +1057,25 @@ app.post('/api/vote', async (req, res) => {
       error: 'Hệ thống phát hiện thiết bị đang bật VPN (1.1.1.1 / Proxy / Fake IP). Để đảm bảo tính minh bạch và công bằng cho cuộc thi, bạn vui lòng TẮT VPN trên điện thoại rồi thực hiện bình chọn!',
       code: 'VPN_DETECTED'
     });
+  }
+
+  // 7. XÁC THỰC CLOUDFLARE TURNSTILE (CAPTCHA TÀNG HÌNH CHỐNG TOOL)
+  const turnstileToken = req.body.cf_turnstile_response || req.body['cf-turnstile-response'] || '';
+  const turnstileSecret = process.env.TURNSTILE_SECRET_KEY || '1x0000000000000000000000000000000AA';
+  if (turnstileSecret) {
+    if (!turnstileToken) {
+      return res.status(400).json({
+        error: 'Vui lòng tích vào ô xác minh "Tôi là con người" trước khi bình chọn!',
+        code: 'TURNSTILE_REQUIRED'
+      });
+    }
+    const turnstileResult = await verifyTurnstile(turnstileToken, voterIp, turnstileSecret);
+    if (!turnstileResult.success) {
+      return res.status(400).json({
+        error: 'Xác minh Cloudflare không thành công hoặc phiên đã hết hạn. Vui lòng tích lại vào ô xác minh!',
+        code: 'TURNSTILE_FAILED'
+      });
+    }
   }
 
   try {

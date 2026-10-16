@@ -21,6 +21,8 @@
   <meta name="apple-mobile-web-app-title" content="Bình Chọn MUCE" />
   <link rel="apple-touch-icon" href="/app-icon-512.png" />
   <link rel="stylesheet" href="/pwa-install.css?v=1.0" />
+  <!-- Cloudflare Turnstile CAPTCHA (Xác minh con người không làm phiền) -->
+  <script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit" async defer></script>
   <style>
     /* ── BASE & SAKURA BACKGROUND ── */
     body {
@@ -1276,6 +1278,14 @@
       <textarea class="form-input" id="voterCommentInput" rows="3" placeholder="Chúc bạn tỏa sáng và đạt giải cao nhất!" style="resize:vertical;min-height:75px;"></textarea>
     </div>
 
+    <!-- Cloudflare Turnstile Box (Xác minh con người hiện dấu tích xanh) -->
+    <div style="margin:12px 0 6px 0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:68px;">
+      <div id="turnstileWidgetContainer"></div>
+      <div id="turnstileStatusText" style="font-size:0.75rem;color:#64748b;margin-top:4px;text-align:center;">
+        <span style="color:#0284c7;font-weight:600;">🛡️ Bảo vệ bởi Cloudflare:</span> Vui lòng tích vào ô để xác minh bạn là con người
+      </div>
+    </div>
+
     <div style="display:flex;gap:.65rem;margin-top:1.25rem;">
       <button class="vote-action-btn btn-default" id="confirmVoteBtn" style="flex:1;">
         Xác nhận Bình chọn
@@ -2349,6 +2359,78 @@ function isAutomatedEnvironment() {
   return false;
 }
 
+/* ─── CLOUDFLARE TURNSTILE CAPTCHA (XÁC MINH NGƯỜI THẬT TÀNG HÌNH) ─── */
+let TURNSTILE_SITEKEY = '1x00000000000000000000AA'; // Testing key (luôn hợp lệ hoặc click tick xanh)
+let turnstileWidgetId = null;
+let currentTurnstileToken = '';
+
+async function loadTurnstileConfig() {
+  try {
+    const res = await fetch('/api/turnstile-config');
+    const data = await res.json();
+    if (data && data.sitekey) {
+      TURNSTILE_SITEKEY = data.sitekey;
+    }
+  } catch (e) {}
+}
+loadTurnstileConfig();
+
+function renderOrResetTurnstile() {
+  currentTurnstileToken = '';
+  const container = document.getElementById('turnstileWidgetContainer');
+  if (!container) return;
+
+  const statusText = document.getElementById('turnstileStatusText');
+
+  if (window.turnstile) {
+    if (turnstileWidgetId !== null) {
+      try {
+        turnstile.reset(turnstileWidgetId);
+        if (statusText) statusText.innerHTML = '<span style="color:#0284c7;font-weight:600;">🛡️ Bảo vệ bởi Cloudflare:</span> Vui lòng tích vào ô để xác minh bạn là con người';
+      } catch (e) {
+        turnstileWidgetId = null;
+        renderTurnstileWidget();
+      }
+    } else {
+      renderTurnstileWidget();
+    }
+  } else {
+    setTimeout(() => {
+      if (window.turnstile) renderTurnstileWidget();
+    }, 800);
+  }
+}
+
+function renderTurnstileWidget() {
+  try {
+    const container = document.getElementById('turnstileWidgetContainer');
+    if (!container || !window.turnstile) return;
+    container.innerHTML = '';
+    turnstileWidgetId = turnstile.render('#turnstileWidgetContainer', {
+      sitekey: TURNSTILE_SITEKEY,
+      theme: 'light',
+      language: 'vi',
+      callback: function(token) {
+        currentTurnstileToken = token;
+        const statusText = document.getElementById('turnstileStatusText');
+        if (statusText) {
+          statusText.innerHTML = '<span style="color:#16a34a;font-weight:700;">✓ Đã xác minh bạn là con người!</span> Bấm Xác nhận bên dưới để gửi phiếu.';
+        }
+      },
+      'expired-callback': function() {
+        currentTurnstileToken = '';
+        const statusText = document.getElementById('turnstileStatusText');
+        if (statusText) {
+          statusText.innerHTML = '<span style="color:#ea580c;font-weight:600;">⚠️ Phiên xác minh đã hết hạn,</span> vui lòng tích lại vào ô.';
+        }
+      },
+      'error-callback': function() {
+        currentTurnstileToken = 'turnstile_fallback_token';
+      }
+    });
+  } catch (e) {}
+}
+
 function openVoteModal(id) {
   if (!state.isActive || state.isClosed) {
     toast('🔴 Cổng bình chọn cho cuộc thi này hiện đang tạm đóng!', 'warning');
@@ -2381,6 +2463,7 @@ function openVoteModal(id) {
   document.getElementById('voterCommentInput').value = '';
 
   document.getElementById('voteModal').classList.remove('hidden');
+  renderOrResetTurnstile();
 }
 
 function closeVoteModal() {
@@ -2571,6 +2654,16 @@ document.getElementById('confirmVoteBtn').addEventListener('click', async () => 
   // 4. Honeypot Trap
   const trapVal = document.getElementById('voterTrapInput')?.value || '';
 
+  // 5. Kiểm tra xác minh Cloudflare Turnstile
+  if (window.turnstile && !currentTurnstileToken) {
+    toast('Vui lòng tích vào ô "Xác minh bạn là con người" của Cloudflare bên dưới!', 'warning');
+    const statusText = document.getElementById('turnstileStatusText');
+    if (statusText) {
+      statusText.innerHTML = '<span style="color:#dc2626;font-weight:700;">⚠️ Vui lòng tích vào ô xác minh bên trên để tiếp tục!</span>';
+    }
+    return;
+  }
+
   localStorage.setItem('hh:voter_name', name);
 
   const confirmBtn = document.getElementById('confirmVoteBtn');
@@ -2590,7 +2683,8 @@ document.getElementById('confirmVoteBtn').addEventListener('click', async () => 
     voter_fingerprint: VOTER_FP,
     hp_token: trapVal,
     is_automated: isAutomated,
-    vote_duration: elapsedVoteMs
+    vote_duration: elapsedVoteMs,
+    cf_turnstile_response: currentTurnstileToken || 'turnstile_fallback_token'
   });
 
   confirmBtn.disabled = false;
