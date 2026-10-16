@@ -1243,16 +1243,10 @@ app.get('*', (req, res) => {
 });
 
 // ─── Start Server ─────────────────────────────────
-async function start() {
-  try {
-    await initDB();
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running at http://localhost:${PORT}`);
-    });
-  } catch (e) {
-    console.error('❌ Failed to start server:', e);
-    process.exit(1);
-  }
-}
-
-start();
+app.listen(PORT, () => {
+  console.log(`🚀 Server running at http://localhost:${PORT}`);
+  // Khởi tạo DB trong nền để Render luôn nhận cổng HTTP ngay lập tức
+  initDB().catch(e => {
+    console.error('⚠️ [DB Warning] Lỗi khởi tạo DB trong nền:', e.message);
+  });
+});

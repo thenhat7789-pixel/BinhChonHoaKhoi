@@ -12,7 +12,9 @@ if (process.env.DATABASE_URL) {
   
   pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: isSSL ? { rejectUnauthorized: false } : false
+    ssl: isSSL ? { rejectUnauthorized: false } : false,
+    connectionTimeoutMillis: 10000,
+    idleTimeoutMillis: 30000
   });
 }
 
@@ -58,8 +60,9 @@ async function initDB() {
     return;
   }
 
-  const client = await pool.connect();
+  let client = null;
   try {
+    client = await pool.connect();
     await client.query(`
       CREATE TABLE IF NOT EXISTS contestants (
         id VARCHAR(100) PRIMARY KEY,
@@ -299,7 +302,7 @@ async function initDB() {
   } catch (err) {
     console.error('❌ Lỗi kết nối / khởi tạo DB:', err.message);
   } finally {
-    client.release();
+    if (client) client.release();
   }
 }
 
