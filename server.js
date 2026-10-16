@@ -315,19 +315,43 @@ app.get('/api/topic-data', async (req, res) => {
 });
 
 // ─── GET /api/contestants/:id/photo ──────────────
-// Endpoint riêng để lấy ảnh base64 từng thí sinh (lazy load)
+// Trả về trực tiếp binary image để thẻ <img loading="lazy"> tải native & cache HTTP cực nhanh
 app.get('/api/contestants/:id/photo', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT id, photo FROM contestants WHERE id = $1', [req.params.id]);
     if (!rows.length || !rows[0].photo) {
-      return res.status(404).json({ photo: null });
+      return res.status(404).send('Photo not found');
     }
-    // Cache ảnh trên CDN/browser 1 giờ vì ảnh ít thay đổi
-    res.setHeader('Cache-Control', 'public, max-age=3600');
-    res.json({ photo: rows[0].photo });
+    const photo = rows[0].photo;
+
+    // Nếu client yêu cầu JSON rõ ràng
+    if (req.query.json === '1') {
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      return res.json({ photo });
+    }
+
+    // Nếu là data URL (data:image/...;base64,...)
+    const match = photo.match(/^data:([a-zA-Z0-9/+-]+);base64,(.+)$/);
+    if (match) {
+      const mime = match[1];
+      const buffer = Buffer.from(match[2], 'base64');
+      res.setHeader('Content-Type', mime);
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      return res.send(buffer);
+    }
+
+    // Nếu là URL bên ngoài (http://...)
+    if (photo.startsWith('http://') || photo.startsWith('https://')) {
+      return res.redirect(photo);
+    }
+
+    // Mặc định buffer base64
+    res.setHeader('Content-Type', 'image/jpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+    res.send(Buffer.from(photo, 'base64'));
   } catch (e) {
     console.error('GET /api/contestants/:id/photo error:', e);
-    res.status(500).json({ error: 'Lỗi server' });
+    res.status(500).send('Error');
   }
 });
 
@@ -373,7 +397,7 @@ app.post('/api/contestants', async (req, res) => {
           name = EXCLUDED.name,
           subtitle = EXCLUDED.subtitle,
           color = EXCLUDED.color,
-          photo = EXCLUDED.photo,
+          photo = CASE WHEN EXCLUDED.photo IS NOT NULL AND EXCLUDED.photo != '' THEN EXCLUDED.photo ELSE contestants.photo END,
           sort_order = EXCLUDED.sort_order,
           faculty = EXCLUDED.faculty,
           hometown = EXCLUDED.hometown

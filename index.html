@@ -1639,6 +1639,7 @@ window.addEventListener('popstate', () => {
    ══════════════════════════════════════════════════════════ */
 async function loadTopicContestantsAndVotes(eventId) {
   const ev = state.events.find(e => e.id === eventId);
+  let ratio = ev ? (ev.vote_ratio || 80) : 80;
 
   try {
     // Dùng 1 API call gộp thay vì 3 calls tuần tự (giảm thời gian load 3x)
@@ -1651,25 +1652,25 @@ async function loadTopicContestantsAndVotes(eventId) {
       state.contestants = combined.contestants;
     } else {
       // fallback nếu endpoint chưa có
-      const cRes = await api.get(`/api/contestants?event=${encodeURIComponent(eventId)}`);
+      const cRes = await api.get(`/api/contestants?event=${encodeURIComponent(eventId)}&no_photos=1`);
       state.contestants = (cRes && Array.isArray(cRes.contestants)) ? cRes.contestants
         : (CONTESTANTS_BY_THEME[eventId] || []);
     }
 
     state.votes = (combined && combined.votes) ? combined.votes : {};
 
-    const ratio = (combined && combined.voteRatio) ? combined.voteRatio : (ev ? (ev.vote_ratio || 80) : 80);
+    ratio = (combined && combined.voteRatio) ? combined.voteRatio : (ev ? (ev.vote_ratio || 80) : 80);
     state.voteRatio = ratio;
 
     if (combined && combined.votedIds) {
       state.votedIds = combined.votedIds;
-      state.maxAllowed = combined.maxAllowed || Math.max(1, Math.round((state.contestants.length * (ratio / 100))));
+      state.maxAllowed = combined.maxAllowed || Math.max(1, Math.round(((state.contestants || []).length * (ratio / 100))));
     } else {
       try {
         const saved = JSON.parse(localStorage.getItem(`hh:voted:${eventId}`) || '[]');
         state.votedIds = Array.isArray(saved) ? saved : [];
       } catch(e) { state.votedIds = []; }
-      state.maxAllowed = Math.max(1, Math.round((state.contestants.length * (ratio / 100))));
+      state.maxAllowed = Math.max(1, Math.round(((state.contestants || []).length * (ratio / 100))));
     }
 
     const isActive = (combined && combined.is_active !== undefined) ? combined.is_active : (ev ? (ev.is_active !== false) : true);
@@ -1687,8 +1688,6 @@ async function loadTopicContestantsAndVotes(eventId) {
     state.votedIds = state.votedIds || [];
     state.maxAllowed = state.maxAllowed || 1;
   }
-
-
 
   // Update Voting Rule Bar
   const myVotesCount = (state.votedIds || []).length;
@@ -1710,15 +1709,18 @@ async function loadTopicContestantsAndVotes(eventId) {
     ratioEl.textContent = ratioLabel;
   }
 
+  const cCount = (state.contestants || []).length;
   const ruleEl = document.getElementById('topicRuleText');
   if (ruleEl) {
-    ruleEl.textContent = `Hiện có ${contestants.length} thí sinh, mỗi sinh viên được bình chọn tối đa ${state.maxAllowed} thí sinh khác nhau.`;
+    ruleEl.textContent = `Hiện có ${cCount} thí sinh, mỗi sinh viên được bình chọn tối đa ${state.maxAllowed} thí sinh khác nhau.`;
   }
 
   // Update Hero Stats for Topic
   const totalVotesTopic = Object.values(state.votes).reduce((a, b) => a + b, 0);
-  document.getElementById('heroStatEvents').textContent = `Số thí sinh: ${contestants.length} bạn`;
-  document.getElementById('heroStatVotes').textContent = `${totalVotesTopic.toLocaleString('vi-VN')} lượt bình chọn`;
+  const heroStatEvents = document.getElementById('heroStatEvents');
+  if (heroStatEvents) heroStatEvents.textContent = `Số thí sinh: ${cCount} bạn`;
+  const heroStatVotes = document.getElementById('heroStatVotes');
+  if (heroStatVotes) heroStatVotes.textContent = `${totalVotesTopic.toLocaleString('vi-VN')} lượt bình chọn`;
 
   renderTopicContestants();
   await loadTopicComments(eventId);
@@ -1799,10 +1801,14 @@ function renderTopicContestants() {
         if (parts.length > 1) hometown = parts[1];
       }
     }
-    // Render placeholder trước (nhanh), ảnh sẽ lazy-load sau qua IntersectionObserver
+
+    // Ảnh thí sinh được tải lazy native qua endpoint /api/contestants/:id/photo
+    const photoUrl = `/api/contestants/${encodeURIComponent(c.id)}/photo`;
     const photoHtml = `
-      <div class="c-card-img-inner" data-contestant-id="${c.id}" data-has-photo="pending">
-        <div class="c-card-placeholder">
+      <div class="c-card-img-inner">
+        <img class="c-card-photo-bg" src="${photoUrl}" alt="" aria-hidden="true" loading="lazy" />
+        <img class="c-card-photo" src="${photoUrl}" alt="${esc(c.name)}" loading="lazy" onerror="this.style.display='none'; if(this.previousElementSibling) this.previousElementSibling.style.display='none'; const p=this.parentElement.querySelector('.c-card-placeholder'); if(p) p.style.display='flex';" />
+        <div class="c-card-placeholder" style="display:none;">
           <div class="c-card-placeholder-icon">👑</div>
           <div class="c-card-img-num">${esc(sbd)}</div>
         </div>
@@ -1838,57 +1844,6 @@ function renderTopicContestants() {
       </div>
     </div>`;
   }).join('');
-
-  // Sau khi render xong → lazy-load ảnh khi card vào viewport
-  lazyLoadContestantPhotos();
-}
-
-// Photo cache để tránh re-fetch khi scroll
-const _photoCache = {};
-
-function lazyLoadContestantPhotos() {
-  const containers = document.querySelectorAll('.c-card-img-inner[data-has-photo="pending"]');
-  if (!containers.length) return;
-
-  const observer = new IntersectionObserver((entries) => {
-    entries.forEach(async entry => {
-      if (!entry.isIntersecting) return;
-      const el = entry.target;
-      const id = el.dataset.contestantId;
-      if (!id || el.dataset.hasPhoto !== 'pending') return;
-      el.dataset.hasPhoto = 'loading';
-      observer.unobserve(el);
-
-      try {
-        // Dùng cache nếu đã fetch rồi
-        let photo = _photoCache[id];
-        if (!photo) {
-          const res = await fetch(`/api/contestants/${encodeURIComponent(id)}/photo`);
-          if (res.ok) {
-            const data = await res.json();
-            photo = data.photo || null;
-            _photoCache[id] = photo;
-          }
-        }
-
-        if (photo) {
-          el.innerHTML = `
-            <img class="c-card-photo-bg" src="${photo}" alt="" aria-hidden="true" />
-            <img class="c-card-photo" src="${photo}" alt="" />`;
-          el.dataset.hasPhoto = 'loaded';
-          // Cập nhật viewCandidatePhoto cache
-          const c = state.contestants.find(x => x.id === id);
-          if (c) c.photo = photo;
-        } else {
-          el.dataset.hasPhoto = 'none';
-        }
-      } catch(e) {
-        el.dataset.hasPhoto = 'error';
-      }
-    });
-  }, { rootMargin: '200px' }); // Bắt đầu fetch trước khi vào màn hình 200px
-
-  containers.forEach(el => observer.observe(el));
 }
 
 
@@ -2006,12 +1961,12 @@ function closePublicQrModal() {
 
 function viewCandidatePhoto(cId) {
   const c = (state.contestants || []).find(x => x.id === cId);
-  if (!c || !c.photo) return;
+  if (!c) return;
   const modal = document.getElementById('photoViewModal');
   const img = document.getElementById('photoViewImg');
   const cap = document.getElementById('photoViewCaption');
   if (!modal || !img) return;
-  img.src = c.photo;
+  img.src = c.photo || `/api/contestants/${encodeURIComponent(cId)}/photo`;
   const sbd = getContestantSbd(c.id);
   if (cap) cap.textContent = `SBD ${sbd} · ${c.name}`;
   modal.classList.remove('hidden');
