@@ -19,13 +19,14 @@ if (!fs.existsSync(UPLOADS_DIR_ROOT)) {
   fs.mkdirSync(UPLOADS_DIR_ROOT, { recursive: true });
 }
 
-// ─── PHÁT HIỆN VÀ CHẶN VPN (1.1.1.1 / WARP / DATACENTER PROXY) ───
+// ─── PHÁT HIỆN VÀ CHẶN VPN (1.1.1.1 / WARP / DATACENTER PROXY / TOR) ───
 const VPN_CIDR_RANGES = [
-  '8.20.0.0/14',    // Cloudflare WARP / WARP+ (8.20.0.0 - 8.23.255.255)
-  '8.24.0.0/14',    // Cloudflare WARP (8.24.0.0 - 8.27.255.255)
-  '104.16.0.0/12',  // Cloudflare Datacenter & WARP (104.16.x.x - 104.31.x.x bao gồm 104.28.x.x)
+  // Cloudflare WARP / WARP+ & Datacenter
+  '8.20.0.0/14',    // 8.20.0.0 - 8.23.255.255
+  '8.24.0.0/14',    // 8.24.0.0 - 8.27.255.255
+  '104.16.0.0/12',  // 104.16.x.x - 104.31.x.x (bao gồm 104.28.x.x WARP)
   '162.158.0.0/15', // Cloudflare WARP / Proxy
-  '172.64.0.0/13',  // Cloudflare WARP / Proxy (172.64.x.x - 172.71.x.x)
+  '172.64.0.0/13',  // 172.64.x.x - 172.71.x.x
   '108.162.192.0/18',
   '198.41.128.0/17',
   '197.234.240.0/22',
@@ -36,7 +37,38 @@ const VPN_CIDR_RANGES = [
   '173.245.48.0/20',
   '188.114.96.0/20',
   '190.93.240.0/20',
-  '131.0.72.0/22'
+  '131.0.72.0/22',
+
+  // DigitalOcean Datacenter Proxies
+  '104.248.0.0/14',
+  '159.203.0.0/16',
+  '167.99.0.0/16',
+  '178.62.0.0/16',
+  '188.166.0.0/16',
+  '138.68.0.0/16',
+  '138.197.0.0/16',
+  '165.22.0.0/16',
+  '165.227.0.0/16',
+  '142.93.0.0/16',
+
+  // Hetzner / OVH / Linode / Vultr Datacenter Proxies & Tor
+  '138.201.0.0/16',
+  '148.251.0.0/16',
+  '176.9.0.0/16',
+  '195.201.0.0/16',
+  '51.254.0.0/16',
+  '51.255.0.0/16',
+  '178.32.0.0/16',
+  '45.33.0.0/16',
+  '45.79.0.0/16',
+  '139.162.0.0/16',
+  '172.104.0.0/16',
+  '172.105.0.0/16',
+  '45.63.0.0/16',
+  '45.76.0.0/16',
+  '108.61.0.0/16',
+  '149.28.0.0/16',
+  '185.220.100.0/22' // Mạng Tor Exit Nodes
 ];
 
 function ipToLong(ip) {
@@ -52,12 +84,62 @@ function inCidr(ip, cidr) {
 
 function isVpnOrProxy(ip) {
   if (!ip || ip === 'unknown') return false;
-  // Cloudflare WARP IPv6
+  // Cloudflare WARP / Datacenter IPv6 & Tor
   if (ip.startsWith('2a09:bac') || ip.startsWith('2606:4700') || ip.startsWith('2400:cb00')) return true;
   if (!ip.includes('.')) return false;
   const cleanIp = ip.replace(/^::ffff:/, '');
   return VPN_CIDR_RANGES.some(cidr => inCidr(cleanIp, cidr));
 }
+
+// ─── CHUẨN HÓA HỌ VÀ TÊN NGƯỜI BÌNH CHỌN (CHỐNG GÕ RÁC SPAM) ───
+function validateVoterName(name) {
+  if (!name || typeof name !== 'string') return 'Vui lòng nhập Họ và tên của bạn!';
+  const trimmed = name.trim();
+  if (trimmed.length < 3) return 'Họ và tên quá ngắn (tối thiểu 3 ký tự)!';
+  if (trimmed.length > 60) return 'Họ và tên quá dài!';
+  if (/\d/.test(trimmed)) return 'Họ và tên không được chứa chữ số!';
+  if (/[@#$%^&*()_+={}\[\]:;"'<>?\/\\|~`!]/.test(trimmed)) return 'Họ và tên không được chứa ký tự đặc biệt!';
+  
+  const words = trimmed.split(/\s+/).filter(w => w.length > 0);
+  if (words.length < 2) {
+    return 'Vui lòng nhập đầy đủ cả Họ và Tên của bạn (tối thiểu 2 từ, ví dụ: Nguyễn Văn A)!';
+  }
+  for (const w of words) {
+    if (/^(.)\1{3,}$/i.test(w)) {
+      return 'Họ và tên không hợp lệ, vui lòng nhập tên thật của bạn!';
+    }
+  }
+  return null;
+}
+
+// ─── GIỚI HẠN TẦN SUẤT GỬI PHIẾU (RATE LIMITING THEO IP MẠNG) ───
+const voteRateLimitMap = new Map();
+
+function checkVoteRateLimit(ip) {
+  if (!ip || ip === 'unknown') return true;
+  const now = Date.now();
+  const windowMs = 60 * 1000; // 1 phút
+  const maxVotesPerMinute = 8; // Tối đa 8 request vote / phút / 1 IP (Đủ cho nhiều người cùng Wi-Fi nhưng chặn bot spam)
+
+  let timestamps = voteRateLimitMap.get(ip) || [];
+  timestamps = timestamps.filter(t => now - t < windowMs);
+  if (timestamps.length >= maxVotesPerMinute) {
+    return false;
+  }
+  timestamps.push(now);
+  voteRateLimitMap.set(ip, timestamps);
+  return true;
+}
+
+// Dọn dẹp bộ nhớ RAM định kỳ mỗi 5 phút
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, timestamps] of voteRateLimitMap.entries()) {
+    const valid = timestamps.filter(t => now - t < 60000);
+    if (valid.length === 0) voteRateLimitMap.delete(ip);
+    else voteRateLimitMap.set(ip, valid);
+  }
+}, 300000);
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
@@ -887,8 +969,33 @@ app.post('/api/votes/adjust', async (req, res) => {
 
 // ─── POST /api/vote ───────────────────────────────
 app.post('/api/vote', async (req, res) => {
-  const { contestant_id, event_id, voter_name, student_id, student_class, faculty, comment, voter_fingerprint } = req.body;
+  const { contestant_id, event_id, voter_name, student_id, student_class, faculty, comment, voter_fingerprint, hp_token, is_automated, vote_duration } = req.body;
   if (!contestant_id) return res.status(400).json({ error: 'Thiếu contestant_id' });
+
+  // 1. BẪY BOT (HONEYPOT TRAP) - Ô nhập liệu ẩn chỉ bot/tool quét được và tự điền
+  if (hp_token && String(hp_token).trim() !== '') {
+    return res.status(400).json({
+      error: 'Hệ thống phát hiện hành vi tự động bất thường!',
+      code: 'BOT_TRAP_TRIGGERED'
+    });
+  }
+
+  // 2. CHẶN TOOL TỰ ĐỘNG & MÁY ẢO HEADLESS / WEBDRIVER
+  if (is_automated === true) {
+    return res.status(400).json({
+      error: 'Hệ thống phát hiện môi trường giả lập / tự động hóa không hợp lệ!',
+      code: 'AUTOMATION_DETECTED'
+    });
+  }
+
+  // 3. CHẶN THAO TÁC QUÁ NHANH (TIME-TO-VOTE DƯỚI 1.2 GIÂY)
+  const durationNum = parseInt(vote_duration) || 0;
+  if (durationNum > 0 && durationNum < 1200) {
+    return res.status(400).json({
+      error: 'Thao tác quá nhanh! Vui lòng thao tác bình thường trên màn hình.',
+      code: 'TOO_FAST'
+    });
+  }
 
   const currentEventId = event_id || 'evt_hoakhoi_2026';
   const cleanVoterName = (voter_name || '').trim();
@@ -897,7 +1004,11 @@ app.post('/api/vote', async (req, res) => {
   const cleanFaculty = (faculty || '').trim();
   const cleanFp = (voter_fingerprint || '').trim();
 
-  if (!cleanVoterName) return res.status(400).json({ error: 'Vui lòng nhập Họ và tên của bạn!' });
+  // 4. CHUẨN HÓA HỌ VÀ TÊN NGƯỜI BÌNH CHỌN (CHỐNG GÕ BỪA SPAM)
+  const nameError = validateVoterName(cleanVoterName);
+  if (nameError) {
+    return res.status(400).json({ error: nameError, code: 'INVALID_NAME' });
+  }
 
   const voterIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
     || req.headers['x-real-ip']
@@ -905,7 +1016,15 @@ app.post('/api/vote', async (req, res) => {
     || 'unknown';
   const voterId = cleanFp ? `${voterIp}_${cleanFp}` : voterIp;
 
-  // 0. CHẶN VPN 1.1.1.1 (Cloudflare WARP) & PROXY FAKE IP
+  // 5. GIỚI HẠN TẦN SUẤT GỬI PHIẾU (RATE LIMITING)
+  if (!checkVoteRateLimit(voterIp)) {
+    return res.status(429).json({
+      error: 'Bạn đang thao tác quá nhanh! Vui lòng chờ 30 giây rồi thử lại.',
+      code: 'RATE_LIMIT_EXCEEDED'
+    });
+  }
+
+  // 6. CHẶN VPN 1.1.1.1 (Cloudflare WARP) & PROXY DATACENTER / TOR
   if (isVpnOrProxy(voterIp)) {
     return res.status(400).json({
       error: 'Hệ thống phát hiện thiết bị đang bật VPN (1.1.1.1 / Proxy / Fake IP). Để đảm bảo tính minh bạch và công bằng cho cuộc thi, bạn vui lòng TẮT VPN trên điện thoại rồi thực hiện bình chọn!',
