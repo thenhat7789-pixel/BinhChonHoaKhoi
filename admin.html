@@ -3782,51 +3782,53 @@ function onVoteLogSearch(keyword) {
 /* ─── LOAD ADMIN DATA ───────────────────────────────────── */
 async function loadAdminData() {
   try {
-    // 1. Load events
-    await loadAdminEvents();
+    // 1 API call gộp thay vì 6 calls tuần tự → giảm thời gian load ~6x
+    const data = await api.get('/api/admin-data');
 
-    // 2. Load contestants from API (kèm fallback localStorage an toàn)
-    try {
-      const cData = await api.get('/api/contestants');
-      if (cData && Array.isArray(cData.contestants) && cData.contestants.length > 0) {
-        appData.contestants = cData.contestants;
-        try { localStorage.setItem('hh:contestants', JSON.stringify(appData.contestants)); } catch(e){}
-      } else {
-        const localC = localStorage.getItem('hh:contestants');
-        if (localC) {
-          try { appData.contestants = JSON.parse(localC); } catch(e){}
-        }
-        if (!appData.contestants || !appData.contestants.length) {
-          appData.contestants = ALL_DEFAULT_CONTESTANTS.map(c => ({...c}));
-        }
+    if (!data) throw new Error('Không nhận được dữ liệu từ server');
+
+    // Events
+    if (data.events && data.events.length > 0) {
+      adminEvents = data.events;
+      // Lọc các sự kiện không liên quan
+      adminEvents = adminEvents.filter(e => {
+        const text = ((e.title || '') + ' ' + (e.tag || '') + ' ' + (e.description || '')).toLowerCase();
+        return !text.includes('phường') && !text.includes('nctxh') && !text.includes('chuyển đổi số') && !text.includes('hiến máu');
+      });
+      if (!adminEvents.length) adminEvents = DEFAULT_ADMIN_EVENTS;
+      else {
+        adminEvents = adminEvents.map(e => {
+          if (!e.short_url) {
+            const def = DEFAULT_ADMIN_EVENTS.find(d => d.id === e.id);
+            if (def && def.short_url) e.short_url = def.short_url;
+          }
+          return e;
+        });
       }
-    } catch(e) {
+    } else {
+      const local = localStorage.getItem('hh:events');
+      adminEvents = local ? (JSON.parse(local) || DEFAULT_ADMIN_EVENTS) : DEFAULT_ADMIN_EVENTS;
+    }
+
+    // Contestants
+    if (data.contestants && data.contestants.length > 0) {
+      appData.contestants = data.contestants;
+      try { localStorage.setItem('hh:contestants', JSON.stringify(appData.contestants)); } catch(e){}
+    } else {
       const localC = localStorage.getItem('hh:contestants');
-      if (localC) {
-        try { appData.contestants = JSON.parse(localC); } catch(e){}
-      }
-      if (!appData.contestants || !appData.contestants.length) {
-        appData.contestants = ALL_DEFAULT_CONTESTANTS.map(c => ({...c}));
-      }
+      appData.contestants = localC ? (JSON.parse(localC) || ALL_DEFAULT_CONTESTANTS.map(c => ({...c})))
+                                   : ALL_DEFAULT_CONTESTANTS.map(c => ({...c}));
     }
 
-    // 3. Load vote counts from API
-    const vData = await api.get('/api/votes');
-    appData.votes = vData.votes || {};
+    // Votes
+    appData.votes = data.votes || {};
 
-    // 4. Load shares from API
-    try {
-      const sData = await api.get('/api/shares');
-      appData.shares = sData.shares || {};
-      appData.totalShares = sData.total || 0;
-    } catch {
-      appData.shares = {};
-      appData.totalShares = 0;
-    }
+    // Shares
+    appData.shares = data.shares || {};
+    appData.totalShares = data.totalShares || 0;
 
-    // 5. Load vote log from API
-    const logData = await api.get('/api/vote-log');
-    appData.voteLog = (logData.log || []).map(entry => ({
+    // Vote log
+    appData.voteLog = (data.log || []).map(entry => ({
       voteId: entry.vote_id,
       id: entry.id,
       name: entry.name,
@@ -3842,9 +3844,9 @@ async function loadAdminData() {
       eventTag: entry.eventTag || '# CUỘC THI'
     }));
 
-    // 6. Load settings from API
-    const settings = await api.get('/api/settings');
-    appData.settings = settings || {};
+    // Settings
+    const settings = data.settings || {};
+    appData.settings = settings;
     if (settings.superadmin_email) {
       SUPERADMIN_EMAIL = settings.superadmin_email.toLowerCase();
     }
@@ -3855,11 +3857,13 @@ async function loadAdminData() {
     toast('Lỗi tải dữ liệu: ' + e.message, 'error');
   }
 
+  renderAdminEvents();
   syncAllEventSelectors();
   renderAll();
   applyRolePermissions();
   updateSidebarUserBadge();
 }
+
 
 function renderAll() {
   renderKPI();

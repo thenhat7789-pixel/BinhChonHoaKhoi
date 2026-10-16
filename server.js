@@ -752,6 +752,94 @@ app.post('/api/share', async (req, res) => {
   }
 });
 
+// ─── GET /api/admin-data (gộp events+contestants+votes+shares+log+settings) ──
+// Giảm từ 6 API calls tuần tự → 1 call song song để admin load nhanh hơn
+app.get('/api/admin-data', async (req, res) => {
+  try {
+    const [
+      eventsResult,
+      contestantsResult,
+      votesResult,
+      sharesResult,
+      logResult,
+      settingsResult
+    ] = await Promise.all([
+      // 1. Events
+      pool.query(`
+        SELECT e.*, 
+               COALESCE(e.checked_in_count, 0) + COUNT(v.id)::int as total_attendees
+        FROM events e
+        LEFT JOIN votes v ON v.event_id = e.id
+        GROUP BY e.id
+        ORDER BY e.sort_order, e.created_at
+      `),
+      // 2. Contestants
+      pool.query('SELECT * FROM contestants ORDER BY sort_order, id'),
+      // 3. Votes
+      pool.query(`
+        SELECT c.id, c.event_id, COUNT(v.id)::int as count
+        FROM contestants c
+        LEFT JOIN votes v ON v.contestant_id = c.id
+        GROUP BY c.id, c.event_id
+        ORDER BY c.sort_order, c.id
+      `),
+      // 4. Shares
+      pool.query(`
+        SELECT s.contestant_id as id, COUNT(*)::int as count
+        FROM shares s
+        WHERE s.contestant_id IS NOT NULL
+        GROUP BY s.contestant_id
+      `).catch(() => ({ rows: [] })),
+      // 5. Vote log (giới hạn 500 bản ghi gần nhất để tránh payload lớn)
+      pool.query(`
+        SELECT v.vote_id, v.contestant_id as id, 
+               COALESCE(c.name, v.contestant_id) as name,
+               COALESCE(c.subtitle, '') as "contestantSubtitle",
+               v.voter_name as "voterName",
+               COALESCE(v.student_id, '') as "studentId",
+               COALESCE(v.student_class, '') as "studentClass",
+               COALESCE(v.faculty, '') as "faculty",
+               v.comment, v.created_at as ts,
+               COALESCE(v.event_id, c.event_id, 'evt_hoakhoi_2026') as "eventId",
+               COALESCE(ev.title, 'Bình Chọn Hoa Khôi 2026') as "eventTitle",
+               COALESCE(ev.tag, '# CUỘC THI') as "eventTag"
+        FROM votes v
+        LEFT JOIN contestants c ON c.id = v.contestant_id
+        LEFT JOIN events ev ON ev.id = v.event_id
+        ORDER BY v.created_at DESC
+        LIMIT 500
+      `),
+      // 6. Settings
+      pool.query('SELECT key, value FROM settings')
+    ]);
+
+    const votes = {};
+    let totalVotes = 0;
+    votesResult.rows.forEach(r => { votes[r.id] = r.count; totalVotes += r.count; });
+
+    const shares = {};
+    let totalShares = 0;
+    sharesResult.rows.forEach(r => { shares[r.id] = r.count; totalShares += r.count; });
+
+    const settings = {};
+    settingsResult.rows.forEach(r => { settings[r.key] = r.value; });
+
+    res.json({
+      events: eventsResult.rows,
+      contestants: contestantsResult.rows,
+      votes,
+      totalVotes,
+      shares,
+      totalShares,
+      log: logResult.rows,
+      settings
+    });
+  } catch (e) {
+    console.error('GET /api/admin-data error:', e);
+    res.status(500).json({ error: 'Lỗi server' });
+  }
+});
+
 // ─── GET /api/share-log ───────────────────────────
 app.get('/api/share-log', async (req, res) => {
   const eventId = req.query.event || req.query.event_id;
