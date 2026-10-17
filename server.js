@@ -1331,32 +1331,50 @@ app.post('/api/vote', async (req, res) => {
       }
     }
 
-    // 2. KHÓA 2 (TÀI KHOẢN GOOGLE): 1 Gmail chỉ được vote 1 lần duy nhất trong cuộc thi
-    const { rows: googleDupe } = await pool.query(
-      `SELECT COUNT(*)::int as cnt FROM votes 
-       WHERE (event_id = $1 OR event_id IS NULL) 
-         AND LOWER(google_email) = $2`,
-      [currentEventId, verifiedEmail]
+    // 2. KHÓA 2 & 3: Kiểm tra tài khoản Google hoặc thiết bị đã bình chọn chưa
+    const { rows: existingVotes } = await pool.query(
+      `SELECT v.id, v.contestant_id, c.name as contestant_name 
+       FROM votes v 
+       LEFT JOIN contestants c ON c.id = v.contestant_id 
+       WHERE (v.event_id = $1 OR v.event_id IS NULL) 
+         AND (
+           LOWER(v.google_email) = $2 
+           OR ($3 != '' AND v.voter_fp = $3)
+         )
+       ORDER BY v.id DESC 
+       LIMIT 1`,
+      [currentEventId, verifiedEmail, cleanFp]
     );
-    if (googleDupe[0].cnt >= 1) {
-      return res.status(400).json({
-        error: `Tài khoản Google (${verifiedEmail}) đã bình chọn trong cuộc thi này rồi! Dù dùng Wi-Fi hay 4G, mỗi tài khoản chỉ được bình chọn 1 lần duy nhất. Bạn có thể nhấn nút "Hủy" trên thí sinh đã chọn nếu muốn đổi người khác.`,
-        code: 'GOOGLE_ALREADY_VOTED'
-      });
-    }
 
-    // 3. KHÓA 3 (KHÓA TOÀN BỘ THIẾT BỊ): 1 máy chỉ được vote 1 lần duy nhất dù dùng Wi-Fi hay 4G, Zalo, Mes, Safari hay Chrome!
-    if (cleanFp) {
-      const { rows: fpCheck } = await pool.query(
-        `SELECT COUNT(*)::int as cnt FROM votes 
-         WHERE (event_id = $1 OR event_id IS NULL) 
-           AND voter_fp = $2`,
-        [currentEventId, cleanFp]
-      );
-      if (fpCheck[0].cnt >= 1) {
+    if (existingVotes.length > 0) {
+      const oldVote = existingVotes[0];
+      // Nếu là cùng thí sinh đã chọn trước đó
+      if (oldVote.contestant_id === contestant_id) {
         return res.status(400).json({
-          error: '🚫 Thiết bị này (điện thoại/laptop) đã thực hiện bình chọn cho cuộc thi này rồi! Hệ thống đã khóa máy này trên toàn bộ ứng dụng (Zalo, Messenger, Safari, Chrome). Bạn có thể nhấn nút "Hủy" trên thí sinh đã chọn nếu muốn đổi người khác.',
-          code: 'DEVICE_ALREADY_VOTED'
+          error: `Bạn đã bình chọn cho thí sinh "${oldVote.contestant_name || 'này'}" rồi!`,
+          code: 'ALREADY_VOTED_SAME_CONTESTANT',
+          contestant_id: contestant_id
+        });
+      }
+
+      // Nếu người dùng bấm Xác nhận Đổi bình chọn (switch_vote = true)
+      if (req.body.switch_vote) {
+        await pool.query(
+          `DELETE FROM votes 
+           WHERE (event_id = $1 OR event_id IS NULL) 
+             AND (
+               LOWER(google_email) = $2 
+               OR ($3 != '' AND voter_fp = $3)
+             )`,
+          [currentEventId, verifiedEmail, cleanFp]
+        );
+      } else {
+        // Chưa bật switch_vote -> Trả về mã CAN_SWITCH_VOTE kèm tên thí sinh cũ để hỏi xác nhận đổi bình chọn
+        return res.status(400).json({
+          error: `Tài khoản Google (${verifiedEmail}) hiện đang bình chọn cho thí sinh "${oldVote.contestant_name || 'khác'}". Bạn có muốn ĐỔI lượt bình chọn sang thí sinh này không?`,
+          code: 'CAN_SWITCH_VOTE',
+          old_contestant_id: oldVote.contestant_id,
+          old_contestant_name: oldVote.contestant_name || 'thí sinh đã chọn'
         });
       }
     }
@@ -1422,13 +1440,12 @@ app.post('/api/vote', async (req, res) => {
 
 // ─── POST /api/vote/cancel (Hủy / Thu hồi lượt bình chọn) ───────────────
 app.post('/api/vote/cancel', async (req, res) => {
-  const { contestant_id, event_id, voter_fingerprint, google_token } = req.body;
-  if (!contestant_id) return res.status(400).json({ error: 'Thiếu contestant_id' });
+  const { contestant_id, event_id, voter_fingerprint, google_token, google_email } = req.body;
 
   const currentEventId = event_id || 'evt_hoakhoi_2026';
   const cleanFp = (voter_fingerprint || '').trim();
 
-  let verifiedEmail = '';
+  let verifiedEmail = (google_email || '').toLowerCase().trim();
   if (google_token) {
     const googleUser = await verifyFirebaseTokenWithGoogle(google_token);
     if (googleUser && googleUser.email) {
@@ -1446,14 +1463,9 @@ app.post('/api/vote/cancel', async (req, res) => {
     }
   }
 
-  const voterIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
-    || req.headers['x-real-ip']
-    || req.socket?.remoteAddress
-    || 'unknown';
-
   try {
     const conditions = [];
-    const params = [contestant_id, currentEventId];
+    const params = [currentEventId];
     if (verifiedEmail) {
       params.push(verifiedEmail);
       conditions.push(`LOWER(google_email) = $${params.length}`);
@@ -1463,33 +1475,46 @@ app.post('/api/vote/cancel', async (req, res) => {
       conditions.push(`voter_fp = $${params.length}`);
     }
 
-    if (conditions.length > 0) {
-      const deleteQuery = `
-        DELETE FROM votes 
-        WHERE id IN (
-          SELECT id FROM votes 
-          WHERE contestant_id = $1 
-            AND (event_id = $2 OR event_id IS NULL) 
-            AND (${conditions.join(' OR ')})
-          ORDER BY id DESC
-          LIMIT 1
-        )
-        RETURNING id, vote_id, contestant_id
-      `;
-      await pool.query(deleteQuery, params);
+    if (conditions.length === 0) {
+      return res.status(400).json({ error: 'Không tìm thấy thông tin tài khoản để hủy!' });
     }
 
-    // Lấy số phiếu mới nhất của thí sinh sau khi hủy
-    const { rows: countRows } = await pool.query(
-      'SELECT COUNT(*)::int as count FROM votes WHERE contestant_id = $1 AND (event_id = $2 OR event_id IS NULL)',
-      [contestant_id, currentEventId]
-    );
+    let contestantFilter = '';
+    if (contestant_id) {
+      params.push(contestant_id);
+      contestantFilter = `AND contestant_id = $${params.length}`;
+    }
+
+    const deleteQuery = `
+      DELETE FROM votes 
+      WHERE id IN (
+        SELECT id FROM votes 
+        WHERE (event_id = $1 OR event_id IS NULL) 
+          ${contestantFilter}
+          AND (${conditions.join(' OR ')})
+        ORDER BY id DESC
+        LIMIT 1
+      )
+      RETURNING id, vote_id, contestant_id
+    `;
+    const { rows: deletedRows } = await pool.query(deleteQuery, params);
+
+    const targetCId = contestant_id || deletedRows[0]?.contestant_id;
+    let newCount = 0;
+    if (targetCId) {
+      const { rows: countRows } = await pool.query(
+        'SELECT COUNT(*)::int as count FROM votes WHERE contestant_id = $1 AND (event_id = $2 OR event_id IS NULL)',
+        [targetCId, currentEventId]
+      );
+      newCount = countRows[0]?.count || 0;
+    }
 
     res.json({
       success: true,
       message: 'Đã hủy lượt bình chọn thành công!',
-      contestant_id,
-      new_count: countRows[0]?.count || 0
+      deleted_count: deletedRows.length,
+      contestant_id: targetCId,
+      new_count: newCount
     });
   } catch (e) {
     console.error('POST /api/vote/cancel error:', e);

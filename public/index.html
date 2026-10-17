@@ -2296,7 +2296,10 @@ async function loadTopicContestantsAndVotes(eventId) {
   try {
     const studentId = localStorage.getItem('hh:student_id') || '';
     const voterName = localStorage.getItem('hh:voter_name') || '';
-    const googleEmailParam = (typeof currentGoogleUser !== 'undefined' && currentGoogleUser && currentGoogleUser.email) ? `&google_email=${encodeURIComponent(currentGoogleUser.email)}` : '';
+    const cachedEmail = (typeof currentGoogleUser !== 'undefined' && currentGoogleUser && currentGoogleUser.email)
+      ? currentGoogleUser.email
+      : (localStorage.getItem('hh:google_user_email') || '');
+    const googleEmailParam = cachedEmail ? `&google_email=${encodeURIComponent(cachedEmail)}` : '';
     const voterNameParam = voterName ? `&voter_name=${encodeURIComponent(voterName)}` : '';
     const combined = await api.get(
       `/api/topic-data?event=${encodeURIComponent(eventId)}&fp=${encodeURIComponent(VOTER_FP)}&student_id=${encodeURIComponent(studentId)}${voterNameParam}${googleEmailParam}`
@@ -2493,6 +2496,9 @@ function updateGoogleAuthUI(user) {
     if (photoEl) photoEl.src = user.photoURL || 'https://www.gravatar.com/avatar/?d=mp';
     if (nameEl) nameEl.textContent = user.displayName || 'Người dùng Google';
     if (emailEl) emailEl.textContent = user.email || '';
+    if (user.email) {
+      try { localStorage.setItem('hh:google_user_email', user.email); } catch(e){}
+    }
 
     // Tự động điền Họ và Tên nếu chưa có
     const nameInput = document.getElementById('voterNameInput');
@@ -2699,6 +2705,13 @@ async function cancelVote(cId) {
     } catch (e) {}
   }
 
+  let googleEmail = '';
+  if (typeof currentGoogleUser !== 'undefined' && currentGoogleUser && currentGoogleUser.email) {
+    googleEmail = currentGoogleUser.email;
+  } else {
+    try { googleEmail = localStorage.getItem('hh:google_user_email') || ''; } catch(e){}
+  }
+
   toast('⏳ Đang hủy lượt bình chọn...', 'info');
 
   try {
@@ -2706,7 +2719,8 @@ async function cancelVote(cId) {
       contestant_id: cId,
       event_id: state.activeEventId,
       voter_fingerprint: VOTER_FP,
-      google_token: googleToken
+      google_token: googleToken,
+      google_email: googleEmail
     });
 
     if (res && res._error) {
@@ -2985,6 +2999,63 @@ document.getElementById('confirmVoteBtn').addEventListener('click', async () => 
       toast('⛔ Thời gian bình chọn cho cuộc thi này đã kết thúc!', 'error');
       closeVoteModal();
       renderTopicContestants();
+    } else if (res.code === 'CAN_SWITCH_VOTE') {
+      const cCurrent = (state.contestants || []).find(x => x.id === cId);
+      const currentName = cCurrent ? cCurrent.name : 'thí sinh này';
+      const wantSwitch = confirm(
+        `Bạn hiện đang bình chọn cho thí sinh "${res.old_contestant_name || 'khác'}".\n\nBạn có muốn ĐỔI lượt bình chọn sang cho thí sinh "${currentName}" không?`
+      );
+      if (wantSwitch) {
+        toast('⏳ Đang chuyển đổi lượt bình chọn...', 'info');
+        confirmBtn.disabled = true;
+        confirmBtn.innerHTML = '⏳ Đang đổi phiếu...';
+        const switchRes = await api.post('/api/vote', {
+          contestant_id: cId,
+          event_id: eventId,
+          voter_name: name,
+          student_id: '',
+          student_class: '',
+          faculty: '',
+          comment: comment || 'Ủng hộ thí sinh!',
+          voter_fingerprint: VOTER_FP,
+          hp_token: trapVal,
+          is_automated: isAutomated,
+          vote_duration: elapsedVoteMs,
+          google_token: googleToken,
+          switch_vote: true
+        });
+        confirmBtn.disabled = false;
+        confirmBtn.innerHTML = originalBtnText;
+
+        if (switchRes && !switchRes._error) {
+          if (res.old_contestant_id) {
+            state.votedIds = (state.votedIds || []).filter(id => id !== res.old_contestant_id);
+            state.votes[res.old_contestant_id] = Math.max(0, (state.votes[res.old_contestant_id] || 1) - 1);
+          }
+          if (!state.votedIds.includes(cId)) state.votedIds.push(cId);
+          state.votes[cId] = (state.votes[cId] || 0) + 1;
+          try {
+            localStorage.setItem(`hh:voted:${eventId}`, JSON.stringify(state.votedIds));
+            document.cookie = `hh_voted_${eventId}=${encodeURIComponent(JSON.stringify(state.votedIds))}; path=/; max-age=31536000; SameSite=Lax`;
+          } catch (e) {}
+          renderTopicContestants();
+          closeVoteModal();
+          toast(`🎉 Đã đổi bình chọn thành công sang thí sinh "${currentName}"!`, 'success');
+          await loadTopicComments(eventId);
+          return;
+        } else {
+          toast(switchRes?.error || 'Lỗi khi đổi bình chọn!', 'error');
+          return;
+        }
+      }
+    } else if (res.code === 'ALREADY_VOTED_SAME_CONTESTANT') {
+      if (!state.votedIds.includes(cId)) state.votedIds.push(cId);
+      try {
+        localStorage.setItem(`hh:voted:${eventId}`, JSON.stringify(state.votedIds));
+      } catch (e) {}
+      renderTopicContestants();
+      closeVoteModal();
+      toast(res.error || 'Bạn đã bình chọn cho thí sinh này rồi!', 'info');
     } else {
       toast(res.error || 'Lỗi khi gửi phiếu bầu', 'error');
     }
