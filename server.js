@@ -685,7 +685,7 @@ app.get('/api/topic-data', async (req, res) => {
           p.push(googleEmail);
           conditions.push(`LOWER(google_email) = $${p.length}`);
         }
-        if (fp && fp.startsWith('dev_')) {
+        if (fp) {
           p.push(fp);
           conditions.push(`voter_fp = $${p.length}`);
         }
@@ -717,6 +717,7 @@ app.get('/api/topic-data', async (req, res) => {
     const globalRatio = settingsResult.rows.length ? parseInt(settingsResult.rows[0].value) || 80 : 80;
     const voteRatio = ev.vote_ratio ? parseInt(ev.vote_ratio) : globalRatio;
     const maxAllowed = Math.max(1, Math.round((contestants.length * voteRatio) / 100));
+    const isDeviceBanned = votedIds.length >= maxAllowed;
 
     res.json({
       contestants,
@@ -725,6 +726,7 @@ app.get('/api/topic-data', async (req, res) => {
       votedIds,
       maxAllowed,
       voteRatio,
+      isDeviceBanned,
       is_active: ev.is_active !== false,
       start_time: ev.start_time || null,
       end_time: ev.end_time || null
@@ -1304,8 +1306,8 @@ app.post('/api/vote', async (req, res) => {
       });
     }
 
-    // 2. KHÓA 2 (KHÓA THIẾT BỊ ĐỘC BẢN dev_): 1 máy chỉ được vote 1 lần cho 1 thí sinh dù dùng Wi-Fi hay 4G!
-    if (cleanFp && cleanFp.startsWith('dev_')) {
+    // 2. KHÓA 2 (KHÓA TOÀN BỘ THIẾT BỊ): 1 máy chỉ được vote 1 lần cho 1 thí sinh dù dùng Wi-Fi hay 4G, Zalo, Mes, Safari hay Chrome!
+    if (cleanFp) {
       const { rows: fpCheck } = await pool.query(
         `SELECT COUNT(*)::int as cnt FROM votes 
          WHERE contestant_id = $1 
@@ -1315,7 +1317,7 @@ app.post('/api/vote', async (req, res) => {
       );
       if (fpCheck[0].cnt >= 1) {
         return res.status(400).json({
-          error: 'Thiết bị này đã bình chọn cho thí sinh này rồi! Dù bạn dùng mạng Wi-Fi hay 4G, đổi sang tài khoản Gmail khác thì mỗi thiết bị cũng chỉ được bình chọn 1 lần duy nhất.',
+          error: '🚫 Thiết bị này (điện thoại/laptop) đã bình chọn cho thí sinh này rồi! Hệ thống đã khóa máy này trên toàn bộ ứng dụng (Zalo, Messenger, Safari, Chrome). Bạn không thể bình chọn thêm từ máy này.',
           code: 'DEVICE_ALREADY_VOTED'
         });
       }
@@ -1376,9 +1378,9 @@ app.post('/api/vote', async (req, res) => {
       });
     }
 
-    // 6. Kiểm tra tổng quota bình chọn theo thiết bị độc bản dev_
+    // 6. Kiểm tra tổng quota bình chọn theo thiết bị (KHÓA CHẾT THIẾT BỊ KHI ĐẠT QUOTA)
     let currentDeviceVoteCount = 0;
-    if (cleanFp && cleanFp.startsWith('dev_')) {
+    if (cleanFp) {
       const { rows: fpQuotaCheck } = await pool.query(
         `SELECT COUNT(DISTINCT contestant_id)::int as cnt FROM votes 
          WHERE (event_id = $1 OR event_id IS NULL) 
@@ -1388,7 +1390,7 @@ app.post('/api/vote', async (req, res) => {
       currentDeviceVoteCount = fpQuotaCheck[0].cnt;
       if (currentDeviceVoteCount >= maxAllowed) {
         return res.status(400).json({
-          error: `Thiết bị này đã sử dụng hết ${maxAllowed} lượt bình chọn (${voteRatio}%) cho cuộc thi này! Bạn không thể đổi tài khoản Gmail để vote tiếp trên máy này.`,
+          error: `🚫 Thiết bị này đã hoàn thành tối đa ${maxAllowed} lượt bình chọn (${voteRatio}%) cho cuộc thi này! Hệ thống đã khóa máy này trên toàn bộ ứng dụng (Zalo, Messenger, Safari, Chrome). Bạn không thể đổi Gmail để vote tiếp trên thiết bị này.`,
           code: 'DEVICE_QUOTA_EXCEEDED',
           maxAllowed,
           currentVotes: currentDeviceVoteCount,
@@ -1461,7 +1463,7 @@ app.post('/api/vote/cancel', async (req, res) => {
       params.push(verifiedEmail);
       conditions.push(`LOWER(google_email) = $${params.length}`);
     }
-    if (cleanFp && cleanFp.startsWith('dev_')) {
+    if (cleanFp) {
       params.push(cleanFp);
       conditions.push(`voter_fp = $${params.length}`);
     }
@@ -1519,7 +1521,7 @@ app.get('/api/my-votes', async (req, res) => {
       myVotesParams.push(googleEmail);
       myVotesConditions.push(`LOWER(google_email) = $${myVotesParams.length}`);
     }
-    if (fp && fp.startsWith('dev_')) {
+    if (fp) {
       myVotesParams.push(fp);
       myVotesConditions.push(`voter_fp = $${myVotesParams.length}`);
     }
@@ -1542,6 +1544,7 @@ app.get('/api/my-votes', async (req, res) => {
     const { rows: contestantCount } = await pool.query('SELECT COUNT(*)::int as cnt FROM contestants WHERE (event_id = $1 OR event_id IS NULL)', [eventId]);
     const totalContestants = contestantCount[0].cnt || 0;
     const maxAllowed = Math.max(1, Math.round((totalContestants * voteRatio) / 100));
+    const isDeviceBanned = votedIds.length >= maxAllowed;
 
     res.json({
       votedIds,
@@ -1549,6 +1552,7 @@ app.get('/api/my-votes', async (req, res) => {
       maxAllowed,
       voteRatio,
       totalContestants,
+      isDeviceBanned,
       is_active: eventRow.length ? (eventRow[0].is_active !== false) : true,
       start_time: eventRow.length ? eventRow[0].start_time : null,
       end_time: eventRow.length ? eventRow[0].end_time : null

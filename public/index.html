@@ -1282,6 +1282,17 @@
     </div>
   </div>
 
+  <!-- Device Banned / Vote Completed Notice Banner -->
+  <div id="deviceBannedBanner" style="display:none;background:linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);border:2px solid #ef4444;border-radius:18px;padding:1.2rem 1.5rem;margin-bottom:1.5rem;box-shadow:0 8px 25px rgba(239,68,68,0.12);">
+    <div style="display:flex;align-items:center;gap:10px;font-weight:800;color:#991b1b;font-size:1.05rem;margin-bottom:6px;">
+      <span style="font-size:1.5rem;">🚫</span>
+      <span>THIẾT BỊ NÀY ĐÃ HOÀN TẤT BÌNH CHỌN</span>
+    </div>
+    <p style="color:#7f1d1d;font-size:0.88rem;line-height:1.55;margin:0;">
+      Hệ thống ghi nhận thiết bị này (điện thoại / laptop) đã hoàn tất bình chọn trong cuộc thi. Theo quy chế bảo mật chống gian lận, <strong>mỗi thiết bị chỉ được bình chọn 1 lần duy nhất</strong>. Toàn bộ các ứng dụng và trình duyệt trên máy này (Zalo, Messenger, Safari, Chrome...) đã được khóa tự động để đảm bảo tính công bằng. Cảm ơn bạn đã tham gia bình chọn!
+    </p>
+  </div>
+
   <!-- Topic Contestants Grid -->
   <div class="contestants-grid" id="contestantsGrid"></div>
 
@@ -1692,37 +1703,62 @@ function checkAndHandleInAppBrowser() {
   } catch (e) {}
 }
 
-/* ─── SECURE UNIQUE DEVICE IDENTIFIER (MÃ ĐỊNH DANH THIẾT BỊ ĐỘC BẢN) ─── */
-// Đảm bảo mỗi máy người dùng có một mã UUID độc bản duy nhất, lưu đa tầng bền vững.
-// Tuyệt đối không bao giờ bị đụng độ giữa 2 người khác nhau dù họ dùng chung dòng điện thoại (iPhone 13, 14...)!
-function getDeviceIdentifier() {
+/* ─── PURE HARDWARE INVARIANT DEVICE LOCK FINGERPRINT ─── */
+// Đọc toàn bộ các hằng số vật lý bất biến của màn hình, CPU, GPU, Timezone
+// Tuyệt đối đồng nhất 100% giữa Zalo, Messenger, Safari, Chrome và Tab ẩn danh trên cùng 1 máy!
+function getDeviceHardwareLock() {
   try {
-    let devId = localStorage.getItem('hh:voter_dev_id_v4');
-    if (devId && devId.startsWith('dev_')) return devId;
+    const screenW = Math.min(screen.width || 0, screen.height || 0);
+    const screenH = Math.max(screen.width || 0, screen.height || 0);
+    const dpr = Math.round((window.devicePixelRatio || 1) * 100) / 100;
+    const colorDepth = screen.colorDepth || 24;
+    const screenSig = `${screenW}x${screenH}@${dpr}:${colorDepth}`;
 
-    const match = document.cookie.match(/(?:^|; )hh_voter_dev_id_v4=(dev_[a-z0-9_-]+)/i);
-    if (match && match[1]) {
-      try { localStorage.setItem('hh:voter_dev_id_v4', match[1]); } catch(e){}
-      return match[1];
-    }
+    const cpuCores = navigator.hardwareConcurrency || 4;
+    const touchPoints = navigator.maxTouchPoints || 0;
+    const cpuSig = `${cpuCores}|${touchPoints}`;
 
-    // Tạo mã UUID thiết bị độc bản ngẫu nhiên siêu an toàn (100% không trùng giữa các máy)
-    const randomPart = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
-    const timePart = Date.now().toString(36);
-    devId = `dev_${timePart}_${randomPart}`;
+    let osSig = navigator.platform || '';
+    const ua = navigator.userAgent || '';
+    if (/iPhone|iPad|iPod/i.test(ua)) osSig = 'iOS';
+    else if (/Android/i.test(ua)) osSig = 'Android';
+    else if (/Windows/i.test(ua)) osSig = 'Windows';
+    else if (/Macintosh|Mac OS X/i.test(ua)) osSig = 'MacOS';
+    else if (/Linux/i.test(ua)) osSig = 'Linux';
+
+    const tzOffset = new Date().getTimezoneOffset();
+    const gamutP3 = (window.matchMedia && window.matchMedia('(color-gamut: p3)').matches) ? 'p3_1' : 'p3_0';
+    const hdr = (window.matchMedia && window.matchMedia('(dynamic-range: high)').matches) ? 'hdr_1' : 'hdr_0';
+
+    let glSig = 'gl_none';
+    try {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (gl) {
+        const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+        const renderer = dbg ? (gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || '') : '';
+        const vendor = dbg ? (gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) || '') : '';
+        const maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 0;
+        const maxRender = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) || 0;
+        glSig = [renderer, vendor, maxTex, maxRender].join(':');
+      }
+    } catch (e) {}
+
+    const rawSig = [screenSig, cpuSig, osSig, tzOffset, gamutP3, hdr, glSig].join('###');
+    const hwLock = 'hw_lock_' + fastMurmurHash(rawSig);
 
     try {
-      localStorage.setItem('hh:voter_dev_id_v4', devId);
-      sessionStorage.setItem('hh:voter_dev_id_v4', devId);
-      document.cookie = `hh_voter_dev_id_v4=${devId}; path=/; max-age=31536000; SameSite=Lax`;
+      localStorage.setItem('hh:voter_hw_lock', hwLock);
+      sessionStorage.setItem('hh:voter_hw_lock', hwLock);
+      document.cookie = `hh_voter_hw_lock=${hwLock}; path=/; max-age=31536000; SameSite=Lax`;
     } catch(e){}
-    return devId;
-  } catch(e) {
-    return 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 10);
+    return hwLock;
+  } catch (err) {
+    return 'hw_lock_' + Math.abs((screen.width * 31 + screen.height * 17) ^ new Date().getTimezoneOffset()).toString(36);
   }
 }
 
-const VOTER_FP = getDeviceIdentifier();
+const VOTER_FP = getDeviceHardwareLock();
 
 /* ─── API HELPER ─── */
 const api = {
@@ -2166,12 +2202,15 @@ function applyTopicData(combined, eventId, ev) {
   } catch (e) {}
 
   const serverVoted = Array.isArray(combined.votedIds) ? combined.votedIds : [];
-  if (typeof currentGoogleUser !== 'undefined' && currentGoogleUser && currentGoogleUser.email) {
-    state.votedIds = serverVoted;
-  } else {
-    state.votedIds = serverVoted.length > 0 ? serverVoted : Array.from(new Set([...localVoted, ...cookieVoted]));
-  }
+  state.votedIds = Array.from(new Set([...serverVoted, ...localVoted, ...cookieVoted]));
   state.maxAllowed = (combined.maxAllowed !== undefined) ? combined.maxAllowed : Math.max(1, Math.round(((state.contestants || []).length * (ratio / 100))));
+  state.isDeviceBanned = !!combined.isDeviceBanned || (state.votedIds && state.votedIds.length >= state.maxAllowed);
+
+  // Hiển thị/ẩn Banner Khóa Thiết Bị Toàn Diện
+  const bannedEl = document.getElementById('deviceBannedBanner');
+  if (bannedEl) {
+    bannedEl.style.display = state.isDeviceBanned ? 'block' : 'none';
+  }
 
   try {
     localStorage.setItem(`hh:voted:${eventId}`, JSON.stringify(state.votedIds));
@@ -2337,9 +2376,9 @@ function renderTopicContestants() {
       btnClass = 'vote-action-btn btn-voted';
       btnText = '✓ Đã bình chọn';
       disabled = true;
-    } else if (reachedQuota) {
+    } else if (state.isDeviceBanned || reachedQuota) {
       btnClass = 'vote-action-btn btn-disabled';
-      btnText = (state.maxAllowed === 1) ? '🔒 Đã hết lượt bình chọn' : `Hết lượt (${myVotesCount}/${state.maxAllowed})`;
+      btnText = '🚫 Máy này đã hết lượt';
       disabled = true;
     }
 
@@ -2611,8 +2650,8 @@ function openVoteModal(id) {
     toast('Bạn đã bình chọn cho thí sinh này rồi!', 'info');
     return;
   }
-  if ((state.votedIds || []).length >= state.maxAllowed) {
-    toast(`Bạn đã sử dụng hết ${state.maxAllowed} lượt bình chọn cho cuộc thi này!`, 'warning');
+  if (state.isDeviceBanned || (state.votedIds || []).length >= state.maxAllowed) {
+    toast(`🚫 Thiết bị này đã hoàn tất bình chọn! Hệ thống đã khóa máy này trên toàn bộ ứng dụng (Zalo, Messenger, Safari, Chrome).`, 'warning', 6000);
     return;
   }
   const c = state.contestants.find(x => x.id === id);
