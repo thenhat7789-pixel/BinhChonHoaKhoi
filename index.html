@@ -1534,12 +1534,21 @@ function getDomFontMetrics() {
 
 function getHardwareFingerprint() {
   try {
-    // 1. Tín hiệu màn hình vật lý (Độ phân giải thực, tỉ lệ điểm ảnh phần cứng)
+    // 0. Nếu máy này đã có mã định danh -> Dùng lại vĩnh viễn (Chống đổi khi tải lại trang / mở lại link)
+    try {
+      const saved = localStorage.getItem('hh:voter_hw_fp') || localStorage.getItem('hh:voter_fp') || sessionStorage.getItem('hh:voter_hw_fp');
+      if (saved && saved.startsWith('hw_')) return saved;
+      const match = document.cookie.match(/(?:^|; )hh_voter_hw_fp=(hw_[a-z0-9_-]+)/i);
+      if (match && match[1]) {
+        try { localStorage.setItem('hh:voter_hw_fp', match[1]); } catch(e){}
+        return match[1];
+      }
+    } catch (e) {}
+
+    // 1. Tín hiệu màn hình vật lý cố định (chống đổi khi xoay ngang/dọc điện thoại hoặc co giãn thanh công cụ)
     const screenSig = [
-      screen.width || 0,
-      screen.height || 0,
-      screen.availWidth || 0,
-      screen.availHeight || 0,
+      Math.min(screen.width || 0, screen.height || 0),
+      Math.max(screen.width || 0, screen.height || 0),
       screen.colorDepth || 24,
       window.devicePixelRatio || 1
     ].join('x');
