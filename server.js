@@ -242,8 +242,49 @@ app.get('/admin.html', (req, res) => {
 app.get('/api/test-db', async (req, res) => {
   if (!pool) return res.json({ ok: false, error: 'No pool' });
   try {
-    const { rows } = await pool.query("SELECT id, event_id, name, faculty, hometown, (photo IS NOT NULL AND photo != '') as has_photo FROM contestants LIMIT 20");
-    res.json({ ok: true, count: rows.length, rows });
+    const { rows: total } = await pool.query("SELECT count(*)::int as total FROM votes");
+    const { rows: allVotesByContestant } = await pool.query(`
+      SELECT v.contestant_id, c.name, COUNT(v.id)::int as count,
+             MIN(v.created_at) as first_vote, MAX(v.created_at) as last_vote
+      FROM votes v
+      LEFT JOIN contestants c ON c.id = v.contestant_id
+      GROUP BY v.contestant_id, c.name
+      ORDER BY count DESC
+    `);
+    const { rows: votesBefore4AM } = await pool.query(`
+      SELECT v.contestant_id, c.name, COUNT(v.id)::int as count
+      FROM votes v
+      LEFT JOIN contestants c ON c.id = v.contestant_id
+      WHERE v.created_at <= '2026-10-16 21:00:00+00'
+      GROUP BY v.contestant_id, c.name
+      ORDER BY count DESC
+    `);
+    const { rows: sampleVotes } = await pool.query(`
+      SELECT vote_id, contestant_id, voter_name, created_at
+      FROM votes
+      ORDER BY created_at ASC
+      LIMIT 30
+    `);
+    let archivesData = [];
+    try {
+      const { rows } = await pool.query("SELECT * FROM archives LIMIT 10");
+      archivesData = rows;
+    } catch (err) {}
+    let voteArchivesData = [];
+    try {
+      const { rows } = await pool.query("SELECT archive_id, title, total_votes, created_at, votes_data FROM vote_archives LIMIT 10");
+      voteArchivesData = rows;
+    } catch (err) {}
+
+    res.json({
+      ok: true,
+      total_votes_now: total[0]?.total || 0,
+      allVotesByContestant,
+      votesBefore4AM,
+      sampleVotes,
+      archives: archivesData,
+      voteArchives: voteArchivesData
+    });
   } catch (e) {
     res.json({ ok: false, error: e.message, code: e.code });
   }
