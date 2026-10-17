@@ -1347,6 +1347,24 @@ app.post('/api/vote', async (req, res) => {
     );
 
     if (sameContestantVotes.length > 0) {
+      // Nếu cử tri nhập lời chúc mới thì cập nhật lời chúc cho phiếu đã bầu
+      if (comment && comment.trim() !== '' && comment.trim() !== 'Ủng hộ thí sinh!') {
+        await pool.query(
+          `UPDATE votes 
+           SET comment = $1, 
+               voter_name = COALESCE(NULLIF($2, ''), voter_name),
+               created_at = NOW() 
+           WHERE id = $3`,
+          [comment.trim(), cleanVoterName, sameContestantVotes[0].id]
+        );
+        return res.json({
+          success: true,
+          updated_comment: true,
+          contestant_name: sameContestantVotes[0].contestant_name || 'thí sinh',
+          message: 'Đã cập nhật lời chúc thành công!'
+        });
+      }
+
       return res.status(400).json({
         error: `Bạn đã bình chọn cho thí sinh "${sameContestantVotes[0].contestant_name || 'này'}" rồi! Mỗi tài khoản chỉ được bình chọn 1 lần cho mỗi thí sinh (tối đa 10 thí sinh khác nhau).`,
         code: 'ALREADY_VOTED_SAME_CONTESTANT',

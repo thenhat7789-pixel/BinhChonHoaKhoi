@@ -2080,35 +2080,45 @@ function startTopicCountdown(startTimeStr, endTimeStr, isActive = true) {
 
     const pad = n => String(n).padStart(2, '0');
 
-    let html = '';
-    if (days > 0) {
+    let daysEl = document.getElementById('cdValDays');
+    let hoursEl = document.getElementById('cdValHours');
+    let minsEl = document.getElementById('cdValMins');
+    let secsEl = document.getElementById('cdValSecs');
+
+    if (!hoursEl || !minsEl || !secsEl || (days > 0 && !daysEl) || (days === 0 && daysEl)) {
+      let html = '';
+      if (days > 0) {
+        html += `
+          <div style="text-align:center;background:rgba(255,255,255,0.08);padding:.35rem .65rem;border-radius:8px;border:1px solid rgba(255,255,255,0.12);min-width:54px;">
+            <div id="cdValDays" style="font-size:1.35rem;font-weight:800;color:#f8fafc;line-height:1.1;">${pad(days)}</div>
+            <div style="font-size:.65rem;color:#94a3b8;font-weight:700;">NGÀY</div>
+          </div>
+          <span style="font-size:1.2rem;color:#64748b;font-weight:800;">:</span>
+        `;
+      }
       html += `
         <div style="text-align:center;background:rgba(255,255,255,0.08);padding:.35rem .65rem;border-radius:8px;border:1px solid rgba(255,255,255,0.12);min-width:54px;">
-          <div style="font-size:1.35rem;font-weight:800;color:#f8fafc;line-height:1.1;">${pad(days)}</div>
-          <div style="font-size:.65rem;color:#94a3b8;font-weight:700;">NGÀY</div>
+          <div id="cdValHours" style="font-size:1.35rem;font-weight:800;color:#f8fafc;line-height:1.1;">${pad(hours)}</div>
+          <div style="font-size:.65rem;color:#94a3b8;font-weight:700;">GIỜ</div>
         </div>
         <span style="font-size:1.2rem;color:#64748b;font-weight:800;">:</span>
+        <div style="text-align:center;background:rgba(255,255,255,0.08);padding:.35rem .65rem;border-radius:8px;border:1px solid rgba(255,255,255,0.12);min-width:54px;">
+          <div id="cdValMins" style="font-size:1.35rem;font-weight:800;color:#f8fafc;line-height:1.1;">${pad(minutes)}</div>
+          <div style="font-size:.65rem;color:#94a3b8;font-weight:700;">PHÚT</div>
+        </div>
+        <span style="font-size:1.2rem;color:#64748b;font-weight:800;">:</span>
+        <div style="text-align:center;background:rgba(37,99,235,0.25);border:1px solid #3b82f6;padding:.35rem .65rem;border-radius:8px;min-width:54px;box-shadow:0 0 12px rgba(59,130,246,0.3);">
+          <div id="cdValSecs" style="font-size:1.35rem;font-weight:800;color:#38bdf8;line-height:1.1;">${pad(seconds)}</div>
+          <div style="font-size:.65rem;color:#93c5fd;font-weight:700;">GIÂY</div>
+        </div>
       `;
+      displayEl.innerHTML = html;
+    } else {
+      if (daysEl) daysEl.textContent = pad(days);
+      hoursEl.textContent = pad(hours);
+      minsEl.textContent = pad(minutes);
+      secsEl.textContent = pad(seconds);
     }
-
-    html += `
-      <div style="text-align:center;background:rgba(255,255,255,0.08);padding:.35rem .65rem;border-radius:8px;border:1px solid rgba(255,255,255,0.12);min-width:54px;">
-        <div style="font-size:1.35rem;font-weight:800;color:#f8fafc;line-height:1.1;">${pad(hours)}</div>
-        <div style="font-size:.65rem;color:#94a3b8;font-weight:700;">GIỜ</div>
-      </div>
-      <span style="font-size:1.2rem;color:#64748b;font-weight:800;">:</span>
-      <div style="text-align:center;background:rgba(255,255,255,0.08);padding:.35rem .65rem;border-radius:8px;border:1px solid rgba(255,255,255,0.12);min-width:54px;">
-        <div style="font-size:1.35rem;font-weight:800;color:#f8fafc;line-height:1.1;">${pad(minutes)}</div>
-        <div style="font-size:.65rem;color:#94a3b8;font-weight:700;">PHÚT</div>
-      </div>
-      <span style="font-size:1.2rem;color:#64748b;font-weight:800;">:</span>
-      <div style="text-align:center;background:rgba(37,99,235,0.25);border:1px solid #3b82f6;padding:.35rem .65rem;border-radius:8px;min-width:54px;box-shadow:0 0 12px rgba(59,130,246,0.3);">
-        <div style="font-size:1.35rem;font-weight:800;color:#38bdf8;line-height:1.1;">${pad(seconds)}</div>
-        <div style="font-size:.65rem;color:#93c5fd;font-weight:700;">GIÂY</div>
-      </div>
-    `;
-
-    displayEl.innerHTML = html;
   }
 
   function update() {
@@ -2975,6 +2985,13 @@ document.getElementById('confirmVoteBtn').addEventListener('click', async () => 
   confirmBtn.disabled = false;
   confirmBtn.innerHTML = originalBtnText;
 
+  if (res && res.updated_comment) {
+    closeVoteModal();
+    toast(`🎉 ${res.message || 'Đã cập nhật lời chúc thành công!'}`, 'success');
+    await loadTopicComments(eventId);
+    return;
+  }
+
   if (res && res._error) {
     if (res.code === 'VOTING_ENDED') {
       state.isExpired = true;
@@ -3097,6 +3114,14 @@ async function loadTopicComments(eventId) {
       <div class="comment-text">"${esc(c.comment)}"</div>
     </div>
   `).join('');
+
+  if (!window._topicCommentsInterval) {
+    window._topicCommentsInterval = setInterval(() => {
+      if (state && state.activeEventId && state.currentView === 'topic') {
+        loadTopicComments(state.activeEventId);
+      }
+    }, 8000);
+  }
 }
 
 function shareOnFacebook(id) {
