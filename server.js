@@ -1053,7 +1053,7 @@ app.post('/api/vote', async (req, res) => {
       }
     }
 
-    // 1. Kiểm tra đã vote cho thí sinh này chưa (Kiểm tra theo Device Token và MSSV, không chặn lây theo IP Wi-Fi)
+    // 1. Kiểm tra đã vote cho thí sinh này chưa (Kiểm tra theo Device Token, MSSV, và chống thoát ra quét QR/ẩn danh/Zalo bằng cùng Họ Tên)
     let dupeQuery = 'SELECT COUNT(*)::int as cnt FROM votes WHERE contestant_id = $1 AND (event_id = $2 OR event_id IS NULL) AND (';
     const dupeParams = [contestant_id, currentEventId];
     const dupeConditions = [];
@@ -1067,6 +1067,13 @@ app.post('/api/vote', async (req, res) => {
       dupeParams.push(cleanStudentId);
       dupeConditions.push(`(student_id = $${dupeParams.length} AND student_id != '')`);
     }
+    // Chống thoát ra quét QR / đổi Zalo / tab ẩn danh bằng cùng Họ và Tên trên cùng mạng IP
+    if (cleanVoterName && voterIp && voterIp !== 'unknown') {
+      dupeParams.push(cleanVoterName.toLowerCase());
+      dupeParams.push(`${voterIp}_%`);
+      dupeParams.push(voterIp);
+      dupeConditions.push(`(LOWER(TRIM(voter_name)) = $${dupeParams.length - 2} AND (voter_ip LIKE $${dupeParams.length - 1} OR voter_ip = $${dupeParams.length}))`);
+    }
     if (dupeConditions.length === 0) {
       dupeParams.push(voterId);
       dupeConditions.push(`voter_ip = $${dupeParams.length}`);
@@ -1076,7 +1083,7 @@ app.post('/api/vote', async (req, res) => {
     const { rows: dupeCheck } = await pool.query(dupeQuery, dupeParams);
     if (dupeCheck[0].cnt >= 1) {
       return res.status(400).json({
-        error: 'Thiết bị hoặc tài khoản này đã bình chọn cho thí sinh này rồi, không thể bình chọn lần 2!',
+        error: `Bạn (${cleanVoterName}) hoặc thiết bị này đã bình chọn cho thí sinh này rồi, không thể bình chọn lần 2!`,
         code: 'DUPLICATE_VOTE'
       });
     }
@@ -1130,6 +1137,12 @@ app.post('/api/vote', async (req, res) => {
     if (cleanStudentId) {
       quotaParams.push(cleanStudentId);
       quotaConditions.push(`(student_id = $${quotaParams.length} AND student_id != '')`);
+    }
+    if (cleanVoterName && voterIp && voterIp !== 'unknown') {
+      quotaParams.push(cleanVoterName.toLowerCase());
+      quotaParams.push(`${voterIp}_%`);
+      quotaParams.push(voterIp);
+      quotaConditions.push(`(LOWER(TRIM(voter_name)) = $${quotaParams.length - 2} AND (voter_ip LIKE $${quotaParams.length - 1} OR voter_ip = $${quotaParams.length}))`);
     }
     if (quotaConditions.length === 0) {
       quotaParams.push(voterId);
