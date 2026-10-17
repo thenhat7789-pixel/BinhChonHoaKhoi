@@ -2124,13 +2124,16 @@ function applyTopicData(combined, eventId, ev) {
 
   const serverVoted = Array.isArray(combined.votedIds) ? combined.votedIds : [];
   state.votedIds = Array.from(new Set([...serverVoted, ...localVoted, ...cookieVoted]));
+  state.maxAllowed = (combined.maxAllowed !== undefined) ? combined.maxAllowed : 1;
+
+  if (state.maxAllowed === 1 && state.votedIds.length > 1) {
+    state.votedIds = [state.votedIds[state.votedIds.length - 1]];
+  }
 
   try {
     localStorage.setItem(`hh:voted:${eventId}`, JSON.stringify(state.votedIds));
     document.cookie = `hh_voted_${eventId}=${encodeURIComponent(JSON.stringify(state.votedIds))}; path=/; max-age=31536000; SameSite=Lax`;
   } catch (e) {}
-
-  state.maxAllowed = combined.maxAllowed || Math.max(1, Math.round(((state.contestants || []).length * (ratio / 100))));
 
   const isActive = (combined.is_active !== undefined) ? combined.is_active : (ev ? (ev.is_active !== false) : true);
   const startTimeStr = combined.start_time || (ev ? ev.start_time : null);
@@ -2143,7 +2146,7 @@ function applyTopicData(combined, eventId, ev) {
   // Update Voting Rule Bar
   const myVotesCount = (state.votedIds || []).length;
   const countEl = document.getElementById('topicMyVotesCount');
-  if (countEl) countEl.textContent = `${myVotesCount} / ${state.maxAllowed} thí sinh`;
+  if (countEl) countEl.textContent = (state.maxAllowed === 1) ? `${Math.min(1, myVotesCount)} / 1 lượt` : `${myVotesCount} / ${state.maxAllowed} thí sinh`;
 
   const ratioEl = document.getElementById('topicVoteRatioBadge');
   if (ratioEl) {
@@ -2285,7 +2288,7 @@ function renderTopicContestants() {
       disabled = true;
     } else if (reachedQuota) {
       btnClass = 'vote-action-btn btn-disabled';
-      btnText = `Hết lượt (${myVotesCount}/${state.maxAllowed})`;
+      btnText = (state.maxAllowed === 1) ? '🔒 Đã hết lượt bình chọn' : `Hết lượt (${myVotesCount}/${state.maxAllowed})`;
       disabled = true;
     }
 
