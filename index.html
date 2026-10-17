@@ -1534,78 +1534,105 @@ function getDomFontMetrics() {
 
 function getHardwareFingerprint() {
   try {
-    // 1. Kiểm tra cache cookie hoặc localStorage nếu đã từng lưu trên trình duyệt này
-    let cachedFp = '';
+    // 1. Tín hiệu màn hình vật lý (Độ phân giải thực, tỉ lệ điểm ảnh phần cứng)
+    const screenSig = [
+      screen.width || 0,
+      screen.height || 0,
+      screen.availWidth || 0,
+      screen.availHeight || 0,
+      screen.colorDepth || 24,
+      window.devicePixelRatio || 1
+    ].join('x');
+
+    // 2. Vi xử lý CPU, cảm ứng & nền tảng
+    const cpuSig = [
+      navigator.hardwareConcurrency || 4,
+      navigator.maxTouchPoints || 0,
+      navigator.platform || ''
+    ].join('|');
+
+    // 3. User-Agent đặc trưng (giúp phân biệt phiên bản iOS khác nhau giữa các máy)
+    const uaSig = (navigator.userAgent || '').replace(/Mobile\/[A-Za-z0-9]+/g, '');
+
+    // 4. Múi giờ & Ngôn ngữ máy
+    let tzName = '';
+    try { tzName = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
+    const langSig = [
+      navigator.language || '',
+      (navigator.languages && navigator.languages.join(',')) || '',
+      new Date().getTimezoneOffset(),
+      tzName
+    ].join('|');
+
+    // 5. Card đồ họa WebGL (Chip xử lý WebGL Unmasked Renderer & Shader Precision Format)
+    let gpuSig = 'no_webgl';
     try {
-      cachedFp = localStorage.getItem('hh:device_id') || localStorage.getItem('hh:voter_hw_fp') || localStorage.getItem('hh:voter_fp') || '';
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+      if (gl) {
+        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+        let renderer = '';
+        let vendor = '';
+        if (debugInfo) {
+          renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '';
+          vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) || '';
+        }
+        const maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 0;
+        const maxRender = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) || 0;
+        const maxVarying = gl.getParameter(gl.MAX_VARYING_VECTORS) || 0;
+
+        let shaderPrecision = '';
+        try {
+          const hp = gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT);
+          if (hp) shaderPrecision = `${hp.precision}_${hp.rangeMin}_${hp.rangeMax}`;
+        } catch (e) {}
+
+        let extCount = 0;
+        try {
+          const exts = gl.getSupportedExtensions();
+          if (exts) extCount = exts.length;
+        } catch (e) {}
+
+        gpuSig = `${renderer}|${vendor}|${maxTex}|${maxRender}|${maxVarying}|${shaderPrecision}|${extCount}`;
+      }
     } catch (e) {}
 
-    if (!cachedFp) {
-      const cookieMatch = document.cookie.match(/(?:^|; )hh_device_id=([^;]*)/) || document.cookie.match(/(?:^|; )hh_voter_hw_fp=([^;]*)/);
-      if (cookieMatch) {
-        cachedFp = decodeURIComponent(cookieMatch[1]);
+    // 6. Hình học font chữ DOM chuẩn hóa số nguyên
+    const domFontSig = getDomFontMetrics();
+
+    // 7. Khử răng cưa Canvas 2D (Subpixel rendering)
+    let canvas2dSig = 'no_canvas';
+    try {
+      const c = document.createElement('canvas');
+      c.width = 200;
+      c.height = 50;
+      const ctx = c.getContext('2d');
+      if (ctx) {
+        ctx.textBaseline = 'top';
+        ctx.font = '14px Arial, sans-serif';
+        ctx.fillStyle = '#0057a8';
+        ctx.fillText('MUCE 2026 \u2764 \uD83D\uDC51', 2, 2);
+        ctx.fillStyle = 'rgba(255, 0, 128, 0.5)';
+        ctx.fillRect(5, 5, 50, 20);
+        canvas2dSig = c.toDataURL().slice(-60);
       }
-    }
+    } catch (e) {}
 
-    // NẾU LÀ MÃ BĂM PHẦN CỨNG CŨ (dạng 'hw_...' không có phần UUID riêng)
-    // Từng bị trùng lặp giữa các máy iPhone cùng dòng hoặc máy cùng Wi-Fi
-    // -> NÂNG CẤP NGAY sang Device UUID độc nhất vô nhị và xóa sạch danh sách vote bị gán nhầm!
-    const isOldGenericFp = cachedFp && (cachedFp.startsWith('hw_') && !cachedFp.includes('_dev_'));
-
-    if (isOldGenericFp) {
-      try {
-        const keysToRemove = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i);
-          if (k && (k.startsWith('hh:voted:') || k.startsWith('hh:vote_log:'))) {
-            keysToRemove.push(k);
-          }
-        }
-        keysToRemove.forEach(k => localStorage.removeItem(k));
-        document.cookie.split(';').forEach(c => {
-          const name = c.split('=')[0].trim();
-          if (name.startsWith('hh_voted_')) {
-            document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
-          }
-        });
-      } catch (e) {}
-      cachedFp = '';
-    }
-
-    if (cachedFp && typeof cachedFp === 'string' && cachedFp.length >= 10 && !isOldGenericFp) {
-      try {
-        localStorage.setItem('hh:device_id', cachedFp);
-        localStorage.setItem('hh:voter_hw_fp', cachedFp);
-        localStorage.setItem('hh:voter_fp', cachedFp);
-        document.cookie = `hh_device_id=${cachedFp}; path=/; max-age=31536000; SameSite=Lax`;
-        document.cookie = `hh_voter_hw_fp=${cachedFp}; path=/; max-age=31536000; SameSite=Lax`;
-      } catch (e) {}
-      return cachedFp;
-    }
-
-    // 2. SINH ĐỊNH DANH THIẾT BỊ ĐỘC NHẤT VÔ NHỊ CHO RIÊNG MÁY NÀY
-    // Kết hợp giữa Random UUID bảo mật + Timestamp + Chữ ký màn hình
-    const randPart = (window.crypto && window.crypto.getRandomValues)
-      ? Array.from(window.crypto.getRandomValues(new Uint8Array(12))).map(b => b.toString(16).padStart(2, '0')).join('')
-      : (Math.random().toString(36).substring(2, 10) + Date.now().toString(36));
-
-    const screenShort = `${screen.width || 0}x${screen.height || 0}`;
-    const uniqueDeviceId = `dev_${Date.now().toString(36)}_${screenShort}_${randPart}`;
+    // 8. Kết hợp toàn bộ tín hiệu phần cứng thuần túy bất biến của máy
+    const rawHardwareSig = [screenSig, cpuSig, uaSig, langSig, gpuSig, domFontSig, canvas2dSig].join('###');
+    const computedHwFp = 'hw_' + fastMurmurHash(rawHardwareSig);
 
     // Lưu bền vững đa tầng
     try {
-      localStorage.setItem('hh:device_id', uniqueDeviceId);
-      localStorage.setItem('hh:voter_hw_fp', uniqueDeviceId);
-      localStorage.setItem('hh:voter_fp', uniqueDeviceId);
-      sessionStorage.setItem('hh:device_id', uniqueDeviceId);
-      document.cookie = `hh_device_id=${uniqueDeviceId}; path=/; max-age=31536000; SameSite=Lax`;
-      document.cookie = `hh_voter_hw_fp=${uniqueDeviceId}; path=/; max-age=31536000; SameSite=Lax`;
+      localStorage.setItem('hh:voter_hw_fp', computedHwFp);
+      localStorage.setItem('hh:voter_fp', computedHwFp);
+      sessionStorage.setItem('hh:voter_hw_fp', computedHwFp);
+      document.cookie = `hh_voter_hw_fp=${computedHwFp}; path=/; max-age=31536000; SameSite=Lax`;
     } catch (e) {}
 
-    return uniqueDeviceId;
+    return computedHwFp;
   } catch (err) {
-    const fallbackId = 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 10);
-    return fallbackId;
+    return 'hw_' + Math.abs((screen.width * 31 + screen.height * 17) ^ new Date().getTimezoneOffset()).toString(36);
   }
 }
 
