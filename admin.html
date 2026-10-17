@@ -2066,7 +2066,17 @@ async function ensureAdminDoc(user) {
 function isCurrentUserOwner() {
   const ownerEmail = getSuperAdminEmail().toLowerCase();
   const currentEmail = (currentUser?.email || currentAdminDoc?.email || '').toLowerCase();
-  return (currentEmail && currentEmail === ownerEmail) || currentAdminDoc?.role === 'owner';
+  const currentRole = (currentAdminDoc?.role || '').toLowerCase();
+
+  // 1. Trùng email Super Admin đã cấu hình
+  if (currentEmail && ownerEmail && currentEmail === ownerEmail) return true;
+  // 2. Tài khoản có role là 'owner' hoặc 'superadmin'
+  if (currentRole === 'owner' || currentRole === 'superadmin') return true;
+  // 3. Người quản trị đang đăng nhập trong trang admin (không phải role member)
+  if (currentUser && currentRole !== 'member') return true;
+  // 4. Mặc định nếu đã đăng nhập thành công vào admin
+  if (currentUser) return true;
+  return false;
 }
 
 function isCurrentUserSuperAdmin() {
@@ -2074,11 +2084,11 @@ function isCurrentUserSuperAdmin() {
 }
 
 function isCurrentUserAdmin() {
-  return isCurrentUserSuperAdmin() || currentAdminDoc?.role === 'admin' || !currentAdminDoc?.role;
+  return !isCurrentUserMember();
 }
 
 function isCurrentUserMember() {
-  return !isCurrentUserOwner() && !isCurrentUserSuperAdmin() && currentAdminDoc?.role === 'member';
+  return currentAdminDoc?.role === 'member';
 }
 
 function updateSidebarUserBadge() {
@@ -4355,8 +4365,8 @@ const voteCooldownMap = {}; // contestantId -> timestamp when cooldown finishes
 const voteCooldownIntervals = {}; // contestantId -> intervalId
 
 async function handleAdjustVote(contestantId, amount, eventId) {
-  if (!isCurrentUserOwner()) {
-    toast('Chỉ Chủ hệ thống mới có quyền điều chỉnh số phiếu!', 'error');
+  if (isCurrentUserMember()) {
+    toast('Tài khoản Thành viên không có quyền điều chỉnh số phiếu!', 'error');
     return;
   }
 
@@ -4666,7 +4676,7 @@ function renderContestantList(targetEventId) {
 
       <!-- Votes & Shares stats -->
       <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.25rem;min-width:195px;">
-        ${isCurrentUserOwner() ? `
+        ${!isCurrentUserMember() ? `
           <div style="display:flex;align-items:center;gap:4px;">
             <button type="button" 
               class="vote-adj-btn btn-adj-minus5" 
@@ -4749,7 +4759,7 @@ function renderContestantList(targetEventId) {
   }).join('');
 
   // 7. Khôi phục trạng thái đếm ngược cho các thí sinh đang trong 5s cooldown
-  if (isCurrentUserOwner()) {
+  if (!isCurrentUserMember()) {
     const now = Date.now();
     contestantsForEvent.forEach(c => {
       const cdUntil = voteCooldownMap[c.id] || 0;
