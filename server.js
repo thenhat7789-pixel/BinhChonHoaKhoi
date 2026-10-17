@@ -24,7 +24,6 @@ const VPN_CIDR_RANGES = [
   // Cloudflare WARP / WARP+ & Datacenter
   '8.20.0.0/14',    // 8.20.0.0 - 8.23.255.255
   '8.24.0.0/14',    // 8.24.0.0 - 8.27.255.255
-  '104.16.0.0/12',  // 104.16.x.x - 104.31.x.x (bao gồm 104.28.x.x WARP)
   '162.158.0.0/15', // Cloudflare WARP / Proxy
   '172.64.0.0/13',  // 172.64.x.x - 172.71.x.x
   '108.162.192.0/18',
@@ -84,10 +83,13 @@ function inCidr(ip, cidr) {
 
 function isVpnOrProxy(ip) {
   if (!ip || ip === 'unknown') return false;
-  // Cloudflare WARP / Datacenter IPv6 & Tor
-  if (ip.startsWith('2a09:bac') || ip.startsWith('2606:4700') || ip.startsWith('2400:cb00')) return true;
-  if (!ip.includes('.')) return false;
   const cleanIp = ip.replace(/^::ffff:/, '');
+  // Cho phép lưu lượng Safari / iCloud Private Relay của Apple (104.28.0.0/16 và dải IPv6 Private Relay 2a09:bac)
+  if (cleanIp.startsWith('104.28.') || ip.startsWith('2a09:bac')) return false;
+
+  // Datacenter IPv6 & Tor
+  if (ip.startsWith('2606:4700') || ip.startsWith('2400:cb00')) return true;
+  if (!cleanIp.includes('.')) return false;
   return VPN_CIDR_RANGES.some(cidr => inCidr(cleanIp, cidr));
 }
 
@@ -466,25 +468,24 @@ app.post('/api/check-in', async (req, res) => {
   }
 
   try {
-    let dupeQuery = 'SELECT COUNT(*)::int as cnt FROM votes WHERE contestant_id = $1 AND (voter_ip = $2';
-    const dupeParams = [event_id, voterId];
+    let dupeQuery = 'SELECT COUNT(*)::int as cnt FROM votes WHERE contestant_id = $1 AND (';
+    const dupeParams = [event_id];
+    const dupeConditions = [];
     if (cleanFp) {
       dupeParams.push(cleanFp);
-      dupeQuery += ` OR voter_fp = $${dupeParams.length}`;
+      dupeConditions.push(`voter_fp = $${dupeParams.length}`);
       dupeParams.push(`%_${cleanFp}`);
-      dupeQuery += ` OR voter_ip LIKE $${dupeParams.length}`;
-    }
-    if (voterIp && voterIp !== 'unknown') {
-      dupeParams.push(`${voterIp}_%`);
-      dupeQuery += ` OR voter_ip LIKE $${dupeParams.length}`;
-      dupeParams.push(voterIp);
-      dupeQuery += ` OR voter_ip = $${dupeParams.length}`;
+      dupeConditions.push(`voter_ip LIKE $${dupeParams.length}`);
     }
     if (cleanStudentId) {
       dupeParams.push(cleanStudentId);
-      dupeQuery += ` OR (student_id = $${dupeParams.length} AND student_id != '')`;
+      dupeConditions.push(`(student_id = $${dupeParams.length} AND student_id != '')`);
     }
-    dupeQuery += ')';
+    if (dupeConditions.length === 0) {
+      dupeParams.push(voterId);
+      dupeConditions.push(`voter_ip = $${dupeParams.length}`);
+    }
+    dupeQuery += dupeConditions.join(' OR ') + ')';
 
     const { rows: dupeCheck } = await pool.query(dupeQuery, dupeParams);
     if (dupeCheck[0].cnt >= 1) {
@@ -547,27 +548,24 @@ app.get('/api/topic-data', async (req, res) => {
         WHERE c.event_id = $1
         GROUP BY c.id
       `, [eventId]),
-      // 3. My votes (Kiểm tra theo cả Hardware Fingerprint, IP và MSSV để chống đổi trình duyệt / ẩn danh / Zalo / Facebook)
+      // 3. My votes (Kiểm tra theo Device ID/Fingerprint và MSSV, không chặn lây theo IP Wi-Fi)
       (() => {
-        let q = 'SELECT DISTINCT contestant_id FROM votes WHERE (event_id = $1 OR event_id IS NULL) AND (voter_ip = $2';
-        const p = [eventId, voterId];
+        const conditions = [];
+        const p = [eventId];
         if (fp) {
           p.push(fp);
-          q += ` OR voter_fp = $${p.length}`;
+          conditions.push(`voter_fp = $${p.length}`);
           p.push(`%_${fp}`);
-          q += ` OR voter_ip LIKE $${p.length}`;
-        }
-        if (voterIp && voterIp !== 'unknown') {
-          p.push(`${voterIp}_%`);
-          q += ` OR voter_ip LIKE $${p.length}`;
-          p.push(voterIp);
-          q += ` OR voter_ip = $${p.length}`;
+          conditions.push(`voter_ip LIKE $${p.length}`);
         }
         if (studentId) {
           p.push(studentId);
-          q += ` OR (student_id = $${p.length} AND student_id != '')`;
+          conditions.push(`(student_id = $${p.length} AND student_id != '')`);
         }
-        q += ')';
+        if (conditions.length === 0) {
+          return pool.query('SELECT DISTINCT contestant_id FROM votes WHERE 1 = 0');
+        }
+        const q = `SELECT DISTINCT contestant_id FROM votes WHERE (event_id = $1 OR event_id IS NULL) AND (${conditions.join(' OR ')})`;
         return pool.query(q, p);
       })(),
       // 4. Event info
@@ -1055,26 +1053,25 @@ app.post('/api/vote', async (req, res) => {
       }
     }
 
-    // 1. Kiểm tra đã vote cho thí sinh này chưa (Nhận diện phần cứng thiết bị chống đổi trình duyệt / ẩn danh / Zalo / Facebook)
-    let dupeQuery = 'SELECT COUNT(*)::int as cnt FROM votes WHERE contestant_id = $1 AND (event_id = $2 OR event_id IS NULL) AND (voter_ip = $3';
-    const dupeParams = [contestant_id, currentEventId, voterId];
+    // 1. Kiểm tra đã vote cho thí sinh này chưa (Kiểm tra theo Device Token và MSSV, không chặn lây theo IP Wi-Fi)
+    let dupeQuery = 'SELECT COUNT(*)::int as cnt FROM votes WHERE contestant_id = $1 AND (event_id = $2 OR event_id IS NULL) AND (';
+    const dupeParams = [contestant_id, currentEventId];
+    const dupeConditions = [];
     if (cleanFp) {
       dupeParams.push(cleanFp);
-      dupeQuery += ` OR voter_fp = $${dupeParams.length}`;
+      dupeConditions.push(`voter_fp = $${dupeParams.length}`);
       dupeParams.push(`%_${cleanFp}`);
-      dupeQuery += ` OR voter_ip LIKE $${dupeParams.length}`;
-    }
-    if (voterIp && voterIp !== 'unknown') {
-      dupeParams.push(`${voterIp}_%`);
-      dupeQuery += ` OR voter_ip LIKE $${dupeParams.length}`;
-      dupeParams.push(voterIp);
-      dupeQuery += ` OR voter_ip = $${dupeParams.length}`;
+      dupeConditions.push(`voter_ip LIKE $${dupeParams.length}`);
     }
     if (cleanStudentId) {
       dupeParams.push(cleanStudentId);
-      dupeQuery += ` OR (student_id = $${dupeParams.length} AND student_id != '')`;
+      dupeConditions.push(`(student_id = $${dupeParams.length} AND student_id != '')`);
     }
-    dupeQuery += ')';
+    if (dupeConditions.length === 0) {
+      dupeParams.push(voterId);
+      dupeConditions.push(`voter_ip = $${dupeParams.length}`);
+    }
+    dupeQuery += dupeConditions.join(' OR ') + ')';
 
     const { rows: dupeCheck } = await pool.query(dupeQuery, dupeParams);
     if (dupeCheck[0].cnt >= 1) {
@@ -1121,25 +1118,24 @@ app.post('/api/vote', async (req, res) => {
     const totalContestants = contestantCount[0].cnt || 0;
     const maxAllowed = Math.max(1, Math.round((totalContestants * voteRatio) / 100));
 
-    let quotaQuery = 'SELECT COUNT(DISTINCT contestant_id)::int as cnt FROM votes WHERE (event_id = $1 OR event_id IS NULL) AND (voter_ip = $2';
-    const quotaParams = [currentEventId, voterId];
+    let quotaQuery = 'SELECT COUNT(DISTINCT contestant_id)::int as cnt FROM votes WHERE (event_id = $1 OR event_id IS NULL) AND (';
+    const quotaParams = [currentEventId];
+    const quotaConditions = [];
     if (cleanFp) {
       quotaParams.push(cleanFp);
-      quotaQuery += ` OR voter_fp = $${quotaParams.length}`;
+      quotaConditions.push(`voter_fp = $${quotaParams.length}`);
       quotaParams.push(`%_${cleanFp}`);
-      quotaQuery += ` OR voter_ip LIKE $${quotaParams.length}`;
-    }
-    if (voterIp && voterIp !== 'unknown') {
-      quotaParams.push(`${voterIp}_%`);
-      quotaQuery += ` OR voter_ip LIKE $${quotaParams.length}`;
-      quotaParams.push(voterIp);
-      quotaQuery += ` OR voter_ip = $${quotaParams.length}`;
+      quotaConditions.push(`voter_ip LIKE $${quotaParams.length}`);
     }
     if (cleanStudentId) {
       quotaParams.push(cleanStudentId);
-      quotaQuery += ` OR (student_id = $${quotaParams.length} AND student_id != '')`;
+      quotaConditions.push(`(student_id = $${quotaParams.length} AND student_id != '')`);
     }
-    quotaQuery += ')';
+    if (quotaConditions.length === 0) {
+      quotaParams.push(voterId);
+      quotaConditions.push(`voter_ip = $${quotaParams.length}`);
+    }
+    quotaQuery += quotaConditions.join(' OR ') + ')';
     const { rows: voterVotes } = await pool.query(quotaQuery, quotaParams);
     const currentVoteCount = voterVotes[0].cnt;
 
@@ -1191,28 +1187,25 @@ app.get('/api/my-votes', async (req, res) => {
   const studentId = (req.query.student_id || '').trim();
 
   try {
-    let myVotesQuery = 'SELECT DISTINCT contestant_id FROM votes WHERE (event_id = $1 OR event_id IS NULL) AND (voter_ip = $2';
-    const myVotesParams = [eventId, voterId];
+    const myVotesConditions = [];
+    const myVotesParams = [eventId];
     if (fp) {
       myVotesParams.push(fp);
-      myVotesQuery += ` OR voter_fp = $${myVotesParams.length}`;
+      myVotesConditions.push(`voter_fp = $${myVotesParams.length}`);
       myVotesParams.push(`%_${fp}`);
-      myVotesQuery += ` OR voter_ip LIKE $${myVotesParams.length}`;
-    }
-    if (voterIp && voterIp !== 'unknown') {
-      myVotesParams.push(`${voterIp}_%`);
-      myVotesQuery += ` OR voter_ip LIKE $${myVotesParams.length}`;
-      myVotesParams.push(voterIp);
-      myVotesQuery += ` OR voter_ip = $${myVotesParams.length}`;
+      myVotesConditions.push(`voter_ip LIKE $${myVotesParams.length}`);
     }
     if (studentId) {
       myVotesParams.push(studentId);
-      myVotesQuery += ` OR (student_id = $${myVotesParams.length} AND student_id != '')`;
+      myVotesConditions.push(`(student_id = $${myVotesParams.length} AND student_id != '')`);
     }
-    myVotesQuery += ')';
 
-    const { rows } = await pool.query(myVotesQuery, myVotesParams);
-    const votedIds = rows.map(r => r.contestant_id);
+    let votedIds = [];
+    if (myVotesConditions.length > 0) {
+      const myVotesQuery = `SELECT DISTINCT contestant_id FROM votes WHERE (event_id = $1 OR event_id IS NULL) AND (${myVotesConditions.join(' OR ')})`;
+      const { rows } = await pool.query(myVotesQuery, myVotesParams);
+      votedIds = rows.map(r => r.contestant_id);
+    }
 
     const { rows: eventRow } = await pool.query("SELECT is_active, vote_ratio, end_time, start_time FROM events WHERE id = $1", [eventId]);
     const { rows: settingsRows } = await pool.query("SELECT value FROM settings WHERE key = 'vote_ratio'");

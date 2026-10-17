@@ -1534,108 +1534,78 @@ function getDomFontMetrics() {
 
 function getHardwareFingerprint() {
   try {
-    // 1. Kiểm tra cache cookie hoặc localStorage nếu đã từng lưu trên trình duyệt này -> DÙNG NGAY 100% để chống F5 làm mới đổi vân tay!
+    // 1. Kiểm tra cache cookie hoặc localStorage nếu đã từng lưu trên trình duyệt này
     let cachedFp = '';
     try {
-      cachedFp = localStorage.getItem('hh:voter_hw_fp') || localStorage.getItem('hh:voter_fp') || '';
+      cachedFp = localStorage.getItem('hh:device_id') || localStorage.getItem('hh:voter_hw_fp') || localStorage.getItem('hh:voter_fp') || '';
     } catch (e) {}
 
     if (!cachedFp) {
-      const cookieMatch = document.cookie.match(/(?:^|; )hh_voter_hw_fp=([^;]*)/);
+      const cookieMatch = document.cookie.match(/(?:^|; )hh_device_id=([^;]*)/) || document.cookie.match(/(?:^|; )hh_voter_hw_fp=([^;]*)/);
       if (cookieMatch) {
         cachedFp = decodeURIComponent(cookieMatch[1]);
       }
     }
 
-    if (cachedFp && typeof cachedFp === 'string' && cachedFp.length >= 6) {
+    // NẾU LÀ MÃ BĂM PHẦN CỨNG CŨ (dạng 'hw_...' không có phần UUID riêng)
+    // Từng bị trùng lặp giữa các máy iPhone cùng dòng hoặc máy cùng Wi-Fi
+    // -> NÂNG CẤP NGAY sang Device UUID độc nhất vô nhị và xóa sạch danh sách vote bị gán nhầm!
+    const isOldGenericFp = cachedFp && (cachedFp.startsWith('hw_') && !cachedFp.includes('_dev_'));
+
+    if (isOldGenericFp) {
       try {
+        const keysToRemove = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && (k.startsWith('hh:voted:') || k.startsWith('hh:vote_log:'))) {
+            keysToRemove.push(k);
+          }
+        }
+        keysToRemove.forEach(k => localStorage.removeItem(k));
+        document.cookie.split(';').forEach(c => {
+          const name = c.split('=')[0].trim();
+          if (name.startsWith('hh_voted_')) {
+            document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
+          }
+        });
+      } catch (e) {}
+      cachedFp = '';
+    }
+
+    if (cachedFp && typeof cachedFp === 'string' && cachedFp.length >= 10 && !isOldGenericFp) {
+      try {
+        localStorage.setItem('hh:device_id', cachedFp);
         localStorage.setItem('hh:voter_hw_fp', cachedFp);
         localStorage.setItem('hh:voter_fp', cachedFp);
+        document.cookie = `hh_device_id=${cachedFp}; path=/; max-age=31536000; SameSite=Lax`;
         document.cookie = `hh_voter_hw_fp=${cachedFp}; path=/; max-age=31536000; SameSite=Lax`;
       } catch (e) {}
       return cachedFp;
     }
 
-    // 2. KHÓA PHẦN CỨNG THUẦN TÚY (TUYỆT ĐỐI KHÔNG DÙNG USER-AGENT)
-    // Để triệt tiêu hoàn toàn các thủ thuật dùng Launcher / User-Agent Switcher đổi từ Android sang iPhone hoặc ngược lại!
-    // Các phần mềm giả lập này chỉ đổi được chuỗi User-Agent, KHÔNG THỂ THAY ĐỔI ĐƯỢC CHIP GPU, CPU, MÀN HÌNH VÀ FONT HỆ ĐIỀU HÀNH!
+    // 2. SINH ĐỊNH DANH THIẾT BỊ ĐỘC NHẤT VÔ NHỊ CHO RIÊNG MÁY NÀY
+    // Kết hợp giữa Random UUID bảo mật + Timestamp + Chữ ký màn hình
+    const randPart = (window.crypto && window.crypto.getRandomValues)
+      ? Array.from(window.crypto.getRandomValues(new Uint8Array(12))).map(b => b.toString(16).padStart(2, '0')).join('')
+      : (Math.random().toString(36).substring(2, 10) + Date.now().toString(36));
 
-    // A. Màn hình vật lý (Độ phân giải thực, tỉ lệ điểm ảnh phần cứng)
-    const screenSig = [
-      screen.width || 0,
-      screen.height || 0,
-      screen.colorDepth || 24,
-      screen.pixelDepth || 24,
-      window.devicePixelRatio || 1
-    ].join('x');
+    const screenShort = `${screen.width || 0}x${screen.height || 0}`;
+    const uniqueDeviceId = `dev_${Date.now().toString(36)}_${screenShort}_${randPart}`;
 
-    // B. Vi xử lý CPU, số lõi, cảm ứng phần cứng (Android thường 8 lõi, iPhone 6 lõi - launcher không can thiệp được)
-    const cpuSig = [
-      navigator.hardwareConcurrency || 4, // Số lõi CPU thực tế
-      navigator.maxTouchPoints || 0        // Cảm ứng màn hình
-    ].join('|');
-
-    // C. Múi giờ hệ điều hành
-    let tzName = '';
-    try { tzName = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
-    const tzSig = [new Date().getTimezoneOffset(), tzName].join('|');
-
-    // D. Card đồ họa GPU (Chip xử lý WebGL Unmasked Renderer & Shader Precision Format)
-    // Dù có đổi User-Agent qua iPhone thì Chip GPU trên máy Android vẫn trả về Qualcomm Adreno / ARM Mali
-    let gpuSig = 'no_webgl';
+    // Lưu bền vững đa tầng
     try {
-      const canvas = document.createElement('canvas');
-      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-      if (gl) {
-        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-        let renderer = '';
-        let vendor = '';
-        if (debugInfo) {
-          renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '';
-          vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) || '';
-        }
-        // Chuẩn hóa tên GPU
-        const cleanRenderer = renderer
-          .replace(/ANGLE\s*\(/i, '')
-          .replace(/Google Inc\.\s*\(/i, '')
-          .replace(/Direct3D\d+.*$/i, '')
-          .replace(/vs_\d+_\d+.*$/i, '')
-          .replace(/[(),]/g, ' ')
-          .replace(/\s+/g, ' ')
-          .trim();
-        const maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 0;
-        const maxRender = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) || 0;
-        const maxVarying = gl.getParameter(gl.MAX_VARYING_VECTORS) || 0;
-
-        // Đặc tả độ chính xác Shader Float (phần cứng chip GPU cố định bất biến)
-        let shaderPrecision = '';
-        try {
-          const hp = gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT);
-          if (hp) shaderPrecision = `${hp.precision}_${hp.rangeMin}_${hp.rangeMax}`;
-        } catch (e) {}
-
-        gpuSig = `${cleanRenderer || renderer}|${vendor}|${maxTex}|${maxRender}|${maxVarying}|${shaderPrecision}`;
-      }
+      localStorage.setItem('hh:device_id', uniqueDeviceId);
+      localStorage.setItem('hh:voter_hw_fp', uniqueDeviceId);
+      localStorage.setItem('hh:voter_fp', uniqueDeviceId);
+      sessionStorage.setItem('hh:device_id', uniqueDeviceId);
+      document.cookie = `hh_device_id=${uniqueDeviceId}; path=/; max-age=31536000; SameSite=Lax`;
+      document.cookie = `hh_voter_hw_fp=${uniqueDeviceId}; path=/; max-age=31536000; SameSite=Lax`;
     } catch (e) {}
 
-    // E. Hình học font chữ DOM chuẩn hóa số nguyên (Đồng nhất bất biến trên mọi trình duyệt)
-    const domFontSig = getDomFontMetrics();
-
-    // 3. Kết hợp các tín hiệu phần cứng vật lý thuần túy (Đồng nhất tiền tố 'hw_', miễn nhiễm hoàn toàn với User-Agent)
-    const rawHardwareSig = [screenSig, cpuSig, tzSig, gpuSig, domFontSig].join('###');
-    const computedHwFp = 'hw_' + fastMurmurHash(rawHardwareSig);
-
-    // Lưu cache đa tầng để bảo vệ phiên
-    try {
-      localStorage.setItem('hh:voter_hw_fp', computedHwFp);
-      localStorage.setItem('hh:voter_fp', computedHwFp);
-      sessionStorage.setItem('hh:voter_hw_fp', computedHwFp);
-      document.cookie = `hh_voter_hw_fp=${computedHwFp}; path=/; max-age=31536000; SameSite=Lax`;
-    } catch (e) {}
-
-    return computedHwFp;
+    return uniqueDeviceId;
   } catch (err) {
-    return 'hw_' + Math.abs((screen.width * 31 + screen.height * 17) ^ new Date().getTimezoneOffset()).toString(36);
+    const fallbackId = 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 10);
+    return fallbackId;
   }
 }
 
