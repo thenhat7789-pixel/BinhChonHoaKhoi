@@ -1443,6 +1443,85 @@ app.post('/api/vote', async (req, res) => {
   }
 });
 
+// ─── POST /api/vote/cancel (Hủy / Thu hồi lượt bình chọn) ───────────────
+app.post('/api/vote/cancel', async (req, res) => {
+  const { contestant_id, event_id, voter_fingerprint, google_token } = req.body;
+  if (!contestant_id) return res.status(400).json({ error: 'Thiếu contestant_id' });
+
+  const currentEventId = event_id || 'evt_hoakhoi_2026';
+  const cleanFp = (voter_fingerprint || '').trim();
+
+  let verifiedEmail = '';
+  if (google_token) {
+    const googleUser = await verifyFirebaseTokenWithGoogle(google_token);
+    if (googleUser && googleUser.email) {
+      verifiedEmail = googleUser.email.toLowerCase().trim();
+    } else {
+      try {
+        const parts = google_token.split('.');
+        if (parts.length === 3) {
+          const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+          if (payload.exp && Date.now() / 1000 < payload.exp && payload.email) {
+            verifiedEmail = payload.email.toLowerCase().trim();
+          }
+        }
+      } catch (err) {}
+    }
+  }
+
+  const voterIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
+    || req.headers['x-real-ip']
+    || req.socket?.remoteAddress
+    || 'unknown';
+
+  try {
+    const conditions = [];
+    const params = [contestant_id, currentEventId];
+    if (verifiedEmail) {
+      params.push(verifiedEmail);
+      conditions.push(`LOWER(google_email) = $${params.length}`);
+    }
+    if (cleanFp) {
+      params.push(cleanFp);
+      conditions.push(`voter_fp = $${params.length}`);
+      params.push(`%_${cleanFp}`);
+      conditions.push(`voter_ip LIKE $${params.length}`);
+    }
+
+    if (conditions.length > 0) {
+      const deleteQuery = `
+        DELETE FROM votes 
+        WHERE id IN (
+          SELECT id FROM votes 
+          WHERE contestant_id = $1 
+            AND (event_id = $2 OR event_id IS NULL) 
+            AND (${conditions.join(' OR ')})
+          ORDER BY id DESC
+          LIMIT 1
+        )
+        RETURNING id, vote_id, contestant_id
+      `;
+      await pool.query(deleteQuery, params);
+    }
+
+    // Lấy số phiếu mới nhất của thí sinh sau khi hủy
+    const { rows: countRows } = await pool.query(
+      'SELECT COUNT(*)::int as count FROM votes WHERE contestant_id = $1 AND (event_id = $2 OR event_id IS NULL)',
+      [contestant_id, currentEventId]
+    );
+
+    res.json({
+      success: true,
+      message: 'Đã hủy lượt bình chọn thành công!',
+      contestant_id,
+      new_count: countRows[0]?.count || 0
+    });
+  } catch (e) {
+    console.error('POST /api/vote/cancel error:', e);
+    res.status(500).json({ error: 'Lỗi khi hủy phiếu bầu' });
+  }
+});
+
 // ─── GET /api/my-votes ────────────────────────────
 app.get('/api/my-votes', async (req, res) => {
   const eventId = req.query.event || req.query.event_id || 'evt_hoakhoi_2026';

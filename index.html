@@ -2205,7 +2205,12 @@ function applyTopicData(combined, eventId, ev) {
   } catch (e) {}
 
   const serverVoted = Array.isArray(combined.votedIds) ? combined.votedIds : [];
-  state.votedIds = Array.from(new Set([...serverVoted, ...localVoted, ...cookieVoted]));
+  if (combined.isFreshServer) {
+    // Dữ liệu mới nhất từ máy chủ là chuẩn mực xác thực: đồng bộ chính xác và xóa bỏ cache cũ nếu có
+    state.votedIds = serverVoted;
+  } else {
+    state.votedIds = Array.from(new Set([...serverVoted, ...localVoted, ...cookieVoted]));
+  }
   state.maxAllowed = (combined.maxAllowed !== undefined) ? combined.maxAllowed : Math.max(1, Math.round(((state.contestants || []).length * (ratio / 100))));
 
   try {
@@ -2284,12 +2289,7 @@ async function loadTopicContestantsAndVotes(eventId) {
     );
 
     if (combined && Array.isArray(combined.contestants)) {
-      // Luôn gộp votedIds với localStorage trước khi lưu cache
-      let localVoted = [];
-      try {
-        localVoted = JSON.parse(localStorage.getItem(`hh:voted:${eventId}`) || '[]');
-      } catch (e) {}
-      combined.votedIds = Array.from(new Set([...(combined.votedIds || []), ...localVoted]));
+      combined.isFreshServer = true;
       try { localStorage.setItem(cacheKey, JSON.stringify(combined)); } catch(e){}
       applyTopicData(combined, eventId, ev);
     } else {
@@ -2394,6 +2394,26 @@ function renderTopicContestants() {
         </div>
       </div>`;
 
+    let actionBtnHtml = '';
+    if (isMine) {
+      actionBtnHtml = `
+        <div style="display:flex;gap:6px;width:100%;">
+          <button class="vote-action-btn btn-voted" style="flex:1;cursor:default;" disabled>
+            ✓ Đã bình chọn
+          </button>
+          <button class="vote-action-btn" onclick="cancelVote('${c.id}')" style="background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5;padding:8px 12px;width:auto;font-size:0.8rem;border-radius:10px;cursor:pointer;font-weight:700;white-space:nowrap;" title="Nhấn để hủy lượt bình chọn này">
+            ✕ Hủy
+          </button>
+        </div>
+      `;
+    } else {
+      actionBtnHtml = `
+        <button class="${btnClass}" ${disabled ? 'disabled' : ''} onclick="openVoteModal('${c.id}')">
+          ${btnText}
+        </button>
+      `;
+    }
+
     return `
     <div class="c-card ${isMine ? 'voted-card' : ''}">
       <div class="sbd-badge">SBD ${esc(sbd)}</div>
@@ -2411,9 +2431,7 @@ function renderTopicContestants() {
           <div class="progress-bar"><div class="progress-fill" style="width:${barPct}%"></div></div>
         </div>
         <div class="c-card-actions">
-          <button class="${btnClass}" ${disabled ? 'disabled' : ''} onclick="openVoteModal('${c.id}')">
-            ${btnText}
-          </button>
+          ${actionBtnHtml}
           <button class="share-btn" onclick="shareOnFacebook('${c.id}')">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
               <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
@@ -2623,6 +2641,73 @@ function openVoteModal(id) {
 function closeVoteModal() {
   document.getElementById('voteModal').classList.add('hidden');
   pendingContestantId = null;
+}
+
+async function cancelVote(cId) {
+  const c = (state.contestants || []).find(x => x.id === cId);
+  const cName = c ? c.name : 'thí sinh';
+  
+  const confirmMsg = `Bạn có chắc chắn muốn HỦY lượt bình chọn cho thí sinh "${cName}" không?\n\nSau khi hủy, bạn sẽ được trả lại 1 lượt bình chọn để bình chọn cho thí sinh khác.`;
+  if (!confirm(confirmMsg)) return;
+
+  let googleToken = '';
+  if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser) {
+    try {
+      googleToken = await firebase.auth().currentUser.getIdToken();
+    } catch (e) {}
+  }
+
+  toast('⏳ Đang hủy lượt bình chọn...', 'info');
+
+  try {
+    const res = await api.post('/api/vote/cancel', {
+      contestant_id: cId,
+      event_id: state.activeEventId,
+      voter_fingerprint: VOTER_FP,
+      google_token: googleToken
+    });
+
+    if (res && res._error) {
+      toast(res.error || 'Không thể hủy lượt bình chọn!', 'error');
+      return;
+    }
+
+    // Cập nhật state
+    state.votedIds = (state.votedIds || []).filter(id => id !== cId);
+    if (res && res.new_count !== undefined) {
+      state.votes[cId] = res.new_count;
+    } else {
+      state.votes[cId] = Math.max(0, (state.votes[cId] || 1) - 1);
+    }
+
+    // Cập nhật localStorage và Cookie ngay lập tức
+    try {
+      const eventId = state.activeEventId;
+      localStorage.setItem(`hh:voted:${eventId}`, JSON.stringify(state.votedIds));
+      document.cookie = `hh_voted_${eventId}=${encodeURIComponent(JSON.stringify(state.votedIds))}; path=/; max-age=31536000; SameSite=Lax`;
+      
+      const cacheKey = `hh:cache_topic:${eventId}`;
+      const rawCache = localStorage.getItem(cacheKey);
+      if (rawCache) {
+        const p = JSON.parse(rawCache);
+        p.votedIds = state.votedIds;
+        p.votes = state.votes;
+        localStorage.setItem(cacheKey, JSON.stringify(p));
+      }
+    } catch (e) {}
+
+    // Cập nhật Rule Bar
+    const myVotesCount = (state.votedIds || []).length;
+    const countEl = document.getElementById('topicMyVotesCount');
+    if (countEl) countEl.textContent = `${myVotesCount} / ${state.maxAllowed} thí sinh`;
+
+    // Vẽ lại giao diện ngay
+    renderTopicContestants();
+    toast(`✓ Đã hủy bình chọn thành công! Bạn còn ${Math.max(0, state.maxAllowed - myVotesCount)} lượt bình chọn.`, 'success');
+  } catch (err) {
+    console.error('cancelVote error:', err);
+    toast('Lỗi khi hủy bình chọn, vui lòng thử lại!', 'error');
+  }
 }
 
 /* ─── PUBLIC QR CODE & LINK HELPERS ─────────────────────── */
