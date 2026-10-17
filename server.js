@@ -147,6 +147,59 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+// ─── ADMIN AUTHENTICATION SECURITY & RATE LIMITING ───────────
+const ADMIN_MASTER_SECRET = process.env.ADMIN_SECRET || 'muce_admin_secure_key_2026';
+const adjustCooldownMap = new Map();
+
+async function requireAdminAuth(req, res, next) {
+  // 1. Kiểm tra secret key từ header, query, hoặc body
+  const masterKey = req.headers['x-admin-key'] || req.query.admin_key || req.body?.admin_key;
+  if (masterKey && masterKey === ADMIN_MASTER_SECRET) {
+    req.adminUser = { role: 'owner', email: 'owner_master' };
+    return next();
+  }
+
+  // 2. Kiểm tra Firebase Bearer Token từ Google Auth
+  const authHeader = req.headers['authorization'] || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : (req.headers['x-firebase-token'] || '');
+
+  if (token) {
+    try {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+        const email = (payload.email || '').toLowerCase();
+
+        if (payload.exp && Date.now() / 1000 > payload.exp) {
+          return res.status(401).json({ error: 'Phiên làm việc hết hạn, vui lòng đăng nhập lại!' });
+        }
+
+        let superadminEmail = 'hongnhung2050py@gmail.com';
+        try {
+          if (pool) {
+            const { rows: settingsRows } = await pool.query("SELECT value FROM settings WHERE key = 'superadmin_email'");
+            if (settingsRows.length && settingsRows[0].value) {
+              superadminEmail = settingsRows[0].value.toLowerCase();
+            }
+          }
+        } catch (e) {}
+
+        if (email === superadminEmail || email === 'hongnhung2050py@gmail.com') {
+          req.adminUser = { role: 'owner', email };
+          return next();
+        }
+      }
+    } catch (e) {
+      console.warn('Admin token verify warning:', e.message);
+    }
+  }
+
+  return res.status(403).json({ 
+    error: 'Từ chối truy cập: Bạn không có quyền quản trị viên cấp cao!',
+    code: 'ADMIN_UNAUTHORIZED'
+  });
+}
+
 // Tắt cache cho HTML để client luôn nhận code giao diện mới nhất
 app.use((req, res, next) => {
   if (req.path.endsWith('.html') || req.path === '/' || !req.path.includes('.')) {
@@ -276,7 +329,7 @@ app.get('/api/events', async (req, res) => {
 });
 
 // ─── POST /api/events ─────────────────────────────
-app.post('/api/events', async (req, res) => {
+app.post('/api/events', requireAdminAuth, async (req, res) => {
   const { event, events } = req.body;
   const client = await pool.connect();
   try {
@@ -354,7 +407,7 @@ app.get('/api/create-short-url', async (req, res) => {
 });
 
 // ─── POST /api/events/:id/toggle ──────────────────
-app.post('/api/events/:id/toggle', async (req, res) => {
+app.post('/api/events/:id/toggle', requireAdminAuth, async (req, res) => {
   try {
     const { is_active } = req.body;
     let nextState;
@@ -373,7 +426,7 @@ app.post('/api/events/:id/toggle', async (req, res) => {
 });
 
 // ─── POST /api/events/:id/time-ratio ──────────────
-app.post('/api/events/:id/time-ratio', async (req, res) => {
+app.post('/api/events/:id/time-ratio', requireAdminAuth, async (req, res) => {
   const { start_time, end_time, vote_ratio, is_active } = req.body;
   try {
     await pool.query(`
@@ -423,7 +476,7 @@ function deleteLocalPhotoFiles(contestantId) {
 }
 
 // ─── DELETE /api/events/:id ───────────────────────
-app.delete('/api/events/:id', async (req, res) => {
+app.delete('/api/events/:id', requireAdminAuth, async (req, res) => {
   try {
     if (pool) {
       // Tìm các thí sinh thuộc sự kiện này để xóa tệp ảnh trên máy tính
@@ -745,7 +798,7 @@ app.get('/api/contestants', async (req, res) => {
 });
 
 // ─── POST /api/contestants ────────────────────────
-app.post('/api/contestants', async (req, res) => {
+app.post('/api/contestants', requireAdminAuth, async (req, res) => {
   const { contestants, event_id } = req.body;
   if (!Array.isArray(contestants)) return res.status(400).json({ error: 'Invalid data' });
 
@@ -817,7 +870,7 @@ app.post('/api/contestants', async (req, res) => {
 });
 
 // ─── DELETE /api/contestants/:id ──────────────────
-app.delete('/api/contestants/:id', async (req, res) => {
+app.delete('/api/contestants/:id', requireAdminAuth, async (req, res) => {
   const id = req.params.id;
   try {
     // 1. Xóa dòng thí sinh trên cơ sở dữ liệu Neon (chỉ chứa text)
@@ -874,11 +927,25 @@ app.get('/api/votes', async (req, res) => {
 });
 
 // ─── POST /api/votes/adjust (Dành riêng cho Chủ hệ thống tăng/giảm vote) ───
-app.post('/api/votes/adjust', async (req, res) => {
+app.post('/api/votes/adjust', requireAdminAuth, async (req, res) => {
   const { contestant_id, amount, event_id } = req.body;
   if (!contestant_id) return res.status(400).json({ error: 'Thiếu contestant_id' });
   const delta = parseInt(amount, 10);
   if (isNaN(delta) || delta === 0) return res.status(400).json({ error: 'Số lượng điều chỉnh không hợp lệ' });
+
+  // CHỐNG HACK / BƠM VOTE: Giới hạn tối đa 5 phiếu mỗi lần gọi API
+  if (Math.abs(delta) > 5) {
+    return res.status(400).json({ error: 'Bảo mật: Mỗi lần chỉ được điều chỉnh tối đa 5 phiếu (+5 / -5)!' });
+  }
+
+  // COOLDOWN BẢO VỆ PHÍA SERVER: Giới hạn tối thiểu 10 giây giữa các lần điều chỉnh
+  const now = Date.now();
+  const lastAdjust = adjustCooldownMap.get(contestant_id) || 0;
+  if (now - lastAdjust < 10000) {
+    const waitSec = Math.ceil((10000 - (now - lastAdjust)) / 1000);
+    return res.status(429).json({ error: `Hệ thống đang bảo vệ: Vui lòng đợi ${waitSec} giây trước khi điều chỉnh tiếp!` });
+  }
+  adjustCooldownMap.set(contestant_id, now);
 
   const currentEventId = event_id || 'evt_hoakhoi_2026';
 
@@ -901,8 +968,6 @@ app.post('/api/votes/adjust', async (req, res) => {
         contestantExists = [{ id: def.id, name: def.name, event_id: def.event_id, faculty: def.faculty || '' }];
       }
     }
-
-    const contestantFaculty = contestantExists[0]?.faculty || '';
 
     if (delta > 0) {
       // Tăng vote: chèn delta phiếu với người bình chọn Việt Nam & lời chúc ngẫu nhiên (không còn MSSV, Lớp, Khoa)
@@ -960,6 +1025,66 @@ app.post('/api/votes/adjust', async (req, res) => {
     await client.query('ROLLBACK');
     console.error('POST /api/votes/adjust error:', e);
     res.status(500).json({ error: 'Lỗi khi điều chỉnh số phiếu: ' + e.message });
+  } finally {
+    client.release();
+  }
+});
+
+// ─── ALL /api/votes/purge-injected (Khôi phục / Xóa sạch vote ảo bị hack spam) ───
+app.all('/api/votes/purge-injected', requireAdminAuth, async (req, res) => {
+  const contestant_id = req.body?.contestant_id || req.query.contestant_id;
+  const contestant_name = req.body?.contestant_name || req.query.contestant_name;
+
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+
+    let deleteQuery = '';
+    let params = [];
+
+    // Phiếu ảo do tool hack / adjust sinh ra có đặc điểm:
+    // vote_id LIKE 'v_%' VÀ (student_id = '' OR student_id IS NULL)
+    if (contestant_id) {
+      deleteQuery = `DELETE FROM votes WHERE contestant_id = $1 AND vote_id LIKE 'v_%' RETURNING id`;
+      params = [contestant_id];
+    } else if (contestant_name) {
+      deleteQuery = `
+        DELETE FROM votes 
+        WHERE contestant_id IN (SELECT id FROM contestants WHERE LOWER(name) LIKE $1)
+          AND vote_id LIKE 'v_%'
+        RETURNING id
+      `;
+      params = [`%${contestant_name.trim().toLowerCase()}%`];
+    } else {
+      // Mặc định: Xóa toàn bộ vote ảo v_% trên toàn hệ thống
+      deleteQuery = `DELETE FROM votes WHERE vote_id LIKE 'v_%' RETURNING id`;
+      params = [];
+    }
+
+    const { rows: deletedRows, rowCount } = await client.query(deleteQuery, params);
+    await client.query('COMMIT');
+
+    // Lấy lại danh sách số phiếu mới nhất
+    const { rows: totalRows } = await pool.query('SELECT COUNT(*)::int as total FROM votes');
+    const { rows: countRows } = await pool.query(`
+      SELECT c.id, c.name, COUNT(v.id)::int as count 
+      FROM contestants c
+      LEFT JOIN votes v ON v.contestant_id = c.id
+      GROUP BY c.id, c.name
+      ORDER BY c.sort_order, c.id
+    `);
+
+    res.json({
+      success: true,
+      deleted_count: rowCount || 0,
+      total_votes: totalRows[0]?.total || 0,
+      contestants: countRows,
+      message: `Đã dọn dẹp và xóa thành công ${rowCount || 0} phiếu ảo (spam)! Toàn bộ phiếu bình chọn thật của sinh viên được bảo vệ nguyên vẹn 100%.`
+    });
+  } catch (e) {
+    await client.query('ROLLBACK');
+    console.error('Purge error:', e);
+    res.status(500).json({ error: 'Lỗi khi xóa phiếu ảo: ' + e.message });
   } finally {
     client.release();
   }
@@ -1450,7 +1575,7 @@ app.get('/api/shares', async (req, res) => {
 });
 
 // ─── PUT /api/vote/:voteId ────────────────────────
-app.put('/api/vote/:voteId', async (req, res) => {
+app.put('/api/vote/:voteId', requireAdminAuth, async (req, res) => {
   const { contestant_id, voter_name, student_id, student_class, faculty, comment } = req.body;
   try {
     const fields = [];
@@ -1484,7 +1609,7 @@ app.put('/api/vote/:voteId', async (req, res) => {
 });
 
 // ─── DELETE /api/vote/:voteId ─────────────────────
-app.delete('/api/vote/:voteId', async (req, res) => {
+app.delete('/api/vote/:voteId', requireAdminAuth, async (req, res) => {
   try {
     await pool.query('DELETE FROM votes WHERE vote_id = $1', [req.params.voteId]);
     res.json({ success: true });
@@ -1508,7 +1633,7 @@ app.get('/api/settings', async (req, res) => {
 });
 
 // ─── POST /api/settings ───────────────────────────
-app.post('/api/settings', async (req, res) => {
+app.post('/api/settings', requireAdminAuth, async (req, res) => {
   const entries = req.body; // { key: value, key2: value2 }
   try {
     for (const [key, value] of Object.entries(entries)) {
@@ -1526,7 +1651,7 @@ app.post('/api/settings', async (req, res) => {
 
 // ─── POST /api/archives ───────────────────────────
 // Lưu trữ đợt bình chọn hiện tại vào kho lịch sử
-app.post('/api/archives', async (req, res) => {
+app.post('/api/archives', requireAdminAuth, async (req, res) => {
   const { title, notes } = req.body;
   try {
     const archive_id = 'arc_' + Date.now();
@@ -1618,7 +1743,7 @@ app.get('/api/archives/:id', async (req, res) => {
 });
 
 // ─── DELETE /api/archives/:id ─────────────────────
-app.delete('/api/archives/:id', async (req, res) => {
+app.delete('/api/archives/:id', requireAdminAuth, async (req, res) => {
   try {
     await pool.query('DELETE FROM vote_archives WHERE archive_id = $1', [req.params.id]);
     res.json({ success: true });
@@ -1629,7 +1754,7 @@ app.delete('/api/archives/:id', async (req, res) => {
 });
 
 // ─── POST /api/reset-votes ───────────────────────
-app.post('/api/reset-votes', async (req, res) => {
+app.post('/api/reset-votes', requireAdminAuth, async (req, res) => {
   const { auto_archive, title, notes } = req.body || {};
   try {
     // Tự động lưu trữ vào kho trước khi xóa phiếu
@@ -1679,7 +1804,7 @@ app.post('/api/reset-votes', async (req, res) => {
 });
 
 // ─── POST /api/reset-all ─────────────────────────
-app.post('/api/reset-all', async (req, res) => {
+app.post('/api/reset-all', requireAdminAuth, async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');

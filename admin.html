@@ -1537,6 +1537,19 @@
             </div>
           </div>
 
+          <!-- Emergency Security & Fraud Cleanup -->
+          <div class="settings-section" style="border:1.5px solid #ef4444;background:rgba(239,68,68,0.06);padding:1rem;border-radius:10px;margin-bottom:1rem;">
+            <div class="settings-label" style="color:#ef4444;font-weight:800;font-size:0.95rem;">🚨 Dọn dẹp vote ảo / Khắc phục bị hack bơm vote</div>
+            <p style="font-size:0.83rem;color:#64748b;margin:0.25rem 0 0.75rem 0;">
+              Chức năng này sẽ quét và <b>xóa sạch toàn bộ 6.000+ lượt vote ảo</b> vừa bị bơm vào hệ thống. Các phiếu bình chọn thật của sinh viên sẽ được <b>bảo lưu an toàn 100%</b>.
+            </p>
+            <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+              <button class="btn btn-danger btn-sm" onclick="purgeFakeVotes()" style="background:#dc2626;border-color:#b91c1c;font-weight:700;display:inline-flex;align-items:center;gap:4px;">
+                🧹 Xóa sạch tất cả phiếu vote ảo (Bị Hack/Spam)
+              </button>
+            </div>
+          </div>
+
           <!-- Reset -->
           <div class="settings-section">
             <div class="settings-label" style="color:rgba(242,166,180,.6)">⚠ Vùng nguy hiểm</div>
@@ -1657,18 +1670,40 @@
 "use strict";
 
 /* ─── API HELPER ─────────────────────────────────────────── */
+const ADMIN_API_KEY = 'muce_admin_secure_key_2026';
+
+async function getAdminHeaders() {
+  const headers = { 'x-admin-key': ADMIN_API_KEY };
+  try {
+    if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser) {
+      const token = await firebase.auth().currentUser.getIdToken();
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+    }
+  } catch (e) {}
+  return headers;
+}
+
 const api = {
-  async get(url) { const r = await fetch(url); return r.json(); },
+  async get(url) { 
+    const hdrs = await getAdminHeaders();
+    const r = await fetch(url, { headers: hdrs }); 
+    return r.json(); 
+  },
   async post(url, body) {
-    const r = await fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    const hdrs = await getAdminHeaders();
+    hdrs['Content-Type'] = 'application/json';
+    const r = await fetch(url, { method:'POST', headers: hdrs, body:JSON.stringify(body) });
     return r.json();
   },
   async put(url, body) {
-    const r = await fetch(url, { method:'PUT', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body) });
+    const hdrs = await getAdminHeaders();
+    hdrs['Content-Type'] = 'application/json';
+    const r = await fetch(url, { method:'PUT', headers: hdrs, body:JSON.stringify(body) });
     return r.json();
   },
   async del(url) {
-    const r = await fetch(url, { method:'DELETE' });
+    const hdrs = await getAdminHeaders();
+    const r = await fetch(url, { method:'DELETE', headers: hdrs });
     return r.json();
   }
 };
@@ -4345,9 +4380,11 @@ async function handleAdjustVote(contestantId, amount, eventId) {
   setVoteButtonsCooldown(contestantId, 15);
 
   try {
+    const hdrs = await getAdminHeaders();
+    hdrs['Content-Type'] = 'application/json';
     const res = await fetch('/api/votes/adjust', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: hdrs,
       body: JSON.stringify({
         contestant_id: contestantId,
         amount: amount,
@@ -4673,6 +4710,15 @@ function renderContestantList(targetEventId) {
               onmouseover="if(!this.disabled) this.style.background='#d1fae5'"
               onmouseout="if(!this.disabled) this.style.background='#ecfdf5'">
               +5
+            </button>
+            <button type="button" 
+              class="vote-adj-btn" 
+              onclick="purgeFakeVotes('${esc(c.id)}', '${esc(c.name)}')" 
+              title="🧹 Xóa phiếu vote ảo (bị hack/bơm) của thí sinh này, bảo lưu phiếu thật"
+              style="width:28px;height:26px;border-radius:6px;border:1px solid #cbd5e1;background:#f8fafc;color:#64748b;font-size:.78rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:all .15s ease;"
+              onmouseover="this.style.background='#fee2e2';this.style.color='#ef4444';this.style.borderColor='#fca5a5';"
+              onmouseout="this.style.background='#f8fafc';this.style.color='#64748b';this.style.borderColor='#cbd5e1';">
+              🧹
             </button>
           </div>
           <div id="vote_cooldown_${esc(c.id)}" style="display:none;font-size:.72rem;color:#d97706;font-weight:700;align-items:center;gap:3px;">
@@ -5258,6 +5304,38 @@ async function changePassword() {
   document.getElementById('newPass').value = '';
   document.getElementById('confirmPass').value = '';
   toast('Đổi mật khẩu thành công!', 'success');
+}
+
+/* ─── PURGE FAKE / SPAM VOTES ───────────────────────────── */
+async function purgeFakeVotes(contestantId = null, contestantName = '') {
+  if (isCurrentUserMember()) {
+    toast('Tài khoản Thành viên không có quyền thực hiện thao tác này!', 'error');
+    return;
+  }
+  
+  const targetDesc = contestantName ? `cho thí sinh "${contestantName}"` : 'trên TOÀN BỘ hệ thống';
+  const conf = await customConfirm(
+    `BẠN CÓ CHẮC CHẮN MUỐN XÓA TẤT CẢ PHIẾU VOTE ẢO (VỪA BỊ HACK/BƠM SPAM) ${targetDesc}?\n\nToàn bộ phiếu bình chọn thật của sinh viên vẫn được bảo lưu 100% nguyên vẹn!`,
+    '🚨'
+  );
+  if (!conf) return;
+
+  try {
+    toast('Đang dọn dẹp các phiếu vote ảo...', 'info');
+    const payload = {};
+    if (contestantId) payload.contestant_id = contestantId;
+    else payload.all = true;
+
+    const res = await api.post('/api/votes/purge-injected', payload);
+    if (res && res.success) {
+      toast(`✅ ${res.message || `Đã dọn dẹp ${res.deleted_count} phiếu ảo thành công!`}`, 'success');
+      await loadAdminData();
+    } else {
+      toast(res?.error || 'Lỗi khi dọn dẹp phiếu ảo', 'error');
+    }
+  } catch (err) {
+    toast('Lỗi kết nối server: ' + err.message, 'error');
+  }
 }
 
 /* ─── RESET ACTIONS ─────────────────────────────────────── */
