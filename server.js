@@ -715,9 +715,9 @@ app.get('/api/topic-data', async (req, res) => {
     const votedIds = myVotesResult.rows.map(r => r.contestant_id);
 
     const ev = eventResult.rows[0] || {};
-    const globalRatio = settingsResult.rows.length ? parseInt(settingsResult.rows[0].value) || 80 : 80;
+    const globalRatio = settingsResult.rows.length ? parseInt(settingsResult.rows[0].value) || 100 : 100;
     const voteRatio = ev.vote_ratio ? parseInt(ev.vote_ratio) : globalRatio;
-    const maxAllowed = Math.max(1, Math.round((contestants.length * voteRatio) / 100));
+    const maxAllowed = 1;
 
     res.json({
       contestants,
@@ -739,7 +739,7 @@ app.get('/api/topic-data', async (req, res) => {
       votes: {},
       totalVotes: 0,
       votedIds: [],
-      maxAllowed: 5,
+      maxAllowed: 1,
       voteRatio: 80,
       is_active: true,
       start_time: null,
@@ -1290,39 +1290,58 @@ app.post('/api/vote', async (req, res) => {
       }
     }
 
-    // 1. KHÓA 1 (TÀI KHOẢN GOOGLE): 1 Gmail chỉ được vote 1 lần cho 1 thí sinh dù dùng Wi-Fi hay 4G
+    // 1. KHÓA 1: RÀNG BUỘC THIẾT BỊ VỚI TÀI KHOẢN GOOGLE DUY NHẤT (CHỐNG ĐỔI GMAIL TRÊN CÙNG 1 MÁY)
+    if (cleanFp) {
+      const { rows: fpDeviceVotes } = await pool.query(
+        `SELECT DISTINCT LOWER(google_email) as email 
+         FROM votes 
+         WHERE (event_id = $1 OR event_id IS NULL) 
+           AND voter_fp = $2 
+           AND google_email IS NOT NULL AND google_email != ''`,
+        [currentEventId, cleanFp]
+      );
+      if (fpDeviceVotes.length > 0) {
+        const boundEmail = fpDeviceVotes[0].email;
+        if (boundEmail && boundEmail !== verifiedEmail) {
+          return res.status(400).json({
+            error: `🚫 Thiết bị này (điện thoại/laptop) đã được sử dụng để bình chọn bằng tài khoản Google khác (${boundEmail})! Để chống gian lận, mỗi thiết bị chỉ được dùng 1 tài khoản Google duy nhất, không thể đổi sang Gmail khác để bình chọn thêm.`,
+            code: 'DEVICE_BOUND_TO_OTHER_GMAIL'
+          });
+        }
+      }
+    }
+
+    // 2. KHÓA 2 (TÀI KHOẢN GOOGLE): 1 Gmail chỉ được vote 1 lần duy nhất trong cuộc thi
     const { rows: googleDupe } = await pool.query(
       `SELECT COUNT(*)::int as cnt FROM votes 
-       WHERE contestant_id = $1 
-         AND (event_id = $2 OR event_id IS NULL) 
-         AND LOWER(google_email) = $3`,
-      [contestant_id, currentEventId, verifiedEmail]
+       WHERE (event_id = $1 OR event_id IS NULL) 
+         AND LOWER(google_email) = $2`,
+      [currentEventId, verifiedEmail]
     );
     if (googleDupe[0].cnt >= 1) {
       return res.status(400).json({
-        error: `Tài khoản Google (${verifiedEmail}) đã bình chọn cho thí sinh này rồi! Dù dùng Wi-Fi hay 4G, mỗi tài khoản chỉ được bình chọn 1 lần duy nhất.`,
+        error: `Tài khoản Google (${verifiedEmail}) đã bình chọn trong cuộc thi này rồi! Dù dùng Wi-Fi hay 4G, mỗi tài khoản chỉ được bình chọn 1 lần duy nhất. Bạn có thể nhấn nút "Hủy" trên thí sinh đã chọn nếu muốn đổi người khác.`,
         code: 'GOOGLE_ALREADY_VOTED'
       });
     }
 
-    // 2. KHÓA 2 (KHÓA TOÀN BỘ THIẾT BỊ): 1 máy chỉ được vote 1 lần cho 1 thí sinh dù dùng Wi-Fi hay 4G, Zalo, Mes, Safari hay Chrome!
+    // 3. KHÓA 3 (KHÓA TOÀN BỘ THIẾT BỊ): 1 máy chỉ được vote 1 lần duy nhất dù dùng Wi-Fi hay 4G, Zalo, Mes, Safari hay Chrome!
     if (cleanFp) {
       const { rows: fpCheck } = await pool.query(
         `SELECT COUNT(*)::int as cnt FROM votes 
-         WHERE contestant_id = $1 
-           AND (event_id = $2 OR event_id IS NULL) 
-           AND voter_fp = $3`,
-        [contestant_id, currentEventId, cleanFp]
+         WHERE (event_id = $1 OR event_id IS NULL) 
+           AND voter_fp = $2`,
+        [currentEventId, cleanFp]
       );
       if (fpCheck[0].cnt >= 1) {
         return res.status(400).json({
-          error: '🚫 Thiết bị này (điện thoại/laptop) đã bình chọn cho thí sinh này rồi! Hệ thống đã khóa máy này trên toàn bộ ứng dụng (Zalo, Messenger, Safari, Chrome). Bạn không thể bình chọn thêm từ máy này.',
+          error: '🚫 Thiết bị này (điện thoại/laptop) đã thực hiện bình chọn cho cuộc thi này rồi! Hệ thống đã khóa máy này trên toàn bộ ứng dụng (Zalo, Messenger, Safari, Chrome). Bạn có thể nhấn nút "Hủy" trên thí sinh đã chọn nếu muốn đổi người khác.',
           code: 'DEVICE_ALREADY_VOTED'
         });
       }
     }
 
-    // 4. Kiểm tra trạng thái bật/tắt, thời gian mở/kết thúc và tỉ lệ bình chọn của cuộc thi này
+    // 4. Kiểm tra trạng thái bật/tắt, thời gian mở/kết thúc của cuộc thi này
     const { rows: eventRow } = await pool.query("SELECT is_active, vote_ratio, end_time, start_time FROM events WHERE id = $1", [currentEventId]);
     if (eventRow.length && eventRow[0].is_active === false) {
       return res.status(400).json({
@@ -1351,52 +1370,9 @@ app.post('/api/vote', async (req, res) => {
       }
     }
 
-    const { rows: settingsRows } = await pool.query("SELECT value FROM settings WHERE key = 'vote_ratio'");
-    const globalRatio = settingsRows.length ? parseInt(settingsRows[0].value) || 80 : 80;
-    const voteRatio = (eventRow.length && eventRow[0].vote_ratio) ? parseInt(eventRow[0].vote_ratio) : globalRatio;
-
-    const { rows: contestantCount } = await pool.query('SELECT COUNT(*)::int as cnt FROM contestants WHERE (event_id = $1 OR event_id IS NULL)', [currentEventId]);
-    const totalContestants = contestantCount[0].cnt || 0;
-    const maxAllowed = Math.max(1, Math.round((totalContestants * voteRatio) / 100));
-
-    // 5. Kiểm tra tổng quota bình chọn theo tài khoản Google
-    const { rows: googleQuota } = await pool.query(
-      `SELECT COUNT(DISTINCT contestant_id)::int as cnt FROM votes 
-       WHERE (event_id = $1 OR event_id IS NULL) 
-         AND LOWER(google_email) = $2`,
-      [currentEventId, verifiedEmail]
-    );
-    const googleVoteCount = googleQuota[0].cnt;
-    if (googleVoteCount >= maxAllowed) {
-      return res.status(400).json({
-        error: `Tài khoản Google (${verifiedEmail}) đã sử dụng hết ${maxAllowed} lượt bình chọn (${voteRatio}%) cho cuộc thi này!`,
-        code: 'GOOGLE_QUOTA_EXCEEDED',
-        maxAllowed,
-        currentVotes: googleVoteCount,
-        voteRatio
-      });
-    }
-
-    // 6. Kiểm tra tổng quota bình chọn theo thiết bị (KHÓA CHẾT THIẾT BỊ KHI ĐẠT QUOTA)
-    let currentDeviceVoteCount = 0;
-    if (cleanFp) {
-      const { rows: fpQuotaCheck } = await pool.query(
-        `SELECT COUNT(DISTINCT contestant_id)::int as cnt FROM votes 
-         WHERE (event_id = $1 OR event_id IS NULL) 
-           AND voter_fp = $2`,
-        [currentEventId, cleanFp]
-      );
-      currentDeviceVoteCount = fpQuotaCheck[0].cnt;
-      if (currentDeviceVoteCount >= maxAllowed) {
-        return res.status(400).json({
-          error: `🚫 Thiết bị này đã hoàn thành tối đa ${maxAllowed} lượt bình chọn (${voteRatio}%) cho cuộc thi này! Hệ thống đã khóa máy này trên toàn bộ ứng dụng (Zalo, Messenger, Safari, Chrome). Bạn không thể đổi Gmail để vote tiếp trên thiết bị này.`,
-          code: 'DEVICE_QUOTA_EXCEEDED',
-          maxAllowed,
-          currentVotes: currentDeviceVoteCount,
-          voteRatio
-        });
-      }
-    }
+    // Mỗi sinh viên / thiết bị được bình chọn tối đa 1 thí sinh duy nhất (1 vote)
+    const maxAllowed = 1;
+    const voteRatio = 100;
 
     // 7. Ghi phiếu bầu kèm thông tin Google Auth + Device Hardware Fingerprint
     const vote_id = 'vote_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
