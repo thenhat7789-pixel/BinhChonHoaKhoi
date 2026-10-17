@@ -1239,16 +1239,28 @@
      VIEW 2: TRANG BÌNH CHỌN CỦA CHỦ ĐỀ ĐÓ (CONTESTANT VOTING VIEW)
      ══════════════════════════════════════════════════════════ -->
 <div class="topic-view-section" id="topicView" style="display:none;">
-  <!-- Navigation bar to return to portal -->
-  <div class="topic-nav-bar">
+  <!-- Navigation bar to return to portal & fast switch competitions -->
+  <div class="topic-nav-bar" style="flex-wrap:wrap;gap:8px;">
     <button class="btn-back-portal" onclick="backToPortal()">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
         <line x1="19" y1="12" x2="5" y2="12"></line>
         <polyline points="12 19 5 12 12 5"></polyline>
       </svg>
-      <span>← Quay lại danh sách cuộc thi</span>
+      <span>← Trang chủ (Tất cả cuộc thi)</span>
     </button>
-    <div style="display:flex;align-items:center;gap:.5rem;">
+    <div style="display:flex;align-items:center;gap:.4rem;flex-wrap:wrap;">
+      <button type="button" onclick="goToTopic('evt_hoakhoi_2026')" class="btn-back-portal" style="background:#fdf2f8;color:#db2777;border-color:#fbcfe8;font-weight:700;font-size:0.78rem;">
+        👑 Hoa Khôi
+      </button>
+      <button type="button" onclick="goToTopic('evt_namvuong_2026')" class="btn-back-portal" style="background:#eff6ff;color:#2563eb;border-color:#bfdbfe;font-weight:700;font-size:0.78rem;">
+        🌟 Nam Vương
+      </button>
+      <button type="button" onclick="goToTopic('evt_tienghat_2026')" class="btn-back-portal" style="background:#faf5ff;color:#9333ea;border-color:#e9d5ff;font-weight:700;font-size:0.78rem;">
+        🎤 Tiếng Hát
+      </button>
+      <button type="button" onclick="goToTopic('evt_daisu_2026')" class="btn-back-portal" style="background:#fffbeb;color:#d97706;border-color:#fde68a;font-weight:700;font-size:0.78rem;">
+        🎖️ Đại Sứ
+      </button>
       <span id="topicActiveBadge" style="background:#dcfce7;color:#15803d;border:1px solid #86efac;padding:.25rem .75rem;border-radius:999px;font-weight:700;font-size:.78rem;">
         🟢 ĐANG BÌNH CHỌN
       </span>
@@ -2191,12 +2203,16 @@ function applyTopicData(combined, eventId, ev) {
   } catch (e) {}
 
   const serverVoted = Array.isArray(combined.votedIds) ? combined.votedIds : [];
-  // CHỈ hiển thị phiếu bầu khi người dùng đã đăng nhập Google chính chủ của họ
-  if (typeof currentGoogleUser !== 'undefined' && currentGoogleUser && currentGoogleUser.email) {
-    state.votedIds = serverVoted;
-  } else {
-    state.votedIds = [];
-  }
+  state.votedIds = serverVoted;
+  try {
+    if (serverVoted.length > 0) {
+      localStorage.setItem(`hh:voted:${eventId}`, JSON.stringify(serverVoted));
+      document.cookie = `hh_voted_${eventId}=${encodeURIComponent(JSON.stringify(serverVoted))}; path=/; max-age=31536000; SameSite=Lax`;
+    } else {
+      localStorage.removeItem(`hh:voted:${eventId}`);
+      document.cookie = `hh_voted_${eventId}=; path=/; max-age=0; SameSite=Lax`;
+    }
+  } catch (e) {}
   state.maxAllowed = (combined.maxAllowed !== undefined) ? combined.maxAllowed : Math.max(1, Math.round(((state.contestants || []).length * (ratio / 100))));
   state.isDeviceBanned = false;
 
@@ -2248,25 +2264,24 @@ async function loadTopicContestantsAndVotes(eventId) {
   const ev = state.events.find(e => e.id === eventId);
   const cacheKey = `hh:cache_topic:${eventId}`;
 
-  // Xóa sạch cache cũ để tránh bị kẹt trạng thái cũ khi mở trang
+  // 1. TỨC THÌ (0s): Nếu có cache danh sách thí sinh thì áp dụng vẽ tạm (đồng bộ với vote đã lưu)
+  let savedVoted = [];
   try {
-    localStorage.removeItem(`hh:voted:${eventId}`);
-    document.cookie = `hh_voted_${eventId}=; path=/; max-age=0; SameSite=Lax`;
+    savedVoted = JSON.parse(localStorage.getItem(`hh:voted:${eventId}`) || '[]');
+    if (!Array.isArray(savedVoted)) savedVoted = [];
   } catch (e) {}
 
-  // 1. TỨC THÌ (0s): Nếu có cache danh sách thí sinh thì áp dụng vẽ tạm (nhưng không gán votedIds)
   const cachedStr = localStorage.getItem(cacheKey);
   if (cachedStr) {
     try {
       const cached = JSON.parse(cachedStr);
       if (cached && Array.isArray(cached.contestants) && cached.contestants.length > 0) {
-        cached.votedIds = [];
+        cached.votedIds = savedVoted;
         applyTopicData(cached, eventId, ev);
       }
     } catch(e){}
-  } else {
-    // Nếu chưa có cache, vẫn gọi applyTopicData để khởi tạo
-    applyTopicData({ votedIds: [] }, eventId, ev);
+  } else if (savedVoted.length > 0) {
+    applyTopicData({ votedIds: savedVoted }, eventId, ev);
   }
 
   // 2. Chạy ngầm tải dữ liệu mới nhất từ server và cập nhật mượt mà
@@ -2280,9 +2295,6 @@ async function loadTopicContestantsAndVotes(eventId) {
     );
 
     if (combined && Array.isArray(combined.contestants)) {
-      if (!(typeof currentGoogleUser !== 'undefined' && currentGoogleUser && currentGoogleUser.email)) {
-        combined.votedIds = [];
-      }
       try { localStorage.setItem(cacheKey, JSON.stringify(combined)); } catch(e){}
       applyTopicData(combined, eventId, ev);
     } else {

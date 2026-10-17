@@ -677,7 +677,7 @@ app.get('/api/topic-data', async (req, res) => {
         GROUP BY c.id
       `, [eventId]),
       // 3. My votes (Kiểm tra theo Google Email hoặc Device ID độc bản dev_)
-      // 3. My votes: CHỈ trả về danh sách đã bình chọn khi người dùng đã đăng nhập Google chính chủ
+      // 3. My votes: Khớp theo Google Email HOẶC Thiết bị Phần cứng (fp)
       (() => {
         const conditions = [];
         const p = [eventId];
@@ -685,6 +685,10 @@ app.get('/api/topic-data', async (req, res) => {
         if (googleEmail) {
           p.push(googleEmail);
           conditions.push(`LOWER(google_email) = $${p.length}`);
+        }
+        if (fp) {
+          p.push(fp);
+          conditions.push(`voter_fp = $${p.length}`);
         }
         if (studentId) {
           p.push(studentId);
