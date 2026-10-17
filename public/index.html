@@ -1601,13 +1601,13 @@ function checkAndHandleInAppBrowser() {
 // Tuyệt đối đồng nhất 100% giữa Facebook In-App Browser, Safari, Chrome và Tab ẩn danh!
 function getHardwareFingerprint() {
   try {
-    // 0. Nếu máy này đã có mã định danh trong bộ nhớ bền vững -> Dùng lại
+    // 0. Nếu máy này đã có mã định danh trong bộ nhớ bền vững phiên bản v3 -> Dùng lại
     try {
-      const saved = localStorage.getItem('hh:voter_hw_fp') || localStorage.getItem('hh:voter_fp') || sessionStorage.getItem('hh:voter_hw_fp');
-      if (saved && saved.startsWith('hw_')) return saved;
-      const match = document.cookie.match(/(?:^|; )hh_voter_hw_fp=(hw_[a-z0-9_-]+)/i);
+      const saved = localStorage.getItem('hh:voter_hw_fp_v3') || sessionStorage.getItem('hh:voter_hw_fp_v3');
+      if (saved && saved.startsWith('hw_v3_')) return saved;
+      const match = document.cookie.match(/(?:^|; )hh_voter_hw_fp_v3=(hw_v3_[a-z0-9_-]+)/i);
       if (match && match[1]) {
-        try { localStorage.setItem('hh:voter_hw_fp', match[1]); } catch(e){}
+        try { localStorage.setItem('hh:voter_hw_fp_v3', match[1]); } catch(e){}
         return match[1];
       }
     } catch (e) {}
@@ -1662,19 +1662,20 @@ function getHardwareFingerprint() {
 
     // 7. Kết hợp TOÀN BỘ LINH KIỆN VẬT LÝ BẤT BIẾN
     const rawHardwareSig = [screenSig, cpuSig, osSig, tzOffset, gamutP3, hdr, glLimits].join('###');
-    const computedHwFp = 'hw_' + fastMurmurHash(rawHardwareSig);
+    const computedHwFp = 'hw_v3_' + fastMurmurHash(rawHardwareSig);
 
     // Lưu bền vững đa tầng
     try {
+      localStorage.setItem('hh:voter_hw_fp_v3', computedHwFp);
       localStorage.setItem('hh:voter_hw_fp', computedHwFp);
       localStorage.setItem('hh:voter_fp', computedHwFp);
-      sessionStorage.setItem('hh:voter_hw_fp', computedHwFp);
-      document.cookie = `hh_voter_hw_fp=${computedHwFp}; path=/; max-age=31536000; SameSite=Lax`;
+      sessionStorage.setItem('hh:voter_hw_fp_v3', computedHwFp);
+      document.cookie = `hh_voter_hw_fp_v3=${computedHwFp}; path=/; max-age=31536000; SameSite=Lax`;
     } catch (e) {}
 
     return computedHwFp;
   } catch (err) {
-    return 'hw_' + Math.abs((screen.width * 31 + screen.height * 17) ^ new Date().getTimezoneOffset()).toString(36);
+    return 'hw_v3_' + Math.abs((screen.width * 31 + screen.height * 17) ^ new Date().getTimezoneOffset()).toString(36);
   }
 }
 
