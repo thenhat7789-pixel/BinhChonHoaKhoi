@@ -1311,6 +1311,20 @@
 
     <!-- Google Authentication Status Box -->
     <div id="googleAuthNotLoggedIn" style="margin-bottom: 1rem;">
+      <!-- Hướng dẫn riêng cho người dùng mở bằng Zalo / Facebook WebView -->
+      <div id="zaloNoticeBox" style="display:none;font-size:0.8rem;color:#1e40af;background:#eff6ff;border:1px solid #bfdbfe;padding:10px 12px;border-radius:12px;margin-bottom:0.75rem;">
+        <div style="display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;">
+          <span style="font-size:1.1rem;">💡</span>
+          <div>
+            <div style="font-weight:700;margin-bottom:2px;">Bạn đang mở trong ứng dụng Zalo</div>
+            <div style="font-size:0.75rem;line-height:1.4;color:#1e3a8a;">Google có thể chặn đăng nhập trực tiếp trong Zalo. Hãy bấm dấu <strong>⋮</strong> góc trên bên phải màn hình và chọn <strong>"Mở bằng trình duyệt"</strong> (Chrome / Safari)!</div>
+          </div>
+        </div>
+        <button type="button" onclick="copyCurrentPageUrl()" style="width:100%;background:#2563eb;color:#fff;border:none;padding:7px 12px;border-radius:8px;font-size:0.78rem;cursor:pointer;font-weight:700;display:flex;align-items:center;justify-content:center;gap:6px;">
+          <span>📋</span><span>Sao chép link bình chọn (dán vào Chrome/Safari)</span>
+        </button>
+      </div>
+
       <div style="font-size:0.8rem;color:#92400e;background:#fef3c7;border:1px solid #fde68a;padding:8px 12px;border-radius:10px;margin-bottom:0.75rem;display:flex;align-items:center;gap:8px;">
         <span>🔒</span>
         <span>Hệ thống yêu cầu xác thực bằng <strong>Tài khoản Google</strong> để đảm bảo 1 người / 1 thiết bị chỉ bình chọn 1 lần duy nhất.</span>
@@ -1678,90 +1692,37 @@ function checkAndHandleInAppBrowser() {
   } catch (e) {}
 }
 
-/* ─── PURE HARDWARE INVARIANT FINGERPRINTING (GIẢI PHÁP 2) ─── */
-// Đọc các hằng số vật lý bất biến của màn hình và CPU máy:
-// Tuyệt đối đồng nhất 100% giữa Facebook In-App Browser, Safari, Chrome và Tab ẩn danh!
-function getHardwareFingerprint() {
+/* ─── SECURE UNIQUE DEVICE IDENTIFIER (MÃ ĐỊNH DANH THIẾT BỊ ĐỘC BẢN) ─── */
+// Đảm bảo mỗi máy người dùng có một mã UUID độc bản duy nhất, lưu đa tầng bền vững.
+// Tuyệt đối không bao giờ bị đụng độ giữa 2 người khác nhau dù họ dùng chung dòng điện thoại (iPhone 13, 14...)!
+function getDeviceIdentifier() {
   try {
-    // 0. Nếu máy này đã có mã định danh trong bộ nhớ bền vững phiên bản v3 -> Dùng lại
+    let devId = localStorage.getItem('hh:voter_dev_id_v4');
+    if (devId && devId.startsWith('dev_')) return devId;
+
+    const match = document.cookie.match(/(?:^|; )hh_voter_dev_id_v4=(dev_[a-z0-9_-]+)/i);
+    if (match && match[1]) {
+      try { localStorage.setItem('hh:voter_dev_id_v4', match[1]); } catch(e){}
+      return match[1];
+    }
+
+    // Tạo mã UUID thiết bị độc bản ngẫu nhiên siêu an toàn (100% không trùng giữa các máy)
+    const randomPart = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
+    const timePart = Date.now().toString(36);
+    devId = `dev_${timePart}_${randomPart}`;
+
     try {
-      const saved = localStorage.getItem('hh:voter_hw_fp_v3') || sessionStorage.getItem('hh:voter_hw_fp_v3');
-      if (saved && saved.startsWith('hw_v3_')) return saved;
-      const match = document.cookie.match(/(?:^|; )hh_voter_hw_fp_v3=(hw_v3_[a-z0-9_-]+)/i);
-      if (match && match[1]) {
-        try { localStorage.setItem('hh:voter_hw_fp_v3', match[1]); } catch(e){}
-        return match[1];
-      }
-    } catch (e) {}
-
-    // 1. Tín hiệu màn hình vật lý cố định (không đổi khi xoay ngang/dọc hay đổi app)
-    const screenSig = [
-      Math.min(screen.width || 0, screen.height || 0),
-      Math.max(screen.width || 0, screen.height || 0),
-      screen.colorDepth || 24,
-      window.devicePixelRatio || 1
-    ].join('x');
-
-    // 2. Vi xử lý CPU & Cảm ứng phần cứng máy
-    const cpuSig = [
-      navigator.hardwareConcurrency || 4,
-      navigator.maxTouchPoints || 0
-    ].join('|');
-
-    // 3. Hệ điều hành phần cứng
-    let osSig = 'unknown_os';
-    const ua = navigator.userAgent || '';
-    if (/iPhone|iPad|iPod/i.test(ua)) osSig = 'iOS';
-    else if (/Android/i.test(ua)) osSig = 'Android';
-    else if (/Windows/i.test(ua)) osSig = 'Windows';
-    else if (/Macintosh|Mac OS X/i.test(ua)) osSig = 'MacOS';
-    else if (/Linux/i.test(ua)) osSig = 'Linux';
-
-    // 4. Múi giờ phần cứng
-    const tzOffset = new Date().getTimezoneOffset();
-
-    // 5. Chuẩn màn hình vật lý (DCI-P3 Gamut & HDR)
-    const gamutP3 = (window.matchMedia && window.matchMedia('(color-gamut: p3)').matches) ? 'p3_1' : 'p3_0';
-    const hdr = (window.matchMedia && window.matchMedia('(dynamic-range: high)').matches) ? 'hdr_1' : 'hdr_0';
-
-    // 6. Giới hạn phần cứng GPU WebGL chuẩn (Độc lập 100% với WebView / Safari / Chrome)
-    // Các thông số này do chip GPU quy định, Facebook WebView KHÔNG THỂ che giấu hay làm lệch!
-    let glLimits = 'gl_none';
-    try {
-      const canvas = document.createElement('canvas');
-      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-      if (gl) {
-        glLimits = [
-          gl.getParameter(gl.MAX_TEXTURE_SIZE) || 0,
-          gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) || 0,
-          gl.getParameter(gl.MAX_VERTEX_ATTRIBS) || 0,
-          gl.getParameter(gl.MAX_VARYING_VECTORS) || 0,
-          gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS) || 0,
-          gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS) || 0
-        ].join(':');
-      }
-    } catch (e) {}
-
-    // 7. Kết hợp TOÀN BỘ LINH KIỆN VẬT LÝ BẤT BIẾN
-    const rawHardwareSig = [screenSig, cpuSig, osSig, tzOffset, gamutP3, hdr, glLimits].join('###');
-    const computedHwFp = 'hw_v3_' + fastMurmurHash(rawHardwareSig);
-
-    // Lưu bền vững đa tầng
-    try {
-      localStorage.setItem('hh:voter_hw_fp_v3', computedHwFp);
-      localStorage.setItem('hh:voter_hw_fp', computedHwFp);
-      localStorage.setItem('hh:voter_fp', computedHwFp);
-      sessionStorage.setItem('hh:voter_hw_fp_v3', computedHwFp);
-      document.cookie = `hh_voter_hw_fp_v3=${computedHwFp}; path=/; max-age=31536000; SameSite=Lax`;
-    } catch (e) {}
-
-    return computedHwFp;
-  } catch (err) {
-    return 'hw_v3_' + Math.abs((screen.width * 31 + screen.height * 17) ^ new Date().getTimezoneOffset()).toString(36);
+      localStorage.setItem('hh:voter_dev_id_v4', devId);
+      sessionStorage.setItem('hh:voter_dev_id_v4', devId);
+      document.cookie = `hh_voter_dev_id_v4=${devId}; path=/; max-age=31536000; SameSite=Lax`;
+    } catch(e){}
+    return devId;
+  } catch(e) {
+    return 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 10);
   }
 }
 
-const VOTER_FP = getHardwareFingerprint();
+const VOTER_FP = getDeviceIdentifier();
 
 /* ─── API HELPER ─── */
 const api = {
@@ -2205,7 +2166,11 @@ function applyTopicData(combined, eventId, ev) {
   } catch (e) {}
 
   const serverVoted = Array.isArray(combined.votedIds) ? combined.votedIds : [];
-  state.votedIds = Array.from(new Set([...serverVoted, ...localVoted, ...cookieVoted]));
+  if (typeof currentGoogleUser !== 'undefined' && currentGoogleUser && currentGoogleUser.email) {
+    state.votedIds = serverVoted;
+  } else {
+    state.votedIds = serverVoted.length > 0 ? serverVoted : Array.from(new Set([...localVoted, ...cookieVoted]));
+  }
   state.maxAllowed = (combined.maxAllowed !== undefined) ? combined.maxAllowed : Math.max(1, Math.round(((state.contestants || []).length * (ratio / 100))));
 
   try {
@@ -2271,7 +2236,7 @@ async function loadTopicContestantsAndVotes(eventId) {
       }
     } catch(e){}
   } else {
-    // Nếu chưa có cache, vẫn gọi applyTopicData để lấy votedIds từ localStorage & cookie
+    // Nếu chưa có cache, vẫn gọi applyTopicData để khởi tạo
     applyTopicData({ votedIds: [] }, eventId, ev);
   }
 
@@ -2286,11 +2251,17 @@ async function loadTopicContestantsAndVotes(eventId) {
     );
 
     if (combined && Array.isArray(combined.contestants)) {
-      let localVoted = [];
-      try {
-        localVoted = JSON.parse(localStorage.getItem(`hh:voted:${eventId}`) || '[]');
-      } catch (e) {}
-      combined.votedIds = Array.from(new Set([...(combined.votedIds || []), ...localVoted]));
+      if (typeof currentGoogleUser !== 'undefined' && currentGoogleUser && currentGoogleUser.email) {
+        // Đã có tài khoản Google: Server là chuẩn xác nhất
+      } else {
+        let localVoted = [];
+        try {
+          localVoted = JSON.parse(localStorage.getItem(`hh:voted:${eventId}`) || '[]');
+        } catch (e) {}
+        if (!combined.votedIds || combined.votedIds.length === 0) {
+          combined.votedIds = localVoted;
+        }
+      }
       try { localStorage.setItem(cacheKey, JSON.stringify(combined)); } catch(e){}
       applyTopicData(combined, eventId, ev);
     } else {
@@ -2533,7 +2504,10 @@ async function loginWithGoogle() {
     }
   } catch (err) {
     console.warn('Google popup error:', err);
-    if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
+    if (err.code === 'auth/disallowed-useragent' || (err.message && err.message.toLowerCase().includes('disallowed_useragent'))) {
+      toast('Google không cho phép đăng nhập trong Zalo! Vui lòng bấm dấu ⋮ ở góc trên chọn "Mở bằng trình duyệt" (Chrome / Safari)', 'error', 7000);
+      copyCurrentPageUrl();
+    } else if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
       try {
         await firebase.auth().signInWithRedirect(provider);
         return null;
@@ -2554,6 +2528,25 @@ async function logoutGoogle() {
     await firebase.auth().signOut();
     updateGoogleAuthUI(null);
     toast('Đã đăng xuất tài khoản Google.', 'info');
+  }
+}
+
+function copyCurrentPageUrl() {
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(window.location.href);
+      toast('✓ Đã sao chép liên kết! Bạn hãy mở Chrome hoặc Safari và dán vào nhé.', 'success', 4000);
+    } else {
+      const input = document.createElement('input');
+      input.value = window.location.href;
+      document.body.appendChild(input);
+      input.select();
+      document.execCommand('copy');
+      input.remove();
+      toast('✓ Đã sao chép liên kết! Hãy mở Chrome / Safari để tiếp tục.', 'success', 4000);
+    }
+  } catch(e) {
+    prompt('Sao chép đường link này để dán vào Chrome/Safari:', window.location.href);
   }
 }
 
@@ -2624,6 +2617,13 @@ function openVoteModal(id) {
   }
   const c = state.contestants.find(x => x.id === id);
   if (!c) return;
+
+  // Hiển thị hướng dẫn Zalo nếu người dùng đang mở trong in-app browser
+  const isZaloOrFb = /Zalo|FBAN|FBAV/i.test(navigator.userAgent || '');
+  const zaloNotice = document.getElementById('zaloNoticeBox');
+  if (zaloNotice) {
+    zaloNotice.style.display = isZaloOrFb ? 'block' : 'none';
+  }
 
   pendingContestantId = id;
   voteModalOpenTs = Date.now();

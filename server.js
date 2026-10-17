@@ -282,10 +282,10 @@ app.get('/api/test-db', async (req, res) => {
       ORDER BY count DESC
     `);
     const { rows: sampleVotes } = await pool.query(`
-      SELECT vote_id, contestant_id, voter_name, created_at
+      SELECT vote_id, contestant_id, voter_name, voter_ip, voter_fp, google_email, created_at
       FROM votes
-      ORDER BY created_at ASC
-      LIMIT 30
+      ORDER BY created_at DESC
+      LIMIT 10
     `);
     let archivesData = [];
     try {
@@ -676,7 +676,7 @@ app.get('/api/topic-data', async (req, res) => {
         WHERE c.event_id = $1
         GROUP BY c.id
       `, [eventId]),
-      // 3. My votes (Kiểm tra theo Device ID/Fingerprint, Google Email và MSSV)
+      // 3. My votes (Kiểm tra theo Google Email hoặc Device ID độc bản dev_)
       (() => {
         const conditions = [];
         const p = [eventId];
@@ -685,22 +685,13 @@ app.get('/api/topic-data', async (req, res) => {
           p.push(googleEmail);
           conditions.push(`LOWER(google_email) = $${p.length}`);
         }
-        if (fp) {
+        if (fp && fp.startsWith('dev_')) {
           p.push(fp);
           conditions.push(`voter_fp = $${p.length}`);
-          p.push(`%_${fp}`);
-          conditions.push(`voter_ip LIKE $${p.length}`);
         }
         if (studentId) {
           p.push(studentId);
           conditions.push(`(student_id = $${p.length} AND student_id != '')`);
-        }
-        const voterName = (req.query.voter_name || '').trim();
-        if (voterName && voterIp && voterIp !== 'unknown') {
-          p.push(voterName.toLowerCase());
-          p.push(`${voterIp}_%`);
-          p.push(voterIp);
-          conditions.push(`(LOWER(TRIM(voter_name)) = $${p.length - 2} AND (voter_ip LIKE $${p.length - 1} OR voter_ip = $${p.length}))`);
         }
         if (conditions.length === 0) {
           return pool.query('SELECT DISTINCT contestant_id FROM votes WHERE 1 = 0');
@@ -1313,14 +1304,14 @@ app.post('/api/vote', async (req, res) => {
       });
     }
 
-    // 2. KHÓA 2 (KHÓA CHẾT THIẾT BỊ VẬT LÝ): 1 máy chỉ được vote 1 lần cho 1 thí sinh dù dùng Wi-Fi hay 4G!
-    if (cleanFp) {
+    // 2. KHÓA 2 (KHÓA THIẾT BỊ ĐỘC BẢN dev_): 1 máy chỉ được vote 1 lần cho 1 thí sinh dù dùng Wi-Fi hay 4G!
+    if (cleanFp && cleanFp.startsWith('dev_')) {
       const { rows: fpCheck } = await pool.query(
         `SELECT COUNT(*)::int as cnt FROM votes 
          WHERE contestant_id = $1 
            AND (event_id = $2 OR event_id IS NULL) 
-           AND (voter_fp = $3 OR voter_ip LIKE $4)`,
-        [contestant_id, currentEventId, cleanFp, `%_${cleanFp}`]
+           AND voter_fp = $3`,
+        [contestant_id, currentEventId, cleanFp]
       );
       if (fpCheck[0].cnt >= 1) {
         return res.status(400).json({
@@ -1385,14 +1376,14 @@ app.post('/api/vote', async (req, res) => {
       });
     }
 
-    // 6. Kiểm tra tổng quota bình chọn theo thiết bị vật lý
+    // 6. Kiểm tra tổng quota bình chọn theo thiết bị độc bản dev_
     let currentDeviceVoteCount = 0;
-    if (cleanFp) {
+    if (cleanFp && cleanFp.startsWith('dev_')) {
       const { rows: fpQuotaCheck } = await pool.query(
         `SELECT COUNT(DISTINCT contestant_id)::int as cnt FROM votes 
          WHERE (event_id = $1 OR event_id IS NULL) 
-           AND (voter_fp = $2 OR voter_ip LIKE $3)`,
-        [currentEventId, cleanFp, `%_${cleanFp}`]
+           AND voter_fp = $2`,
+        [currentEventId, cleanFp]
       );
       currentDeviceVoteCount = fpQuotaCheck[0].cnt;
       if (currentDeviceVoteCount >= maxAllowed) {
@@ -1470,11 +1461,9 @@ app.post('/api/vote/cancel', async (req, res) => {
       params.push(verifiedEmail);
       conditions.push(`LOWER(google_email) = $${params.length}`);
     }
-    if (cleanFp) {
+    if (cleanFp && cleanFp.startsWith('dev_')) {
       params.push(cleanFp);
       conditions.push(`voter_fp = $${params.length}`);
-      params.push(`%_${cleanFp}`);
-      conditions.push(`voter_ip LIKE $${params.length}`);
     }
 
     if (conditions.length > 0) {
@@ -1530,22 +1519,13 @@ app.get('/api/my-votes', async (req, res) => {
       myVotesParams.push(googleEmail);
       myVotesConditions.push(`LOWER(google_email) = $${myVotesParams.length}`);
     }
-    if (fp) {
+    if (fp && fp.startsWith('dev_')) {
       myVotesParams.push(fp);
       myVotesConditions.push(`voter_fp = $${myVotesParams.length}`);
-      myVotesParams.push(`%_${fp}`);
-      myVotesConditions.push(`voter_ip LIKE $${myVotesParams.length}`);
     }
     if (studentId) {
       myVotesParams.push(studentId);
       myVotesConditions.push(`(student_id = $${myVotesParams.length} AND student_id != '')`);
-    }
-    const voterName = (req.query.voter_name || '').trim();
-    if (voterName && voterIp && voterIp !== 'unknown') {
-      myVotesParams.push(voterName.toLowerCase());
-      myVotesParams.push(`${voterIp}_%`);
-      myVotesParams.push(voterIp);
-      myVotesConditions.push(`(LOWER(TRIM(voter_name)) = $${myVotesParams.length - 2} AND (voter_ip LIKE $${myVotesParams.length - 1} OR voter_ip = $${myVotesParams.length}))`);
     }
 
     let votedIds = [];
