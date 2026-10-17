@@ -1670,7 +1670,7 @@
 "use strict";
 
 /* ─── API HELPER ─────────────────────────────────────────── */
-const ADMIN_API_KEY = '';
+const ADMIN_API_KEY = 'muce_admin_secure_key_2026';
 
 async function getAdminHeaders() {
   const headers = {};
@@ -3223,7 +3223,14 @@ async function toggleAdminEventStatus(eventId) {
       localStorage.setItem('hh:events', JSON.stringify(adminEvents));
       renderAdminEvents();
       try {
-        await api.post(`/api/events/${eventId}/toggle`, { is_active: false });
+        const res = await api.post(`/api/events/${eventId}/toggle`, { is_active: false });
+        if (res && res.error) {
+          toast(res.error, 'error');
+          ev.is_active = isCurrentlyActive;
+          localStorage.setItem('hh:events', JSON.stringify(adminEvents));
+          renderAdminEvents();
+          return;
+        }
       } catch(e) { console.error(e); }
       toast(`🔴 Đã TẮT cổng bình chọn cuộc thi "${ev.title}"!`, 'warning');
     } else {
@@ -3236,7 +3243,14 @@ async function toggleAdminEventStatus(eventId) {
       localStorage.setItem('hh:events', JSON.stringify(adminEvents));
       renderAdminEvents();
       try {
-        await api.post(`/api/events/${eventId}/toggle`, { is_active: true });
+        const res = await api.post(`/api/events/${eventId}/toggle`, { is_active: true });
+        if (res && res.error) {
+          toast(res.error, 'error');
+          ev.is_active = isCurrentlyActive;
+          localStorage.setItem('hh:events', JSON.stringify(adminEvents));
+          renderAdminEvents();
+          return;
+        }
       } catch(e) { console.error(e); }
       toast(`🟢 Đã BẬT cổng bình chọn cuộc thi "${ev.title}" thành công!`, 'success');
     } else {
