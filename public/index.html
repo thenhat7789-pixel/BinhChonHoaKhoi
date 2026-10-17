@@ -2395,8 +2395,8 @@ function renderTopicContestants() {
       }
     }
 
-    // Ảnh thí sinh được tải lazy native qua endpoint /api/contestants/:id/photo
-    const photoUrl = `/api/contestants/${encodeURIComponent(c.id)}/photo`;
+    // Ảnh thí sinh: ưu tiên tải trực tiếp từ Cloudinary CDN 25GB siêu tốc nếu có, fallback về /api/contestants/:id/photo
+    const photoUrl = (c.photo && c.photo.startsWith('http')) ? c.photo : `/api/contestants/${encodeURIComponent(c.id)}/photo`;
     const photoHtml = `
       <div class="c-card-img-inner">
         <img class="c-card-photo-bg" src="${photoUrl}" alt="" aria-hidden="true" loading="lazy" />

@@ -5,6 +5,14 @@ const path = require('path');
 const fs = require('fs');
 const { pool, initDB, DEFAULT_CONTESTANTS } = require('./db');
 const { getRandomVietnameseName, getRandomVietnameseComment, getRandomVoterIp } = require('./vietnameseData');
+const cloudinary = require('cloudinary').v2;
+
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME || 'mlmavqsg',
+  api_key: process.env.CLOUDINARY_API_KEY || '827166892772899',
+  api_secret: process.env.CLOUDINARY_API_SECRET || 'mi9uJWYf6fGDhHe9kpMZFmmL04s',
+  secure: true
+});
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -881,11 +889,25 @@ app.post('/api/contestants', requireAdminAuth, async (req, res) => {
   const { contestants, event_id } = req.body;
   if (!Array.isArray(contestants)) return res.status(400).json({ error: 'Invalid data' });
 
-  // 1. Tách và lưu toàn bộ ảnh ra ổ đĩa máy tính (public/uploads/)
+  // 1. Tự động tải ảnh lên Cloudinary (25 GB miễn phí) để giải phóng 100% dung lượng Neon SQL
   for (let i = 0; i < contestants.length; i++) {
     const c = contestants[i];
     let photoVal = c.photo || '';
     if (photoVal && photoVal.startsWith('data:image/')) {
+      try {
+        const uploadRes = await cloudinary.uploader.upload(photoVal, {
+          folder: 'hoakhoi_2026',
+          public_id: c.id,
+          overwrite: true,
+          resource_type: 'image'
+        });
+        if (uploadRes && uploadRes.secure_url) {
+          c.photo = uploadRes.secure_url;
+        }
+      } catch (cErr) {
+        console.warn(`Cloudinary upload warning for ${c.id}:`, cErr.message);
+      }
+
       try {
         const match = photoVal.match(/^data:([a-zA-Z0-9/+-]+);base64,(.+)$/);
         const rawBase64 = match ? match[2] : photoVal;
@@ -894,11 +916,9 @@ app.post('/api/contestants', requireAdminAuth, async (req, res) => {
         const filename = `${c.id}.${ext}`;
         const buf = Buffer.from(rawBase64, 'base64');
 
-        // Ghi trực tiếp vào ổ đĩa máy tính
+        // Ghi thêm vào ổ đĩa máy tính dự phòng
         fs.writeFileSync(path.join(UPLOADS_DIR_PUBLIC, filename), buf);
         fs.writeFileSync(path.join(UPLOADS_DIR_ROOT, filename), buf);
-
-        // Lưu ảnh nén nhẹ (~50KB) vào Neon để backup vĩnh viễn, F5 hay Render restart đều không mất!
         photoBufferCache.set(c.id, { mime, buffer: buf });
       } catch (err) {
         console.error(`Lỗi ghi ảnh vào đĩa cho thí sinh ${c.id}:`, err);
