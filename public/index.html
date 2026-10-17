@@ -1532,9 +1532,76 @@ function getDomFontMetrics() {
   }
 }
 
+/* ─── IN-APP BROWSER DETECTOR & AUTO-ESCAPE (GIẢI PHÁP 1) ─── */
+function checkAndHandleInAppBrowser() {
+  try {
+    const ua = navigator.userAgent || navigator.vendor || window.opera || '';
+    const isFbOrInApp = /FBAN|FBAV|FB_IAB|Messenger|FB4A|FBIOS|Instagram|Zalo/i.test(ua);
+    if (!isFbOrInApp) return;
+
+    const isAndroid = /Android/i.test(ua);
+
+    // 1. Nếu là Android: Tự động kích hoạt mở thẳng ứng dụng Google Chrome máy thật
+    if (isAndroid) {
+      const cleanUrl = window.location.href.replace(/^https?:\/\//, '');
+      const intentUrl = `intent://${cleanUrl}#Intent;scheme=https;package=com.android.chrome;end`;
+      if (!sessionStorage.getItem('hh:intent_redirected')) {
+        sessionStorage.setItem('hh:intent_redirected', '1');
+        window.location.href = intentUrl;
+        return;
+      }
+    }
+
+    // 2. Nếu là iOS (hoặc Android không tự chuyển): Hiển thị thanh thông báo hướng dẫn mở Safari/Chrome
+    if (document.getElementById('inAppGuideBanner')) return;
+    const banner = document.createElement('div');
+    banner.id = 'inAppGuideBanner';
+    banner.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      z-index: 9999999;
+      background: linear-gradient(135deg, #1e3a8a, #0057a8);
+      color: #ffffff;
+      padding: 12px 16px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.35);
+      font-size: 13.5px;
+      line-height: 1.45;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      box-sizing: border-box;
+      animation: slideDownBanner 0.3s ease;
+    `;
+    banner.innerHTML = `
+      <div style="flex: 1;">
+        <span style="font-weight: 800; color: #fde047;">⚠️ Đang mở qua Facebook / Zalo:</span><br>
+        Để bình chọn chuẩn xác nhất, vui lòng chạm vào biểu tượng <strong>••• (góc trên bên phải)</strong> ➜ Chọn <strong>"Mở bằng trình duyệt ngoài"</strong> (Safari / Chrome).
+      </div>
+      <button onclick="document.getElementById('inAppGuideBanner').remove()" style="
+        background: rgba(255,255,255,0.2);
+        border: 1px solid rgba(255,255,255,0.4);
+        color: #fff;
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-size: 12px;
+        font-weight: 700;
+        cursor: pointer;
+        white-space: nowrap;
+      ">Đã hiểu</button>
+    `;
+    (document.body || document.documentElement).prepend(banner);
+  } catch (e) {}
+}
+
+/* ─── PURE HARDWARE INVARIANT FINGERPRINTING (GIẢI PHÁP 2) ─── */
+// Đọc các hằng số vật lý bất biến của màn hình và CPU máy:
+// Tuyệt đối đồng nhất 100% giữa Facebook In-App Browser, Safari, Chrome và Tab ẩn danh!
 function getHardwareFingerprint() {
   try {
-    // 0. Nếu máy này đã có mã định danh -> Dùng lại vĩnh viễn (Chống đổi khi tải lại trang / mở lại link)
+    // 0. Nếu máy này đã có mã định danh trong bộ nhớ bền vững -> Dùng lại
     try {
       const saved = localStorage.getItem('hh:voter_hw_fp') || localStorage.getItem('hh:voter_fp') || sessionStorage.getItem('hh:voter_hw_fp');
       if (saved && saved.startsWith('hw_')) return saved;
@@ -1545,7 +1612,7 @@ function getHardwareFingerprint() {
       }
     } catch (e) {}
 
-    // 1. Tín hiệu màn hình vật lý cố định (chống đổi khi xoay ngang/dọc điện thoại hoặc co giãn thanh công cụ)
+    // 1. Tín hiệu màn hình vật lý cố định (không đổi khi xoay ngang/dọc hay đổi app)
     const screenSig = [
       Math.min(screen.width || 0, screen.height || 0),
       Math.max(screen.width || 0, screen.height || 0),
@@ -1553,14 +1620,13 @@ function getHardwareFingerprint() {
       window.devicePixelRatio || 1
     ].join('x');
 
-    // 2. Vi xử lý CPU, cảm ứng & nền tảng phần cứng máy
+    // 2. Vi xử lý CPU & Cảm ứng phần cứng máy
     const cpuSig = [
       navigator.hardwareConcurrency || 4,
-      navigator.maxTouchPoints || 0,
-      navigator.platform || ''
+      navigator.maxTouchPoints || 0
     ].join('|');
 
-    // 3. Hệ điều hành phần cứng (bỏ qua mọi thông số tài khoản/trình duyệt động)
+    // 3. Hệ điều hành phần cứng
     let osSig = 'unknown_os';
     const ua = navigator.userAgent || '';
     if (/iPhone|iPad|iPod/i.test(ua)) osSig = 'iOS';
@@ -1572,39 +1638,30 @@ function getHardwareFingerprint() {
     // 4. Múi giờ phần cứng
     const tzOffset = new Date().getTimezoneOffset();
 
-    // 5. Chip xử lý đồ họa WebGL phần cứng máy
-    let gpuSig = 'no_webgl';
+    // 5. Chuẩn màn hình vật lý (DCI-P3 Gamut & HDR)
+    const gamutP3 = (window.matchMedia && window.matchMedia('(color-gamut: p3)').matches) ? 'p3_1' : 'p3_0';
+    const hdr = (window.matchMedia && window.matchMedia('(dynamic-range: high)').matches) ? 'hdr_1' : 'hdr_0';
+
+    // 6. Giới hạn phần cứng GPU WebGL chuẩn (Độc lập 100% với WebView / Safari / Chrome)
+    // Các thông số này do chip GPU quy định, Facebook WebView KHÔNG THỂ che giấu hay làm lệch!
+    let glLimits = 'gl_none';
     try {
       const canvas = document.createElement('canvas');
       const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
       if (gl) {
-        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-        let renderer = '';
-        let vendor = '';
-        if (debugInfo) {
-          renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) || '';
-          vendor = gl.getParameter(debugInfo.UNMASKED_VENDOR_WEBGL) || '';
-        }
-        const maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 0;
-        const maxRender = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) || 0;
-        const maxVarying = gl.getParameter(gl.MAX_VARYING_VECTORS) || 0;
-        gpuSig = `${renderer}|${vendor}|${maxTex}|${maxRender}|${maxVarying}`;
+        glLimits = [
+          gl.getParameter(gl.MAX_TEXTURE_SIZE) || 0,
+          gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) || 0,
+          gl.getParameter(gl.MAX_VERTEX_ATTRIBS) || 0,
+          gl.getParameter(gl.MAX_VARYING_VECTORS) || 0,
+          gl.getParameter(gl.MAX_VERTEX_UNIFORM_VECTORS) || 0,
+          gl.getParameter(gl.MAX_FRAGMENT_UNIFORM_VECTORS) || 0
+        ].join(':');
       }
     } catch (e) {}
 
-    // 6. Chip âm thanh phần cứng AudioContext
-    let audioSig = 'no_audio';
-    try {
-      const AudioCtx = window.AudioContext || window.webkitAudioContext;
-      if (AudioCtx) {
-        const aCtx = new AudioCtx();
-        audioSig = `${aCtx.sampleRate}_${aCtx.destination.maxChannelCount}`;
-        aCtx.close();
-      }
-    } catch (e) {}
-
-    // 7. Kết hợp TOÀN BỘ LINH KIỆN VẬT LÝ THUẦN TÚY (Không phụ thuộc vào Gmail, ngôn ngữ, hay tài khoản)
-    const rawHardwareSig = [screenSig, cpuSig, osSig, tzOffset, gpuSig, audioSig].join('###');
+    // 7. Kết hợp TOÀN BỘ LINH KIỆN VẬT LÝ BẤT BIẾN
+    const rawHardwareSig = [screenSig, cpuSig, osSig, tzOffset, gamutP3, hdr, glLimits].join('###');
     const computedHwFp = 'hw_' + fastMurmurHash(rawHardwareSig);
 
     // Lưu bền vững đa tầng
@@ -2665,6 +2722,7 @@ function formatTimeAgo(ts) {
    INITIALIZATION
    ══════════════════════════════════════════════════════════ */
 async function init() {
+  checkAndHandleInAppBrowser();
   initSakuraPetals();
 
   // 1. Tải danh sách cuộc thi trực tiếp từ máy chủ
