@@ -1553,27 +1553,26 @@ function getHardwareFingerprint() {
       window.devicePixelRatio || 1
     ].join('x');
 
-    // 2. Vi xử lý CPU, cảm ứng & nền tảng
+    // 2. Vi xử lý CPU, cảm ứng & nền tảng phần cứng máy
     const cpuSig = [
       navigator.hardwareConcurrency || 4,
       navigator.maxTouchPoints || 0,
       navigator.platform || ''
     ].join('|');
 
-    // 3. User-Agent đặc trưng (giúp phân biệt phiên bản iOS khác nhau giữa các máy)
-    const uaSig = (navigator.userAgent || '').replace(/Mobile\/[A-Za-z0-9]+/g, '');
+    // 3. Hệ điều hành phần cứng (bỏ qua mọi thông số tài khoản/trình duyệt động)
+    let osSig = 'unknown_os';
+    const ua = navigator.userAgent || '';
+    if (/iPhone|iPad|iPod/i.test(ua)) osSig = 'iOS';
+    else if (/Android/i.test(ua)) osSig = 'Android';
+    else if (/Windows/i.test(ua)) osSig = 'Windows';
+    else if (/Macintosh|Mac OS X/i.test(ua)) osSig = 'MacOS';
+    else if (/Linux/i.test(ua)) osSig = 'Linux';
 
-    // 4. Múi giờ & Ngôn ngữ máy
-    let tzName = '';
-    try { tzName = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
-    const langSig = [
-      navigator.language || '',
-      (navigator.languages && navigator.languages.join(',')) || '',
-      new Date().getTimezoneOffset(),
-      tzName
-    ].join('|');
+    // 4. Múi giờ phần cứng
+    const tzOffset = new Date().getTimezoneOffset();
 
-    // 5. Card đồ họa WebGL (Chip xử lý WebGL Unmasked Renderer & Shader Precision Format)
+    // 5. Chip xử lý đồ họa WebGL phần cứng máy
     let gpuSig = 'no_webgl';
     try {
       const canvas = document.createElement('canvas');
@@ -1589,46 +1588,23 @@ function getHardwareFingerprint() {
         const maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 0;
         const maxRender = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) || 0;
         const maxVarying = gl.getParameter(gl.MAX_VARYING_VECTORS) || 0;
-
-        let shaderPrecision = '';
-        try {
-          const hp = gl.getShaderPrecisionFormat(gl.FRAGMENT_SHADER, gl.HIGH_FLOAT);
-          if (hp) shaderPrecision = `${hp.precision}_${hp.rangeMin}_${hp.rangeMax}`;
-        } catch (e) {}
-
-        let extCount = 0;
-        try {
-          const exts = gl.getSupportedExtensions();
-          if (exts) extCount = exts.length;
-        } catch (e) {}
-
-        gpuSig = `${renderer}|${vendor}|${maxTex}|${maxRender}|${maxVarying}|${shaderPrecision}|${extCount}`;
+        gpuSig = `${renderer}|${vendor}|${maxTex}|${maxRender}|${maxVarying}`;
       }
     } catch (e) {}
 
-    // 6. Hình học font chữ DOM chuẩn hóa số nguyên
-    const domFontSig = getDomFontMetrics();
-
-    // 7. Khử răng cưa Canvas 2D (Subpixel rendering)
-    let canvas2dSig = 'no_canvas';
+    // 6. Chip âm thanh phần cứng AudioContext
+    let audioSig = 'no_audio';
     try {
-      const c = document.createElement('canvas');
-      c.width = 200;
-      c.height = 50;
-      const ctx = c.getContext('2d');
-      if (ctx) {
-        ctx.textBaseline = 'top';
-        ctx.font = '14px Arial, sans-serif';
-        ctx.fillStyle = '#0057a8';
-        ctx.fillText('MUCE 2026 \u2764 \uD83D\uDC51', 2, 2);
-        ctx.fillStyle = 'rgba(255, 0, 128, 0.5)';
-        ctx.fillRect(5, 5, 50, 20);
-        canvas2dSig = c.toDataURL().slice(-60);
+      const AudioCtx = window.AudioContext || window.webkitAudioContext;
+      if (AudioCtx) {
+        const aCtx = new AudioCtx();
+        audioSig = `${aCtx.sampleRate}_${aCtx.destination.maxChannelCount}`;
+        aCtx.close();
       }
     } catch (e) {}
 
-    // 8. Kết hợp toàn bộ tín hiệu phần cứng thuần túy bất biến của máy
-    const rawHardwareSig = [screenSig, cpuSig, uaSig, langSig, gpuSig, domFontSig, canvas2dSig].join('###');
+    // 7. Kết hợp TOÀN BỘ LINH KIỆN VẬT LÝ THUẦN TÚY (Không phụ thuộc vào Gmail, ngôn ngữ, hay tài khoản)
+    const rawHardwareSig = [screenSig, cpuSig, osSig, tzOffset, gpuSig, audioSig].join('###');
     const computedHwFp = 'hw_' + fastMurmurHash(rawHardwareSig);
 
     // Lưu bền vững đa tầng
