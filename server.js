@@ -1291,7 +1291,7 @@ app.post('/api/vote', async (req, res) => {
       }
     }
 
-    // 1. KHÓA 1 (TÀI KHOẢN GOOGLE): Kiểm tra tài khoản Google này đã bình chọn cho thí sinh này chưa
+    // 1. KHÓA 1 (TÀI KHOẢN GOOGLE): 1 Gmail chỉ được vote 1 lần cho 1 thí sinh dù dùng Wi-Fi hay 4G
     const { rows: googleDupe } = await pool.query(
       `SELECT COUNT(*)::int as cnt FROM votes 
        WHERE contestant_id = $1 
@@ -1301,13 +1301,12 @@ app.post('/api/vote', async (req, res) => {
     );
     if (googleDupe[0].cnt >= 1) {
       return res.status(400).json({
-        error: `Tài khoản Google (${verifiedEmail}) đã bình chọn cho thí sinh này rồi, không thể bình chọn lần 2!`,
+        error: `Tài khoản Google (${verifiedEmail}) đã bình chọn cho thí sinh này rồi! Dù dùng Wi-Fi hay 4G, mỗi tài khoản chỉ được bình chọn 1 lần duy nhất.`,
         code: 'GOOGLE_ALREADY_VOTED'
       });
     }
 
-    // 2. KHÓA 2 (KHÓA THIẾT BỊ VẬT LÝ): Kiểm tra máy này đã bình chọn cho thí sinh này chưa
-    // Nếu máy đã vote -> CẤM ĐỔI SANG GMAIL KHÁC ĐỂ VOTE LẠI TRÊN CÙNG 1 MÁY!
+    // 2. KHÓA 2 (KHÓA CHẾT THIẾT BỊ VẬT LÝ): 1 máy chỉ được vote 1 lần cho 1 thí sinh dù dùng Wi-Fi hay 4G!
     if (cleanFp) {
       const { rows: fpCheck } = await pool.query(
         `SELECT COUNT(*)::int as cnt FROM votes 
@@ -1318,25 +1317,8 @@ app.post('/api/vote', async (req, res) => {
       );
       if (fpCheck[0].cnt >= 1) {
         return res.status(400).json({
-          error: 'Thiết bị này đã bình chọn cho thí sinh này rồi! Bạn không thể đổi sang tài khoản Gmail khác để bình chọn lại trên cùng một máy.',
+          error: 'Thiết bị này đã bình chọn cho thí sinh này rồi! Dù bạn dùng mạng Wi-Fi hay 4G, đổi sang tài khoản Gmail khác thì mỗi thiết bị cũng chỉ được bình chọn 1 lần duy nhất.',
           code: 'DEVICE_ALREADY_VOTED'
-        });
-      }
-    }
-
-    // 3. KHÓA 3 (MẠNG WI-FI ROUTER): Giới hạn mỗi IP Wi-Fi tối đa 2 lượt bình chọn cho 1 thí sinh
-    if (voterIp && voterIp !== 'unknown') {
-      const { rows: ipCheck } = await pool.query(
-        `SELECT COUNT(*)::int as cnt FROM votes 
-         WHERE contestant_id = $1 
-           AND (event_id = $2 OR event_id IS NULL) 
-           AND (voter_ip LIKE $3 OR voter_ip = $4)`,
-        [contestant_id, currentEventId, `${voterIp}_%`, voterIp]
-      );
-      if (ipCheck[0].cnt >= 2) {
-        return res.status(400).json({
-          error: 'Mạng Wi-Fi này đã đạt giới hạn tối đa 2 lượt bình chọn cho thí sinh này! Để tiếp tục bình chọn, bạn vui lòng chuyển sang mạng 4G trên điện thoại.',
-          code: 'IP_VOTE_LIMIT_REACHED'
         });
       }
     }
