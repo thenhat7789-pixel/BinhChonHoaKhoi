@@ -1595,7 +1595,7 @@ let state = {
   votes: {},
   votedIds: [],
   voteRatio: 80,
-  maxAllowed: 8,
+  maxAllowed: 10,
   searchQuery: ''
 };
 
@@ -2231,31 +2231,13 @@ function applyTopicData(combined, eventId, ev) {
 
   const ratioEl = document.getElementById('topicVoteRatioBadge');
   if (ratioEl) {
-    if (state.maxAllowed === 1) {
-      ratioEl.textContent = '1 phiếu / 1 thiết bị';
-    } else {
-      let ratioLabel = `${ratio}%`;
-      if (ratio === 50) ratioLabel = '50% (Tỉ lệ 5/5)';
-      else if (ratio === 70) ratioLabel = '70% (Tỉ lệ 7/3)';
-      else if (ratio === 80) ratioLabel = '80% (Tỉ lệ 8/2)';
-      else if (ratio === 100) ratioLabel = '100% (Tất cả)';
-      else {
-        const a = Math.round(ratio / 10);
-        const b = 10 - a;
-        ratioLabel = `${ratio}% (Tỉ lệ ${a}/${b})`;
-      }
-      ratioEl.textContent = ratioLabel;
-    }
+    ratioEl.textContent = `Tối đa ${state.maxAllowed} thí sinh`;
   }
 
   const cCount = (state.contestants || []).length;
   const ruleEl = document.getElementById('topicRuleText');
   if (ruleEl) {
-    if (state.maxAllowed === 1) {
-      ruleEl.textContent = 'Mỗi sinh viên & thiết bị được bình chọn 1 thí sinh duy nhất (nhấn nút "Hủy" nếu muốn chọn người khác).';
-    } else {
-      ruleEl.textContent = `Hiện có ${cCount} thí sinh, mỗi sinh viên được bình chọn tối đa ${state.maxAllowed} thí sinh khác nhau.`;
-    }
+    ruleEl.textContent = `Mỗi tài khoản được bình chọn tối đa ${state.maxAllowed} thí sinh khác nhau (1 phiếu / 1 thí sinh).`;
   }
 
   // Update Hero Stats for Topic

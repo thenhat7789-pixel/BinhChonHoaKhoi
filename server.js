@@ -725,7 +725,7 @@ app.get('/api/topic-data', async (req, res) => {
     const ev = eventResult.rows[0] || {};
     const globalRatio = settingsResult.rows.length ? parseInt(settingsResult.rows[0].value) || 100 : 100;
     const voteRatio = ev.vote_ratio ? parseInt(ev.vote_ratio) : globalRatio;
-    const maxAllowed = 1;
+    const maxAllowed = 10;
 
     res.json({
       contestants,
@@ -747,7 +747,7 @@ app.get('/api/topic-data', async (req, res) => {
       votes: {},
       totalVotes: 0,
       votedIds: [],
-      maxAllowed: 1,
+      maxAllowed: 10,
       voteRatio: 80,
       is_active: true,
       start_time: null,
@@ -1331,52 +1331,48 @@ app.post('/api/vote', async (req, res) => {
       }
     }
 
-    // 2. KHÓA 2 & 3: Kiểm tra tài khoản Google hoặc thiết bị đã bình chọn chưa
-    const { rows: existingVotes } = await pool.query(
-      `SELECT v.id, v.contestant_id, c.name as contestant_name 
+    // 2. KHÓA 1 THÍ SINH: 1 tài khoản chỉ được vote 1 lần cho CÙNG 1 thí sinh
+    const { rows: sameContestantVotes } = await pool.query(
+      `SELECT v.id, c.name as contestant_name 
        FROM votes v 
        LEFT JOIN contestants c ON c.id = v.contestant_id 
+       WHERE (v.event_id = $1 OR v.event_id IS NULL) 
+         AND v.contestant_id = $2
+         AND (
+           LOWER(v.google_email) = $3 
+           OR ($4 != '' AND v.voter_fp = $4)
+         )
+       LIMIT 1`,
+      [currentEventId, contestant_id, verifiedEmail, cleanFp]
+    );
+
+    if (sameContestantVotes.length > 0) {
+      return res.status(400).json({
+        error: `Bạn đã bình chọn cho thí sinh "${sameContestantVotes[0].contestant_name || 'này'}" rồi! Mỗi tài khoản chỉ được bình chọn 1 lần cho mỗi thí sinh (tối đa 10 thí sinh khác nhau).`,
+        code: 'ALREADY_VOTED_SAME_CONTESTANT',
+        contestant_id: contestant_id
+      });
+    }
+
+    // 3. TỐI ĐA 10 THÍ SINH KHÁC NHAU: Kiểm tra tổng số thí sinh đã bình chọn
+    const maxAllowed = 10;
+    const { rows: totalVotedRows } = await pool.query(
+      `SELECT COUNT(DISTINCT v.contestant_id)::int as total_voted 
+       FROM votes v 
        WHERE (v.event_id = $1 OR v.event_id IS NULL) 
          AND (
            LOWER(v.google_email) = $2 
            OR ($3 != '' AND v.voter_fp = $3)
-         )
-       ORDER BY v.id DESC 
-       LIMIT 1`,
+         )`,
       [currentEventId, verifiedEmail, cleanFp]
     );
 
-    if (existingVotes.length > 0) {
-      const oldVote = existingVotes[0];
-      // Nếu là cùng thí sinh đã chọn trước đó
-      if (oldVote.contestant_id === contestant_id) {
-        return res.status(400).json({
-          error: `Bạn đã bình chọn cho thí sinh "${oldVote.contestant_name || 'này'}" rồi!`,
-          code: 'ALREADY_VOTED_SAME_CONTESTANT',
-          contestant_id: contestant_id
-        });
-      }
-
-      // Nếu người dùng bấm Xác nhận Đổi bình chọn (switch_vote = true)
-      if (req.body.switch_vote) {
-        await pool.query(
-          `DELETE FROM votes 
-           WHERE (event_id = $1 OR event_id IS NULL) 
-             AND (
-               LOWER(google_email) = $2 
-               OR ($3 != '' AND voter_fp = $3)
-             )`,
-          [currentEventId, verifiedEmail, cleanFp]
-        );
-      } else {
-        // Chưa bật switch_vote -> Trả về mã CAN_SWITCH_VOTE kèm tên thí sinh cũ để hỏi xác nhận đổi bình chọn
-        return res.status(400).json({
-          error: `Tài khoản Google (${verifiedEmail}) hiện đang bình chọn cho thí sinh "${oldVote.contestant_name || 'khác'}". Bạn có muốn ĐỔI lượt bình chọn sang thí sinh này không?`,
-          code: 'CAN_SWITCH_VOTE',
-          old_contestant_id: oldVote.contestant_id,
-          old_contestant_name: oldVote.contestant_name || 'thí sinh đã chọn'
-        });
-      }
+    const totalVoted = totalVotedRows[0]?.total_voted || 0;
+    if (totalVoted >= maxAllowed) {
+      return res.status(400).json({
+        error: `Bạn đã sử dụng hết tối đa ${maxAllowed} lượt bình chọn cho ${maxAllowed} thí sinh khác nhau! Bạn có thể nhấn nút "Hủy" trên thí sinh đã chọn nếu muốn đổi người khác.`,
+        code: 'QUOTA_EXCEEDED'
+      });
     }
 
     // 4. Kiểm tra trạng thái bật/tắt, thời gian mở/kết thúc của cuộc thi này
@@ -1408,8 +1404,6 @@ app.post('/api/vote', async (req, res) => {
       }
     }
 
-    // Mỗi sinh viên / thiết bị được bình chọn tối đa 1 thí sinh duy nhất (1 vote)
-    const maxAllowed = 1;
     const voteRatio = 100;
 
     // 7. Ghi phiếu bầu kèm thông tin Google Auth + Device Hardware Fingerprint
@@ -1422,13 +1416,13 @@ app.post('/api/vote', async (req, res) => {
 
     const { rows } = await pool.query('SELECT name FROM contestants WHERE id = $1', [contestant_id]);
     const name = rows.length ? rows[0].name : contestant_id;
-    const remaining = maxAllowed - (Math.max(googleVoteCount, currentDeviceVoteCount) + 1);
+    const remaining = Math.max(0, maxAllowed - (totalVoted + 1));
 
     res.json({
       success: true,
       vote_id,
       contestant_name: name,
-      remaining: Math.max(0, remaining),
+      remaining,
       maxAllowed,
       voteRatio
     });
