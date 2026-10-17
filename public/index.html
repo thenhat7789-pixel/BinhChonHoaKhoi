@@ -1282,17 +1282,6 @@
     </div>
   </div>
 
-  <!-- Device Banned / Vote Completed Notice Banner -->
-  <div id="deviceBannedBanner" style="display:none;background:linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);border:2px solid #ef4444;border-radius:18px;padding:1.2rem 1.5rem;margin-bottom:1.5rem;box-shadow:0 8px 25px rgba(239,68,68,0.12);">
-    <div style="display:flex;align-items:center;gap:10px;font-weight:800;color:#991b1b;font-size:1.05rem;margin-bottom:6px;">
-      <span style="font-size:1.5rem;">🚫</span>
-      <span>THIẾT BỊ NÀY ĐÃ HOÀN TẤT BÌNH CHỌN</span>
-    </div>
-    <p style="color:#7f1d1d;font-size:0.88rem;line-height:1.55;margin:0;">
-      Hệ thống ghi nhận thiết bị này (điện thoại / laptop) đã hoàn tất bình chọn trong cuộc thi. Theo quy chế bảo mật chống gian lận, <strong>mỗi thiết bị chỉ được bình chọn 1 lần duy nhất</strong>. Toàn bộ các ứng dụng và trình duyệt trên máy này (Zalo, Messenger, Safari, Chrome...) đã được khóa tự động để đảm bảo tính công bằng. Cảm ơn bạn đã tham gia bình chọn!
-    </p>
-  </div>
-
   <!-- Topic Contestants Grid -->
   <div class="contestants-grid" id="contestantsGrid"></div>
 
@@ -2202,20 +2191,14 @@ function applyTopicData(combined, eventId, ev) {
   } catch (e) {}
 
   const serverVoted = Array.isArray(combined.votedIds) ? combined.votedIds : [];
-  state.votedIds = Array.from(new Set([...serverVoted, ...localVoted, ...cookieVoted]));
-  state.maxAllowed = (combined.maxAllowed !== undefined) ? combined.maxAllowed : Math.max(1, Math.round(((state.contestants || []).length * (ratio / 100))));
-  state.isDeviceBanned = !!combined.isDeviceBanned || (state.votedIds && state.votedIds.length >= state.maxAllowed);
-
-  // Hiển thị/ẩn Banner Khóa Thiết Bị Toàn Diện
-  const bannedEl = document.getElementById('deviceBannedBanner');
-  if (bannedEl) {
-    bannedEl.style.display = state.isDeviceBanned ? 'block' : 'none';
+  // CHỈ hiển thị phiếu bầu khi người dùng đã đăng nhập Google chính chủ của họ
+  if (typeof currentGoogleUser !== 'undefined' && currentGoogleUser && currentGoogleUser.email) {
+    state.votedIds = serverVoted;
+  } else {
+    state.votedIds = [];
   }
-
-  try {
-    localStorage.setItem(`hh:voted:${eventId}`, JSON.stringify(state.votedIds));
-    document.cookie = `hh_voted_${eventId}=${encodeURIComponent(JSON.stringify(state.votedIds))}; path=/; max-age=31536000; SameSite=Lax`;
-  } catch (e) {}
+  state.maxAllowed = (combined.maxAllowed !== undefined) ? combined.maxAllowed : Math.max(1, Math.round(((state.contestants || []).length * (ratio / 100))));
+  state.isDeviceBanned = false;
 
   const isActive = (combined.is_active !== undefined) ? combined.is_active : (ev ? (ev.is_active !== false) : true);
   const startTimeStr = combined.start_time || (ev ? ev.start_time : null);
@@ -2265,12 +2248,19 @@ async function loadTopicContestantsAndVotes(eventId) {
   const ev = state.events.find(e => e.id === eventId);
   const cacheKey = `hh:cache_topic:${eventId}`;
 
-  // 1. TỨC THÌ (0s): Nếu có cache cục bộ thì áp dụng và vẽ ngay lập tức
+  // Xóa sạch cache cũ để tránh bị kẹt trạng thái cũ khi mở trang
+  try {
+    localStorage.removeItem(`hh:voted:${eventId}`);
+    document.cookie = `hh_voted_${eventId}=; path=/; max-age=0; SameSite=Lax`;
+  } catch (e) {}
+
+  // 1. TỨC THÌ (0s): Nếu có cache danh sách thí sinh thì áp dụng vẽ tạm (nhưng không gán votedIds)
   const cachedStr = localStorage.getItem(cacheKey);
   if (cachedStr) {
     try {
       const cached = JSON.parse(cachedStr);
       if (cached && Array.isArray(cached.contestants) && cached.contestants.length > 0) {
+        cached.votedIds = [];
         applyTopicData(cached, eventId, ev);
       }
     } catch(e){}
@@ -2290,16 +2280,8 @@ async function loadTopicContestantsAndVotes(eventId) {
     );
 
     if (combined && Array.isArray(combined.contestants)) {
-      if (typeof currentGoogleUser !== 'undefined' && currentGoogleUser && currentGoogleUser.email) {
-        // Đã có tài khoản Google: Server là chuẩn xác nhất
-      } else {
-        let localVoted = [];
-        try {
-          localVoted = JSON.parse(localStorage.getItem(`hh:voted:${eventId}`) || '[]');
-        } catch (e) {}
-        if (!combined.votedIds || combined.votedIds.length === 0) {
-          combined.votedIds = localVoted;
-        }
+      if (!(typeof currentGoogleUser !== 'undefined' && currentGoogleUser && currentGoogleUser.email)) {
+        combined.votedIds = [];
       }
       try { localStorage.setItem(cacheKey, JSON.stringify(combined)); } catch(e){}
       applyTopicData(combined, eventId, ev);
@@ -2376,9 +2358,9 @@ function renderTopicContestants() {
       btnClass = 'vote-action-btn btn-voted';
       btnText = '✓ Đã bình chọn';
       disabled = true;
-    } else if (state.isDeviceBanned || reachedQuota) {
+    } else if (reachedQuota) {
       btnClass = 'vote-action-btn btn-disabled';
-      btnText = '🚫 Máy này đã hết lượt';
+      btnText = (state.maxAllowed === 1) ? '🔒 Đã hết lượt bình chọn' : `Hết lượt (${myVotesCount}/${state.maxAllowed})`;
       disabled = true;
     }
 
@@ -2650,8 +2632,8 @@ function openVoteModal(id) {
     toast('Bạn đã bình chọn cho thí sinh này rồi!', 'info');
     return;
   }
-  if (state.isDeviceBanned || (state.votedIds || []).length >= state.maxAllowed) {
-    toast(`🚫 Thiết bị này đã hoàn tất bình chọn! Hệ thống đã khóa máy này trên toàn bộ ứng dụng (Zalo, Messenger, Safari, Chrome).`, 'warning', 6000);
+  if ((state.votedIds || []).length >= state.maxAllowed) {
+    toast(`Bạn đã sử dụng hết ${state.maxAllowed} lượt bình chọn cho cuộc thi này!`, 'warning');
     return;
   }
   const c = state.contestants.find(x => x.id === id);

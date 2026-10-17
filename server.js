@@ -677,6 +677,7 @@ app.get('/api/topic-data', async (req, res) => {
         GROUP BY c.id
       `, [eventId]),
       // 3. My votes (Kiểm tra theo Google Email hoặc Device ID độc bản dev_)
+      // 3. My votes: CHỈ trả về danh sách đã bình chọn khi người dùng đã đăng nhập Google chính chủ
       (() => {
         const conditions = [];
         const p = [eventId];
@@ -684,10 +685,6 @@ app.get('/api/topic-data', async (req, res) => {
         if (googleEmail) {
           p.push(googleEmail);
           conditions.push(`LOWER(google_email) = $${p.length}`);
-        }
-        if (fp) {
-          p.push(fp);
-          conditions.push(`voter_fp = $${p.length}`);
         }
         if (studentId) {
           p.push(studentId);
@@ -717,7 +714,6 @@ app.get('/api/topic-data', async (req, res) => {
     const globalRatio = settingsResult.rows.length ? parseInt(settingsResult.rows[0].value) || 80 : 80;
     const voteRatio = ev.vote_ratio ? parseInt(ev.vote_ratio) : globalRatio;
     const maxAllowed = Math.max(1, Math.round((contestants.length * voteRatio) / 100));
-    const isDeviceBanned = votedIds.length >= maxAllowed;
 
     res.json({
       contestants,
@@ -726,7 +722,6 @@ app.get('/api/topic-data', async (req, res) => {
       votedIds,
       maxAllowed,
       voteRatio,
-      isDeviceBanned,
       is_active: ev.is_active !== false,
       start_time: ev.start_time || null,
       end_time: ev.end_time || null
