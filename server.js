@@ -1609,8 +1609,8 @@ app.get('/api/admin-data', async (req, res) => {
         GROUP BY e.id
         ORDER BY e.sort_order, e.created_at
       `),
-      // 2. Contestants
-      pool.query('SELECT id, event_id, name, subtitle, color, photo, sort_order, faculty, hometown FROM contestants ORDER BY sort_order, id'),
+      // 2. Contestants (KHÔNG lấy chuỗi ảnh Base64 khổng lồ để tiết kiệm 100% băng thông Neon Egress)
+      pool.query('SELECT id, event_id, name, subtitle, color, sort_order, faculty, hometown FROM contestants ORDER BY sort_order, id'),
       // 3. Votes
       pool.query(`
         SELECT c.id, c.event_id, COUNT(v.id)::int as count
