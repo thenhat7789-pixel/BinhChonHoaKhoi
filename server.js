@@ -713,8 +713,7 @@ app.get('/api/topic-data', async (req, res) => {
     const ev = eventResult.rows[0] || {};
     const globalRatio = settingsResult.rows.length ? parseInt(settingsResult.rows[0].value) || 80 : 80;
     const voteRatio = ev.vote_ratio ? parseInt(ev.vote_ratio) : globalRatio;
-    // 1 MÁY CHỈ ĐƯỢC VOTE ĐÚNG 1 LẦN DUY NHẤT TOÀN CUỘC THI (BAN MÁY HOÀN TOÀN SAU 1 VOTE)
-    const maxAllowed = 1;
+    const maxAllowed = Math.max(1, Math.round((contestants.length * voteRatio) / 100));
 
     res.json({
       contestants,
@@ -1254,9 +1253,9 @@ app.post('/api/vote', async (req, res) => {
       }
     }
 
-    // 1. KIỂM TRA THIẾT BỊ / MÁY NÀY ĐÃ BÌNH CHỌN TRONG CUỘC THI CHƯA (BAN MÁY HOÀN TOÀN SAU 1 LẦN VOTE)
-    let dupeQuery = 'SELECT COUNT(*)::int as cnt FROM votes WHERE (event_id = $1 OR event_id IS NULL) AND (';
-    const dupeParams = [currentEventId];
+    // 1. Kiểm tra đã vote cho thí sinh này chưa (1 máy chỉ được vote 1 lần cho 1 thí sinh)
+    let dupeQuery = 'SELECT COUNT(*)::int as cnt FROM votes WHERE contestant_id = $1 AND (event_id = $2 OR event_id IS NULL) AND (';
+    const dupeParams = [contestant_id, currentEventId];
     const dupeConditions = [];
     if (cleanFp) {
       dupeParams.push(cleanFp);
@@ -1284,8 +1283,8 @@ app.post('/api/vote', async (req, res) => {
     const { rows: dupeCheck } = await pool.query(dupeQuery, dupeParams);
     if (dupeCheck[0].cnt >= 1) {
       return res.status(400).json({
-        error: `Thiết bị của bạn (${cleanVoterName}) đã bình chọn trong cuộc thi này rồi! Mỗi thiết bị chỉ được bình chọn đúng 1 lần duy nhất trong toàn bộ cuộc thi.`,
-        code: 'DEVICE_ALREADY_VOTED'
+        error: `Bạn (${cleanVoterName}) hoặc thiết bị này đã bình chọn cho thí sinh này rồi, không thể bình chọn lần 2!`,
+        code: 'DUPLICATE_VOTE'
       });
     }
 
@@ -1339,8 +1338,9 @@ app.post('/api/vote', async (req, res) => {
     const globalRatio = settingsRows.length ? parseInt(settingsRows[0].value) || 80 : 80;
     const voteRatio = (eventRow.length && eventRow[0].vote_ratio) ? parseInt(eventRow[0].vote_ratio) : globalRatio;
 
-    // 1 MÁY CHỈ ĐƯỢC VOTE ĐÚNG 1 LẦN DUY NHẤT TOÀN CUỘC THI (BAN MÁY HOÀN TOÀN SAU 1 VOTE)
-    const maxAllowed = 1;
+    const { rows: contestantCount } = await pool.query('SELECT COUNT(*)::int as cnt FROM contestants WHERE (event_id = $1 OR event_id IS NULL)', [currentEventId]);
+    const totalContestants = contestantCount[0].cnt || 0;
+    const maxAllowed = Math.max(1, Math.round((totalContestants * voteRatio) / 100));
 
     let quotaQuery = 'SELECT COUNT(DISTINCT contestant_id)::int as cnt FROM votes WHERE (event_id = $1 OR event_id IS NULL) AND (';
     const quotaParams = [currentEventId];
@@ -1371,10 +1371,11 @@ app.post('/api/vote', async (req, res) => {
 
     if (currentVoteCount >= maxAllowed) {
       return res.status(400).json({
-        error: 'Thiết bị này đã sử dụng lượt bình chọn duy nhất cho cuộc thi này rồi! Bạn không thể bình chọn thêm.',
+        error: `Thiết bị này đã sử dụng hết ${maxAllowed} lượt bình chọn (${voteRatio}%) cho cuộc thi này!`,
         code: 'QUOTA_EXCEEDED',
-        maxAllowed: 1,
-        currentVotes: currentVoteCount
+        maxAllowed,
+        currentVotes: currentVoteCount,
+        voteRatio
       });
     }
 

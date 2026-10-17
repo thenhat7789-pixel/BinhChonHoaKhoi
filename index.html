@@ -2124,11 +2124,7 @@ function applyTopicData(combined, eventId, ev) {
 
   const serverVoted = Array.isArray(combined.votedIds) ? combined.votedIds : [];
   state.votedIds = Array.from(new Set([...serverVoted, ...localVoted, ...cookieVoted]));
-  state.maxAllowed = (combined.maxAllowed !== undefined) ? combined.maxAllowed : 1;
-
-  if (state.maxAllowed === 1 && state.votedIds.length > 1) {
-    state.votedIds = [state.votedIds[state.votedIds.length - 1]];
-  }
+  state.maxAllowed = (combined.maxAllowed !== undefined) ? combined.maxAllowed : Math.max(1, Math.round(((state.contestants || []).length * (ratio / 100))));
 
   try {
     localStorage.setItem(`hh:voted:${eventId}`, JSON.stringify(state.votedIds));
@@ -2146,7 +2142,7 @@ function applyTopicData(combined, eventId, ev) {
   // Update Voting Rule Bar
   const myVotesCount = (state.votedIds || []).length;
   const countEl = document.getElementById('topicMyVotesCount');
-  if (countEl) countEl.textContent = (state.maxAllowed === 1) ? `${Math.min(1, myVotesCount)} / 1 lượt` : `${myVotesCount} / ${state.maxAllowed} thí sinh`;
+  if (countEl) countEl.textContent = `${myVotesCount} / ${state.maxAllowed} thí sinh`;
 
   const ratioEl = document.getElementById('topicVoteRatioBadge');
   if (ratioEl) {
