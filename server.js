@@ -1288,7 +1288,7 @@ app.post('/api/vote', async (req, res) => {
       });
     }
 
-    // 1.5. CHỐNG TOOL SCRIPT BƠM VOTE: Cho phép tối đa 10 máy khác nhau trên cùng 1 Wi-Fi (IP) cùng vote cho 1 thí sinh
+    // 1.5. CHỐNG TOOL SCRIPT BƠM VOTE: Giới hạn mỗi IP Wi-Fi tối đa 2 lượt bình chọn cho 1 thí sinh
     if (voterIp && voterIp !== 'unknown') {
       const { rows: ipCheck } = await pool.query(
         `SELECT COUNT(*)::int as cnt FROM votes 
@@ -1297,9 +1297,9 @@ app.post('/api/vote', async (req, res) => {
            AND (voter_ip LIKE $3 OR voter_ip = $4)`,
         [contestant_id, currentEventId, `${voterIp}_%`, voterIp]
       );
-      if (ipCheck[0].cnt >= 10) {
+      if (ipCheck[0].cnt >= 2) {
         return res.status(400).json({
-          error: 'Mạng Wi-Fi này đã đạt giới hạn tối đa 10 lượt bình chọn cho thí sinh này!',
+          error: 'Mạng Wi-Fi này đã đạt giới hạn tối đa 2 lượt bình chọn cho thí sinh này! Để tiếp tục bình chọn, bạn vui lòng chuyển sang mạng 4G trên điện thoại.',
           code: 'IP_VOTE_LIMIT_REACHED'
         });
       }
