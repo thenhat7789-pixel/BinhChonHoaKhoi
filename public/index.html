@@ -2205,12 +2205,7 @@ function applyTopicData(combined, eventId, ev) {
   } catch (e) {}
 
   const serverVoted = Array.isArray(combined.votedIds) ? combined.votedIds : [];
-  if (combined.isFreshServer) {
-    // Dữ liệu mới nhất từ máy chủ là chuẩn mực xác thực: đồng bộ chính xác và xóa bỏ cache cũ nếu có
-    state.votedIds = serverVoted;
-  } else {
-    state.votedIds = Array.from(new Set([...serverVoted, ...localVoted, ...cookieVoted]));
-  }
+  state.votedIds = Array.from(new Set([...serverVoted, ...localVoted, ...cookieVoted]));
   state.maxAllowed = (combined.maxAllowed !== undefined) ? combined.maxAllowed : Math.max(1, Math.round(((state.contestants || []).length * (ratio / 100))));
 
   try {
@@ -2283,13 +2278,19 @@ async function loadTopicContestantsAndVotes(eventId) {
   // 2. Chạy ngầm tải dữ liệu mới nhất từ server và cập nhật mượt mà
   try {
     const studentId = localStorage.getItem('hh:student_id') || '';
+    const voterName = localStorage.getItem('hh:voter_name') || '';
     const googleEmailParam = (typeof currentGoogleUser !== 'undefined' && currentGoogleUser && currentGoogleUser.email) ? `&google_email=${encodeURIComponent(currentGoogleUser.email)}` : '';
+    const voterNameParam = voterName ? `&voter_name=${encodeURIComponent(voterName)}` : '';
     const combined = await api.get(
-      `/api/topic-data?event=${encodeURIComponent(eventId)}&fp=${encodeURIComponent(VOTER_FP)}&student_id=${encodeURIComponent(studentId)}${googleEmailParam}`
+      `/api/topic-data?event=${encodeURIComponent(eventId)}&fp=${encodeURIComponent(VOTER_FP)}&student_id=${encodeURIComponent(studentId)}${voterNameParam}${googleEmailParam}`
     );
 
     if (combined && Array.isArray(combined.contestants)) {
-      combined.isFreshServer = true;
+      let localVoted = [];
+      try {
+        localVoted = JSON.parse(localStorage.getItem(`hh:voted:${eventId}`) || '[]');
+      } catch (e) {}
+      combined.votedIds = Array.from(new Set([...(combined.votedIds || []), ...localVoted]));
       try { localStorage.setItem(cacheKey, JSON.stringify(combined)); } catch(e){}
       applyTopicData(combined, eventId, ev);
     } else {

@@ -695,6 +695,13 @@ app.get('/api/topic-data', async (req, res) => {
           p.push(studentId);
           conditions.push(`(student_id = $${p.length} AND student_id != '')`);
         }
+        const voterName = (req.query.voter_name || '').trim();
+        if (voterName && voterIp && voterIp !== 'unknown') {
+          p.push(voterName.toLowerCase());
+          p.push(`${voterIp}_%`);
+          p.push(voterIp);
+          conditions.push(`(LOWER(TRIM(voter_name)) = $${p.length - 2} AND (voter_ip LIKE $${p.length - 1} OR voter_ip = $${p.length}))`);
+        }
         if (conditions.length === 0) {
           return pool.query('SELECT DISTINCT contestant_id FROM votes WHERE 1 = 0');
         }
@@ -1532,6 +1539,13 @@ app.get('/api/my-votes', async (req, res) => {
     if (studentId) {
       myVotesParams.push(studentId);
       myVotesConditions.push(`(student_id = $${myVotesParams.length} AND student_id != '')`);
+    }
+    const voterName = (req.query.voter_name || '').trim();
+    if (voterName && voterIp && voterIp !== 'unknown') {
+      myVotesParams.push(voterName.toLowerCase());
+      myVotesParams.push(`${voterIp}_%`);
+      myVotesParams.push(voterIp);
+      myVotesConditions.push(`(LOWER(TRIM(voter_name)) = $${myVotesParams.length - 2} AND (voter_ip LIKE $${myVotesParams.length - 1} OR voter_ip = $${myVotesParams.length}))`);
     }
 
     let votedIds = [];
