@@ -676,10 +676,15 @@ app.get('/api/topic-data', async (req, res) => {
         WHERE c.event_id = $1
         GROUP BY c.id
       `, [eventId]),
-      // 3. My votes (Kiểm tra theo Device ID/Fingerprint và MSSV, không chặn lây sang máy bạn bè cùng Wi-Fi)
+      // 3. My votes (Kiểm tra theo Device ID/Fingerprint, Google Email và MSSV)
       (() => {
         const conditions = [];
         const p = [eventId];
+        const googleEmail = (req.query.google_email || '').toLowerCase().trim();
+        if (googleEmail) {
+          p.push(googleEmail);
+          conditions.push(`LOWER(google_email) = $${p.length}`);
+        }
         if (fp) {
           p.push(fp);
           conditions.push(`voter_fp = $${p.length}`);
@@ -1167,7 +1172,7 @@ app.all('/api/votes/purge-injected', requireAdminAuth, async (req, res) => {
 
 // ─── POST /api/vote ───────────────────────────────
 app.post('/api/vote', async (req, res) => {
-  const { contestant_id, event_id, voter_name, student_id, student_class, faculty, comment, voter_fingerprint, hp_token, is_automated, vote_duration } = req.body;
+  const { contestant_id, event_id, voter_name, student_id, student_class, faculty, comment, voter_fingerprint, hp_token, is_automated, vote_duration, google_token } = req.body;
   if (!contestant_id) return res.status(400).json({ error: 'Thiếu contestant_id' });
 
   // 1. BẪY BOT (HONEYPOT TRAP) - Ô nhập liệu ẩn chỉ bot/tool quét được và tự điền
@@ -1195,6 +1200,39 @@ app.post('/api/vote', async (req, res) => {
     });
   }
 
+  // 4. BẮT BUỘC ĐĂNG NHẬP GOOGLE CHÍNH CHỦ (XÁC THỰC TOKEN MÁY CHỦ GOOGLE)
+  if (!google_token) {
+    return res.status(401).json({
+      error: 'Vui lòng đăng nhập tài khoản Google để xác thực bình chọn chính chủ!',
+      code: 'GOOGLE_AUTH_REQUIRED'
+    });
+  }
+
+  const googleUser = await verifyFirebaseTokenWithGoogle(google_token);
+  let verifiedEmail = (googleUser?.email || '').toLowerCase().trim();
+  let verifiedUid = googleUser?.localId || googleUser?.uid || '';
+
+  // Fallback decode nếu mạng server gọi Google Identity Toolkit chập chờn
+  if (!verifiedEmail) {
+    try {
+      const parts = google_token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+        if (payload.exp && Date.now() / 1000 < payload.exp && payload.email) {
+          verifiedEmail = payload.email.toLowerCase().trim();
+          verifiedUid = payload.user_id || payload.sub || '';
+        }
+      }
+    } catch (err) {}
+  }
+
+  if (!verifiedEmail) {
+    return res.status(401).json({
+      error: 'Phiên đăng nhập Google không hợp lệ hoặc đã hết hạn! Vui lòng bấm đăng nhập lại.',
+      code: 'INVALID_GOOGLE_TOKEN'
+    });
+  }
+
   const currentEventId = event_id || 'evt_hoakhoi_2026';
   const cleanVoterName = (voter_name || '').trim();
   const cleanStudentId = (student_id || '').trim();
@@ -1202,7 +1240,7 @@ app.post('/api/vote', async (req, res) => {
   const cleanFaculty = (faculty || '').trim();
   const cleanFp = (voter_fingerprint || '').trim();
 
-  // 4. CHUẨN HÓA HỌ VÀ TÊN NGƯỜI BÌNH CHỌN (CHỐNG GÕ BỪA SPAM)
+  // 5. CHUẨN HÓA HỌ VÀ TÊN NGƯỜI BÌNH CHỌN (CHỐNG GÕ BỪA SPAM)
   const nameError = validateVoterName(cleanVoterName);
   if (nameError) {
     return res.status(400).json({ error: nameError, code: 'INVALID_NAME' });
@@ -1214,7 +1252,7 @@ app.post('/api/vote', async (req, res) => {
     || 'unknown';
   const voterId = cleanFp ? `${voterIp}_${cleanFp}` : voterIp;
 
-  // 5. GIỚI HẠN TẦN SUẤT GỬI PHIẾU (RATE LIMITING)
+  // 6. GIỚI HẠN TẦN SUẤT GỬI PHIẾU (RATE LIMITING)
   if (!checkVoteRateLimit(voterIp)) {
     return res.status(429).json({
       error: 'Bạn đang thao tác quá nhanh! Vui lòng chờ 30 giây rồi thử lại.',
@@ -1222,7 +1260,7 @@ app.post('/api/vote', async (req, res) => {
     });
   }
 
-  // 6. CHẶN VPN 1.1.1.1 (Cloudflare WARP) & PROXY DATACENTER / TOR
+  // 7. CHẶN VPN 1.1.1.1 (Cloudflare WARP) & PROXY DATACENTER / TOR
   if (isVpnOrProxy(voterIp)) {
     return res.status(400).json({
       error: 'Hệ thống phát hiện thiết bị đang bật VPN (1.1.1.1 / Proxy / Fake IP). Để đảm bảo tính minh bạch và công bằng cho cuộc thi, bạn vui lòng TẮT VPN trên điện thoại rồi thực hiện bình chọn!',
@@ -1253,42 +1291,40 @@ app.post('/api/vote', async (req, res) => {
       }
     }
 
-    // 1. Kiểm tra đã vote cho thí sinh này chưa (1 máy chỉ được vote 1 lần cho 1 thí sinh)
-    let dupeQuery = 'SELECT COUNT(*)::int as cnt FROM votes WHERE contestant_id = $1 AND (event_id = $2 OR event_id IS NULL) AND (';
-    const dupeParams = [contestant_id, currentEventId];
-    const dupeConditions = [];
-    if (cleanFp) {
-      dupeParams.push(cleanFp);
-      dupeConditions.push(`voter_fp = $${dupeParams.length}`);
-      dupeParams.push(`%_${cleanFp}`);
-      dupeConditions.push(`voter_ip LIKE $${dupeParams.length}`);
-    }
-    if (cleanStudentId) {
-      dupeParams.push(cleanStudentId);
-      dupeConditions.push(`(student_id = $${dupeParams.length} AND student_id != '')`);
-    }
-    // Chống thoát ra quét QR / đổi Zalo / tab ẩn danh bằng cùng Họ và Tên trên cùng mạng IP
-    if (cleanVoterName && voterIp && voterIp !== 'unknown') {
-      dupeParams.push(cleanVoterName.toLowerCase());
-      dupeParams.push(`${voterIp}_%`);
-      dupeParams.push(voterIp);
-      dupeConditions.push(`(LOWER(TRIM(voter_name)) = $${dupeParams.length - 2} AND (voter_ip LIKE $${dupeParams.length - 1} OR voter_ip = $${dupeParams.length}))`);
-    }
-    if (dupeConditions.length === 0) {
-      dupeParams.push(voterId);
-      dupeConditions.push(`voter_ip = $${dupeParams.length}`);
-    }
-    dupeQuery += dupeConditions.join(' OR ') + ')';
-
-    const { rows: dupeCheck } = await pool.query(dupeQuery, dupeParams);
-    if (dupeCheck[0].cnt >= 1) {
+    // 1. KHÓA 1 (TÀI KHOẢN GOOGLE): Kiểm tra tài khoản Google này đã bình chọn cho thí sinh này chưa
+    const { rows: googleDupe } = await pool.query(
+      `SELECT COUNT(*)::int as cnt FROM votes 
+       WHERE contestant_id = $1 
+         AND (event_id = $2 OR event_id IS NULL) 
+         AND LOWER(google_email) = $3`,
+      [contestant_id, currentEventId, verifiedEmail]
+    );
+    if (googleDupe[0].cnt >= 1) {
       return res.status(400).json({
-        error: `Bạn (${cleanVoterName}) hoặc thiết bị này đã bình chọn cho thí sinh này rồi, không thể bình chọn lần 2!`,
-        code: 'DUPLICATE_VOTE'
+        error: `Tài khoản Google (${verifiedEmail}) đã bình chọn cho thí sinh này rồi, không thể bình chọn lần 2!`,
+        code: 'GOOGLE_ALREADY_VOTED'
       });
     }
 
-    // 1.5. CHỐNG TOOL SCRIPT BƠM VOTE: Giới hạn mỗi IP Wi-Fi tối đa 2 lượt bình chọn cho 1 thí sinh
+    // 2. KHÓA 2 (KHÓA THIẾT BỊ VẬT LÝ): Kiểm tra máy này đã bình chọn cho thí sinh này chưa
+    // Nếu máy đã vote -> CẤM ĐỔI SANG GMAIL KHÁC ĐỂ VOTE LẠI TRÊN CÙNG 1 MÁY!
+    if (cleanFp) {
+      const { rows: fpCheck } = await pool.query(
+        `SELECT COUNT(*)::int as cnt FROM votes 
+         WHERE contestant_id = $1 
+           AND (event_id = $2 OR event_id IS NULL) 
+           AND (voter_fp = $3 OR voter_ip LIKE $4)`,
+        [contestant_id, currentEventId, cleanFp, `%_${cleanFp}`]
+      );
+      if (fpCheck[0].cnt >= 1) {
+        return res.status(400).json({
+          error: 'Thiết bị này đã bình chọn cho thí sinh này rồi! Bạn không thể đổi sang tài khoản Gmail khác để bình chọn lại trên cùng một máy.',
+          code: 'DEVICE_ALREADY_VOTED'
+        });
+      }
+    }
+
+    // 3. KHÓA 3 (MẠNG WI-FI ROUTER): Giới hạn mỗi IP Wi-Fi tối đa 2 lượt bình chọn cho 1 thí sinh
     if (voterIp && voterIp !== 'unknown') {
       const { rows: ipCheck } = await pool.query(
         `SELECT COUNT(*)::int as cnt FROM votes 
@@ -1305,7 +1341,7 @@ app.post('/api/vote', async (req, res) => {
       }
     }
 
-    // 2. Kiểm tra trạng thái bật/tắt, thời gian mở/kết thúc và tỉ lệ bình chọn của cuộc thi này
+    // 4. Kiểm tra trạng thái bật/tắt, thời gian mở/kết thúc và tỉ lệ bình chọn của cuộc thi này
     const { rows: eventRow } = await pool.query("SELECT is_active, vote_ratio, end_time, start_time FROM events WHERE id = $1", [currentEventId]);
     if (eventRow.length && eventRow[0].is_active === false) {
       return res.status(400).json({
@@ -1342,60 +1378,62 @@ app.post('/api/vote', async (req, res) => {
     const totalContestants = contestantCount[0].cnt || 0;
     const maxAllowed = Math.max(1, Math.round((totalContestants * voteRatio) / 100));
 
-    let quotaQuery = 'SELECT COUNT(DISTINCT contestant_id)::int as cnt FROM votes WHERE (event_id = $1 OR event_id IS NULL) AND (';
-    const quotaParams = [currentEventId];
-    const quotaConditions = [];
-    if (cleanFp) {
-      quotaParams.push(cleanFp);
-      quotaConditions.push(`voter_fp = $${quotaParams.length}`);
-      quotaParams.push(`%_${cleanFp}`);
-      quotaConditions.push(`voter_ip LIKE $${quotaParams.length}`);
-    }
-    if (cleanStudentId) {
-      quotaParams.push(cleanStudentId);
-      quotaConditions.push(`(student_id = $${quotaParams.length} AND student_id != '')`);
-    }
-    if (cleanVoterName && voterIp && voterIp !== 'unknown') {
-      quotaParams.push(cleanVoterName.toLowerCase());
-      quotaParams.push(`${voterIp}_%`);
-      quotaParams.push(voterIp);
-      quotaConditions.push(`(LOWER(TRIM(voter_name)) = $${quotaParams.length - 2} AND (voter_ip LIKE $${quotaParams.length - 1} OR voter_ip = $${quotaParams.length}))`);
-    }
-    if (quotaConditions.length === 0) {
-      quotaParams.push(voterId);
-      quotaConditions.push(`voter_ip = $${quotaParams.length}`);
-    }
-    quotaQuery += quotaConditions.join(' OR ') + ')';
-    const { rows: voterVotes } = await pool.query(quotaQuery, quotaParams);
-    const currentVoteCount = voterVotes[0].cnt;
-
-    if (currentVoteCount >= maxAllowed) {
+    // 5. Kiểm tra tổng quota bình chọn theo tài khoản Google
+    const { rows: googleQuota } = await pool.query(
+      `SELECT COUNT(DISTINCT contestant_id)::int as cnt FROM votes 
+       WHERE (event_id = $1 OR event_id IS NULL) 
+         AND LOWER(google_email) = $2`,
+      [currentEventId, verifiedEmail]
+    );
+    const googleVoteCount = googleQuota[0].cnt;
+    if (googleVoteCount >= maxAllowed) {
       return res.status(400).json({
-        error: `Thiết bị này đã sử dụng hết ${maxAllowed} lượt bình chọn (${voteRatio}%) cho cuộc thi này!`,
-        code: 'QUOTA_EXCEEDED',
+        error: `Tài khoản Google (${verifiedEmail}) đã sử dụng hết ${maxAllowed} lượt bình chọn (${voteRatio}%) cho cuộc thi này!`,
+        code: 'GOOGLE_QUOTA_EXCEEDED',
         maxAllowed,
-        currentVotes: currentVoteCount,
+        currentVotes: googleVoteCount,
         voteRatio
       });
     }
 
-    // 3. Ghi phiếu bầu
+    // 6. Kiểm tra tổng quota bình chọn theo thiết bị vật lý
+    let currentDeviceVoteCount = 0;
+    if (cleanFp) {
+      const { rows: fpQuotaCheck } = await pool.query(
+        `SELECT COUNT(DISTINCT contestant_id)::int as cnt FROM votes 
+         WHERE (event_id = $1 OR event_id IS NULL) 
+           AND (voter_fp = $2 OR voter_ip LIKE $3)`,
+        [currentEventId, cleanFp, `%_${cleanFp}`]
+      );
+      currentDeviceVoteCount = fpQuotaCheck[0].cnt;
+      if (currentDeviceVoteCount >= maxAllowed) {
+        return res.status(400).json({
+          error: `Thiết bị này đã sử dụng hết ${maxAllowed} lượt bình chọn (${voteRatio}%) cho cuộc thi này! Bạn không thể đổi tài khoản Gmail để vote tiếp trên máy này.`,
+          code: 'DEVICE_QUOTA_EXCEEDED',
+          maxAllowed,
+          currentVotes: currentDeviceVoteCount,
+          voteRatio
+        });
+      }
+    }
+
+    // 7. Ghi phiếu bầu kèm thông tin Google Auth + Device Hardware Fingerprint
     const vote_id = 'vote_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
     await pool.query(
-      `INSERT INTO votes (vote_id, contestant_id, event_id, voter_name, student_id, student_class, faculty, comment, voter_ip, voter_fp) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-      [vote_id, contestant_id, currentEventId, cleanVoterName, cleanStudentId, cleanStudentClass, cleanFaculty, comment || '', voterId, cleanFp]
+      `INSERT INTO votes (vote_id, contestant_id, event_id, voter_name, student_id, student_class, faculty, comment, voter_ip, voter_fp, google_email, google_uid) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      [vote_id, contestant_id, currentEventId, cleanVoterName, cleanStudentId, cleanStudentClass, cleanFaculty, comment || '', voterId, cleanFp, verifiedEmail, verifiedUid]
     );
 
     const { rows } = await pool.query('SELECT name FROM contestants WHERE id = $1', [contestant_id]);
     const name = rows.length ? rows[0].name : contestant_id;
-    const remaining = maxAllowed - (currentVoteCount + 1);
+    const remaining = maxAllowed - (Math.max(googleVoteCount, currentDeviceVoteCount) + 1);
 
     res.json({
       success: true,
       vote_id,
       contestant_name: name,
-      remaining,
+      remaining: Math.max(0, remaining),
       maxAllowed,
       voteRatio
     });
@@ -1415,10 +1453,15 @@ app.get('/api/my-votes', async (req, res) => {
   const fp = (req.query.fp || '').trim();
   const voterId = fp ? `${voterIp}_${fp}` : voterIp;
   const studentId = (req.query.student_id || '').trim();
+  const googleEmail = (req.query.google_email || '').toLowerCase().trim();
 
   try {
     const myVotesConditions = [];
     const myVotesParams = [eventId];
+    if (googleEmail) {
+      myVotesParams.push(googleEmail);
+      myVotesConditions.push(`LOWER(google_email) = $${myVotesParams.length}`);
+    }
     if (fp) {
       myVotesParams.push(fp);
       myVotesConditions.push(`voter_fp = $${myVotesParams.length}`);

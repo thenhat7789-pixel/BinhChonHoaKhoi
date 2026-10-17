@@ -150,6 +150,8 @@ async function initDB() {
       ALTER TABLE votes ADD COLUMN IF NOT EXISTS student_class VARCHAR(100) DEFAULT '';
       ALTER TABLE votes ADD COLUMN IF NOT EXISTS faculty VARCHAR(100) DEFAULT '';
       ALTER TABLE votes ADD COLUMN IF NOT EXISTS voter_fp VARCHAR(100) DEFAULT '';
+      ALTER TABLE votes ADD COLUMN IF NOT EXISTS google_email VARCHAR(255) DEFAULT '';
+      ALTER TABLE votes ADD COLUMN IF NOT EXISTS google_uid VARCHAR(128) DEFAULT '';
 
       -- Gán slug mặc định cho 4 cuộc thi chính nếu chưa có
       UPDATE events SET slug = 'hoakhoi' WHERE id = 'evt_hoakhoi_2026' AND (slug IS NULL OR slug = '');
@@ -169,6 +171,8 @@ async function initDB() {
       CREATE INDEX IF NOT EXISTS idx_votes_voter_contestant ON votes (voter_ip, contestant_id);
       CREATE INDEX IF NOT EXISTS idx_votes_voter_fp ON votes (voter_fp);
       CREATE INDEX IF NOT EXISTS idx_votes_fp_contestant ON votes (voter_fp, contestant_id);
+      CREATE INDEX IF NOT EXISTS idx_votes_google_email ON votes (google_email);
+      CREATE INDEX IF NOT EXISTS idx_votes_google_contestant ON votes (google_email, contestant_id);
       CREATE INDEX IF NOT EXISTS idx_votes_student_id ON votes (student_id);
       CREATE INDEX IF NOT EXISTS idx_votes_event_id ON votes (event_id);
       CREATE INDEX IF NOT EXISTS idx_contestants_event_id ON contestants (event_id);
