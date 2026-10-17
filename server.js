@@ -148,49 +148,61 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 // ─── ADMIN AUTHENTICATION SECURITY & RATE LIMITING ───────────
-const ADMIN_MASTER_SECRET = process.env.ADMIN_SECRET || 'muce_admin_secure_key_2026';
+const ADMIN_MASTER_SECRET = process.env.ADMIN_SECRET;
+const FIREBASE_API_KEY = process.env.FIREBASE_API_KEY || 'AIzaSyDOHpUa5QSzq-N-PhAEqiAe0jjViq8Pm-Q';
 const adjustCooldownMap = new Map();
 
+// Xác thực tính hợp lệ của token Firebase trực tiếp với máy chủ Google
+async function verifyFirebaseTokenWithGoogle(token) {
+  if (!token) return null;
+  try {
+    const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idToken: token })
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data && data.users && data.users.length > 0) {
+      return data.users[0];
+    }
+  } catch (err) {
+    console.warn('Google Identity Toolkit verify warning:', err.message);
+  }
+  return null;
+}
+
 async function requireAdminAuth(req, res, next) {
-  // 1. Kiểm tra secret key từ header, query, hoặc body
+  // 1. Kiểm tra secret key từ biến môi trường máy chủ (nếu có cấu hình ADMIN_SECRET riêng)
   const masterKey = req.headers['x-admin-key'] || req.query.admin_key || req.body?.admin_key;
-  if (masterKey && masterKey === ADMIN_MASTER_SECRET) {
+  if (ADMIN_MASTER_SECRET && masterKey && masterKey === ADMIN_MASTER_SECRET) {
     req.adminUser = { role: 'owner', email: 'owner_master' };
     return next();
   }
 
-  // 2. Kiểm tra Firebase Bearer Token từ Google Auth
+  // 2. Kiểm tra Firebase Bearer Token từ Google Auth và xác thực chữ ký số qua Google Server
   const authHeader = req.headers['authorization'] || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : (req.headers['x-firebase-token'] || '');
 
   if (token) {
-    try {
-      const parts = token.split('.');
-      if (parts.length === 3) {
-        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
-        const email = (payload.email || '').toLowerCase();
+    const googleUser = await verifyFirebaseTokenWithGoogle(token);
+    if (googleUser && googleUser.email) {
+      const email = googleUser.email.toLowerCase();
 
-        if (payload.exp && Date.now() / 1000 > payload.exp) {
-          return res.status(401).json({ error: 'Phiên làm việc hết hạn, vui lòng đăng nhập lại!' });
-        }
-
-        let superadminEmail = 'hongnhung2050py@gmail.com';
-        try {
-          if (pool) {
-            const { rows: settingsRows } = await pool.query("SELECT value FROM settings WHERE key = 'superadmin_email'");
-            if (settingsRows.length && settingsRows[0].value) {
-              superadminEmail = settingsRows[0].value.toLowerCase();
-            }
+      let superadminEmail = 'hongnhung2050py@gmail.com';
+      try {
+        if (pool) {
+          const { rows: settingsRows } = await pool.query("SELECT value FROM settings WHERE key = 'superadmin_email'");
+          if (settingsRows.length && settingsRows[0].value) {
+            superadminEmail = settingsRows[0].value.toLowerCase();
           }
-        } catch (e) {}
-
-        if (email === superadminEmail || email === 'hongnhung2050py@gmail.com') {
-          req.adminUser = { role: 'owner', email };
-          return next();
         }
+      } catch (e) {}
+
+      if (email === superadminEmail || email === 'hongnhung2050py@gmail.com') {
+        req.adminUser = { role: 'owner', email };
+        return next();
       }
-    } catch (e) {
-      console.warn('Admin token verify warning:', e.message);
     }
   }
 
@@ -1211,6 +1223,23 @@ app.post('/api/vote', async (req, res) => {
         error: `Bạn (${cleanVoterName}) hoặc thiết bị này đã bình chọn cho thí sinh này rồi, không thể bình chọn lần 2!`,
         code: 'DUPLICATE_VOTE'
       });
+    }
+
+    // 1.5. CHỐNG TOOL SCRIPT BƠM VOTE: Giới hạn tối đa 5 phiếu / địa chỉ IP cho cùng 1 thí sinh
+    if (voterIp && voterIp !== 'unknown') {
+      const { rows: ipCheck } = await pool.query(
+        `SELECT COUNT(*)::int as cnt FROM votes 
+         WHERE contestant_id = $1 
+           AND (event_id = $2 OR event_id IS NULL) 
+           AND (voter_ip LIKE $3 OR voter_ip = $4)`,
+        [contestant_id, currentEventId, `${voterIp}_%`, voterIp]
+      );
+      if (ipCheck[0].cnt >= 5) {
+        return res.status(400).json({
+          error: 'Mạng Internet (IP) này đã đạt số lượt bình chọn tối đa cho thí sinh này!',
+          code: 'IP_VOTE_LIMIT_REACHED'
+        });
+      }
     }
 
     // 2. Kiểm tra trạng thái bật/tắt, thời gian mở/kết thúc và tỉ lệ bình chọn của cuộc thi này
