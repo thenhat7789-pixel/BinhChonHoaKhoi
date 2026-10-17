@@ -676,7 +676,7 @@ app.get('/api/topic-data', async (req, res) => {
         WHERE c.event_id = $1
         GROUP BY c.id
       `, [eventId]),
-      // 3. My votes (Kiểm tra theo Device ID/Fingerprint và MSSV, không chặn lây theo IP Wi-Fi)
+      // 3. My votes (Kiểm tra theo Device ID/Fingerprint và IP mạng)
       (() => {
         const conditions = [];
         const p = [eventId];
@@ -685,6 +685,12 @@ app.get('/api/topic-data', async (req, res) => {
           conditions.push(`voter_fp = $${p.length}`);
           p.push(`%_${fp}`);
           conditions.push(`voter_ip LIKE $${p.length}`);
+        }
+        if (voterIp && voterIp !== 'unknown') {
+          p.push(`${voterIp}_%`);
+          conditions.push(`voter_ip LIKE $${p.length}`);
+          p.push(voterIp);
+          conditions.push(`voter_ip = $${p.length}`);
         }
         if (studentId) {
           p.push(studentId);
@@ -1288,7 +1294,7 @@ app.post('/api/vote', async (req, res) => {
       });
     }
 
-    // 1.5. CHỐNG TOOL SCRIPT BƠM VOTE: Giới hạn tối đa 5 phiếu / địa chỉ IP cho cùng 1 thí sinh
+    // 1.5. CHỐNG ĐỔI GMAIL / TAB ẨN DANH / TOOL SCRIPT: Mỗi địa chỉ IP mạng chỉ được vote đúng 1 lần duy nhất cho mỗi thí sinh
     if (voterIp && voterIp !== 'unknown') {
       const { rows: ipCheck } = await pool.query(
         `SELECT COUNT(*)::int as cnt FROM votes 
@@ -1297,9 +1303,9 @@ app.post('/api/vote', async (req, res) => {
            AND (voter_ip LIKE $3 OR voter_ip = $4)`,
         [contestant_id, currentEventId, `${voterIp}_%`, voterIp]
       );
-      if (ipCheck[0].cnt >= 5) {
+      if (ipCheck[0].cnt >= 1) {
         return res.status(400).json({
-          error: 'Mạng Internet (IP) này đã đạt số lượt bình chọn tối đa cho thí sinh này!',
+          error: 'Địa chỉ mạng Internet (IP) này đã bình chọn cho thí sinh này rồi, không thể bình chọn lần thứ 2!',
           code: 'IP_VOTE_LIMIT_REACHED'
         });
       }
