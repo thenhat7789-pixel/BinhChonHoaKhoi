@@ -1875,6 +1875,67 @@ app.post('/api/settings', requireAdminAuth, async (req, res) => {
   }
 });
 
+// ─── POST /api/admin/cleanup-photos ──────────────
+// Dọn dẹp ảnh base64 còn sót trong DB (chỉ giữ lại URL Cloudinary)
+// Gọi 1 lần sau khi đã đảm bảo toàn bộ ảnh đã lên Cloudinary
+app.post('/api/admin/cleanup-photos', requireAdminAuth, async (req, res) => {
+  try {
+    // 1. Đếm số thí sinh còn ảnh base64 trong DB
+    const { rows: b64Rows } = await pool.query(`
+      SELECT id, LEFT(photo, 30) as photo_preview
+      FROM contestants
+      WHERE photo LIKE 'data:image/%'
+         OR (photo != '' AND photo NOT LIKE 'http%' AND photo NOT LIKE '/uploads/%')
+    `);
+
+    if (b64Rows.length === 0) {
+      return res.json({ success: true, cleaned: 0, message: 'Không còn ảnh base64 trong DB. DB đã sạch!' });
+    }
+
+    // 2. Xóa base64, giữ lại URL Cloudinary & /uploads/...
+    const { rowCount } = await pool.query(`
+      UPDATE contestants
+      SET photo = ''
+      WHERE photo LIKE 'data:image/%'
+         OR (photo != '' AND photo NOT LIKE 'http%' AND photo NOT LIKE '/uploads/%')
+    `);
+
+    // 3. Dọn dẹp ảnh base64 trong vote_archives.contestants_data (JSON)
+    let archivesCleaned = 0;
+    try {
+      const { rows: arcRows } = await pool.query(`SELECT id, archive_id, contestants_data FROM vote_archives WHERE contestants_data IS NOT NULL AND contestants_data != '[]'`);
+      for (const arc of arcRows) {
+        try {
+          const contestants = JSON.parse(arc.contestants_data || '[]');
+          let changed = false;
+          for (const c of contestants) {
+            if (c.photo && (c.photo.startsWith('data:image/') || (!c.photo.startsWith('http') && !c.photo.startsWith('/uploads/')))) {
+              c.photo = '';
+              changed = true;
+            }
+          }
+          if (changed) {
+            await pool.query('UPDATE vote_archives SET contestants_data = $1 WHERE id = $2', [JSON.stringify(contestants), arc.id]);
+            archivesCleaned++;
+          }
+        } catch (parseErr) {}
+      }
+    } catch (arcErr) {
+      console.warn('Lỗi dọn dẹp archives (bỏ qua):', arcErr.message);
+    }
+
+    res.json({
+      success: true,
+      cleaned: rowCount || 0,
+      archives_cleaned: archivesCleaned,
+      message: `✅ Đã xóa ảnh base64 khỏi ${rowCount} thí sinh trong DB và ${archivesCleaned} bản lưu trữ. Neon Egress sẽ giảm đáng kể!`
+    });
+  } catch (e) {
+    console.error('POST /api/admin/cleanup-photos error:', e);
+    res.status(500).json({ error: 'Lỗi dọn dẹp ảnh: ' + e.message });
+  }
+});
+
 // ─── POST /api/archives ───────────────────────────
 // Lưu trữ đợt bình chọn hiện tại vào kho lịch sử
 app.post('/api/archives', requireAdminAuth, async (req, res) => {
@@ -1883,7 +1944,7 @@ app.post('/api/archives', requireAdminAuth, async (req, res) => {
     const archive_id = 'arc_' + Date.now();
     const finalTitle = (title || '').trim() || ('Đợt bình chọn ' + new Date().toLocaleString('vi-VN'));
 
-    const { rows: contestants } = await pool.query('SELECT * FROM contestants ORDER BY sort_order, id');
+    const { rows: contestants } = await pool.query('SELECT id, event_id, name, subtitle, color, sort_order, faculty, hometown FROM contestants ORDER BY sort_order, id');
     const { rows: votesData } = await pool.query(`
       SELECT contestant_id as id, COUNT(*)::int as count 
       FROM votes GROUP BY contestant_id
@@ -1989,7 +2050,7 @@ app.post('/api/reset-votes', requireAdminAuth, async (req, res) => {
       if (cnt[0].c > 0) {
         const archive_id = 'arc_' + Date.now();
         const finalTitle = title || ('Đợt trước khi Reset (' + new Date().toLocaleString('vi-VN') + ')');
-        const { rows: contestants } = await pool.query('SELECT * FROM contestants ORDER BY sort_order, id');
+        const { rows: contestants } = await pool.query('SELECT id, event_id, name, subtitle, color, sort_order, faculty, hometown FROM contestants ORDER BY sort_order, id');
         const { rows: votesData } = await pool.query(`
           SELECT contestant_id as id, COUNT(*)::int as count 
           FROM votes GROUP BY contestant_id

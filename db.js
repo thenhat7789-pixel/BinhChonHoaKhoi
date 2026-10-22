@@ -305,6 +305,43 @@ async function initDB() {
       console.warn('Lỗi làm mới phiếu cũ Chủ hệ thống (bỏ qua):', migErr.message);
     }
 
+    // ─── AUTO-CLEANUP: Xóa ảnh base64 cũ khỏi DB (giảm Neon Egress về 0) ───────
+    // Chạy mỗi lần server khởi động, tự bỏ qua nếu DB đã sạch rồi
+    try {
+      // 1. Đếm ảnh base64 còn sót trong contestants
+      const { rows: b64Check } = await client.query(
+        "SELECT COUNT(*)::int as cnt, COALESCE(SUM(LENGTH(photo)),0)::bigint as total_bytes FROM contestants WHERE photo LIKE 'data:image/%'"
+      );
+      const b64Cnt = b64Check[0].cnt;
+      const b64MB = (Number(b64Check[0].total_bytes) / 1024 / 1024).toFixed(2);
+
+      if (b64Cnt > 0) {
+        console.log(`🧹 [Auto-cleanup] Phát hiện ${b64Cnt} ảnh base64 trong DB (~${b64MB} MB). Đang dọn dẹp...`);
+        // Xóa base64 trong contestants, giữ nguyên URL Cloudinary (https://) và /uploads/
+        await client.query(
+          "UPDATE contestants SET photo = '' WHERE photo LIKE 'data:image/%'"
+        );
+        console.log(`✅ [Auto-cleanup] Đã xóa ${b64Cnt} ảnh base64 khỏi contestants — Neon Egress sẽ giảm mạnh!`);
+      }
+
+      // 2. Dọn ảnh base64 trong vote_archives.contestants_data
+      const { rows: arcCheck } = await client.query(
+        "SELECT COUNT(*)::int as cnt FROM vote_archives WHERE contestants_data LIKE '%data:image/%'"
+      );
+      if (arcCheck[0].cnt > 0) {
+        // Dùng regexp_replace để thay thế tất cả "photo":"data:image/..." thành "photo":""
+        await client.query(`
+          UPDATE vote_archives
+          SET contestants_data = regexp_replace(contestants_data, '"photo":"data:image/[^"]*"', '"photo":""', 'g')
+          WHERE contestants_data LIKE '%data:image/%'
+        `);
+        console.log(`✅ [Auto-cleanup] Đã dọn ảnh base64 khỏi ${arcCheck[0].cnt} bản vote_archives`);
+      }
+    } catch (cleanErr) {
+      console.warn('⚠️ [Auto-cleanup] Lỗi dọn dẹp base64 (bỏ qua, không ảnh hưởng hoạt động):', cleanErr.message);
+    }
+    // ─────────────────────────────────────────────────────────────────────────────
+
     console.log('✅ Database tables ready');
   } catch (err) {
     console.error('❌ Lỗi kết nối / khởi tạo DB:', err.message);
