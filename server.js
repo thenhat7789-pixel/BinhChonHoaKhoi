@@ -890,19 +890,29 @@ app.post('/api/contestants', requireAdminAuth, async (req, res) => {
   if (!Array.isArray(contestants)) return res.status(400).json({ error: 'Invalid data' });
 
   // 1. Tự động tải ảnh lên Cloudinary (25 GB miễn phí) để giải phóng 100% dung lượng Neon SQL
+  //    Folder tự động theo event_id: evt_hoakhoi_2026 → "binhchon/hoakhoi_2026"
+  //                                  evt_vetanh_2026  → "binhchon/vetanh_2026"
+  //    Không cần sửa code khi tạo dự án mới!
   for (let i = 0; i < contestants.length; i++) {
     const c = contestants[i];
     let photoVal = c.photo || '';
     if (photoVal && photoVal.startsWith('data:image/')) {
+      // Tạo tên folder Cloudinary tự động từ event_id
+      const rawEventId = (c.event_id || event_id || 'chung').toString();
+      // Bỏ tiền tố "evt_", giữ lại phần còn lại, thay ký tự không hợp lệ bằng "_"
+      const folderSlug = rawEventId.replace(/^evt_/i, '').replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase();
+      const cloudinaryFolder = `binhchon/${folderSlug}`;
+
       try {
         const uploadRes = await cloudinary.uploader.upload(photoVal, {
-          folder: 'hoakhoi_2026',
+          folder: cloudinaryFolder,
           public_id: c.id,
           overwrite: true,
           resource_type: 'image'
         });
         if (uploadRes && uploadRes.secure_url) {
           c.photo = uploadRes.secure_url;
+          console.log(`☁️  [Cloudinary] Uploaded ${c.id} → ${cloudinaryFolder}/`);
         }
       } catch (cErr) {
         console.warn(`Cloudinary upload warning for ${c.id}:`, cErr.message);
@@ -927,6 +937,7 @@ app.post('/api/contestants', requireAdminAuth, async (req, res) => {
       deleteLocalPhotoFiles(c.id);
     }
   }
+
 
   if (!pool) {
     return res.json({ success: true, contestants, warning: 'Không có kết nối DB, ảnh đã lưu vào máy tính' });
