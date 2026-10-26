@@ -2069,25 +2069,37 @@ app.post('/api/archives/:id/restore', requireAdminAuth, async (req, res) => {
       return res.json({ success: true, restored: 0, skipped: 0, message: 'Không có phiếu nào trong archive này' });
     }
 
-    let restored = 0;
-    let skipped = 0;
+    // Lấy mapping contestant_id -> event_id từ database và từ archive contestants_data
+    const { rows: cDbRows } = await client.query('SELECT id, event_id FROM contestants');
+    const contestantEventMap = {};
+    cDbRows.forEach(c => { contestantEventMap[c.id] = c.event_id; });
+
+    // Bổ sung từ archive nếu contestant chưa có trong DB
+    try {
+      const arcContestants = JSON.parse(arc.contestants_data || '[]');
+      arcContestants.forEach(c => {
+        if (!contestantEventMap[c.id]) {
+          contestantEventMap[c.id] = c.event_id || 'evt_net_dep_nu_sinh_muce_qua_ong_kinh_mvasalg8';
+        }
+      });
+    } catch (_) {}
 
     await client.query('BEGIN');
-    for (const v of voteLog) {
-      try {
-        // Lấy event_id của contestant để gán đúng
-        const { rows: cRows } = await client.query(
-          'SELECT event_id FROM contestants WHERE id = $1',
-          [v.id]
-        );
-        const eventId = cRows[0]?.event_id || 'evt_net_dep_nu_sinh_muce_qua_ong_kinh_mvasalg8';
 
-        await client.query(`
-          INSERT INTO votes (vote_id, contestant_id, event_id, voter_name, comment,
-                             student_id, student_class, faculty, created_at)
-          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-          ON CONFLICT (vote_id) DO NOTHING
-        `, [
+    // Chèn theo từng batch 100 phiếu để siêu nhanh (chỉ mất ~1-2 giây)
+    const BATCH_SIZE = 100;
+    let totalRestored = 0;
+
+    for (let i = 0; i < voteLog.length; i += BATCH_SIZE) {
+      const chunk = voteLog.slice(i, i + BATCH_SIZE);
+      const values = [];
+      const placeholders = [];
+
+      chunk.forEach((v, idx) => {
+        const offset = idx * 9;
+        const eventId = contestantEventMap[v.id] || 'evt_net_dep_nu_sinh_muce_qua_ong_kinh_mvasalg8';
+        placeholders.push(`($${offset + 1}, $${offset + 2}, $${offset + 3}, $${offset + 4}, $${offset + 5}, $${offset + 6}, $${offset + 7}, $${offset + 8}, $${offset + 9})`);
+        values.push(
           v.vote_id,
           v.id,
           eventId,
@@ -2097,26 +2109,28 @@ app.post('/api/archives/:id/restore', requireAdminAuth, async (req, res) => {
           v.studentClass || '',
           v.faculty || '',
           v.ts || new Date()
-        ]);
-
-        // Kiểm tra xem vote có được chèn không (affected rows)
-        const { rows: checkRows } = await client.query(
-          'SELECT 1 FROM votes WHERE vote_id = $1',
-          [v.vote_id]
         );
-        if (checkRows.length) restored++; else skipped++;
-      } catch (err) {
-        skipped++;
-      }
+      });
+
+      const insertQuery = `
+        INSERT INTO votes (vote_id, contestant_id, event_id, voter_name, comment,
+                           student_id, student_class, faculty, created_at)
+        VALUES ${placeholders.join(', ')}
+        ON CONFLICT (vote_id) DO NOTHING
+        RETURNING id
+      `;
+
+      const insertRes = await client.query(insertQuery, values);
+      totalRestored += (insertRes.rowCount || 0);
     }
+
     await client.query('COMMIT');
 
     res.json({
       success: true,
-      restored,
-      skipped,
-      total: voteLog.length,
-      message: `✅ Đã khôi phục ${restored} phiếu bầu từ archive "${arc.title}"`
+      restored: totalRestored,
+      total_in_archive: voteLog.length,
+      message: `✅ Đã khôi phục thành công ${totalRestored} phiếu bầu từ archive "${arc.title}"!`
     });
   } catch (e) {
     await client.query('ROLLBACK').catch(() => {});
