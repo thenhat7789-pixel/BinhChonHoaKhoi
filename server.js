@@ -2051,6 +2051,82 @@ app.delete('/api/archives/:id', requireAdminAuth, async (req, res) => {
   }
 });
 
+// ─── POST /api/archives/:id/restore ───────────────
+// Khôi phục phiếu bầu từ kho lưu trữ (chỉ chèn thêm, không xóa phiếu hiện có)
+app.post('/api/archives/:id/restore', requireAdminAuth, async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { rows } = await client.query(
+      'SELECT * FROM vote_archives WHERE archive_id = $1',
+      [req.params.id]
+    );
+    if (!rows.length) return res.status(404).json({ error: 'Không tìm thấy bản lưu' });
+
+    const arc = rows[0];
+    const voteLog = JSON.parse(arc.vote_log_data || '[]');
+
+    if (!voteLog.length) {
+      return res.json({ success: true, restored: 0, skipped: 0, message: 'Không có phiếu nào trong archive này' });
+    }
+
+    let restored = 0;
+    let skipped = 0;
+
+    await client.query('BEGIN');
+    for (const v of voteLog) {
+      try {
+        // Lấy event_id của contestant để gán đúng
+        const { rows: cRows } = await client.query(
+          'SELECT event_id FROM contestants WHERE id = $1',
+          [v.id]
+        );
+        const eventId = cRows[0]?.event_id || 'evt_net_dep_nu_sinh_muce_qua_ong_kinh_mvasalg8';
+
+        await client.query(`
+          INSERT INTO votes (vote_id, contestant_id, event_id, voter_name, comment,
+                             student_id, student_class, faculty, created_at)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          ON CONFLICT (vote_id) DO NOTHING
+        `, [
+          v.vote_id,
+          v.id,
+          eventId,
+          v.voterName || 'Người ẩn danh',
+          v.comment || '',
+          v.studentId || '',
+          v.studentClass || '',
+          v.faculty || '',
+          v.ts || new Date()
+        ]);
+
+        // Kiểm tra xem vote có được chèn không (affected rows)
+        const { rows: checkRows } = await client.query(
+          'SELECT 1 FROM votes WHERE vote_id = $1',
+          [v.vote_id]
+        );
+        if (checkRows.length) restored++; else skipped++;
+      } catch (err) {
+        skipped++;
+      }
+    }
+    await client.query('COMMIT');
+
+    res.json({
+      success: true,
+      restored,
+      skipped,
+      total: voteLog.length,
+      message: `✅ Đã khôi phục ${restored} phiếu bầu từ archive "${arc.title}"`
+    });
+  } catch (e) {
+    await client.query('ROLLBACK').catch(() => {});
+    console.error('POST /api/archives/:id/restore error:', e);
+    res.status(500).json({ error: 'Lỗi server: ' + e.message });
+  } finally {
+    client.release();
+  }
+});
+
 // ─── POST /api/reset-votes ───────────────────────
 app.post('/api/reset-votes', requireAdminAuth, async (req, res) => {
   const { auto_archive, title, notes } = req.body || {};
