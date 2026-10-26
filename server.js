@@ -109,7 +109,7 @@ function validateVoterName(name) {
   if (trimmed.length > 60) return 'Họ và tên quá dài!';
   if (/\d/.test(trimmed)) return 'Họ và tên không được chứa chữ số!';
   if (/[@#$%^&*()_+={}\[\]:;"'<>?\/\\|~`!]/.test(trimmed)) return 'Họ và tên không được chứa ký tự đặc biệt!';
-  
+
   const words = trimmed.split(/\s+/).filter(w => w.length > 0);
   if (words.length < 2) {
     return 'Vui lòng nhập đầy đủ cả Họ và Tên của bạn (tối thiểu 2 từ, ví dụ: Nguyễn Văn A)!';
@@ -208,7 +208,7 @@ async function requireAdminAuth(req, res, next) {
             email = (payload.email || '').toLowerCase();
           }
         }
-      } catch (err) {}
+      } catch (err) { }
     }
 
     if (email) {
@@ -220,7 +220,7 @@ async function requireAdminAuth(req, res, next) {
             superadminEmail = settingsRows[0].value.toLowerCase();
           }
         }
-      } catch (e) {}
+      } catch (e) { }
 
       const ADMIN_WHITELIST = [
         'thenhat7789@gmail.com',
@@ -236,7 +236,7 @@ async function requireAdminAuth(req, res, next) {
     }
   }
 
-  return res.status(403).json({ 
+  return res.status(403).json({
     error: 'Từ chối truy cập: Bạn không có quyền quản trị viên cấp cao!',
     code: 'ADMIN_UNAUTHORIZED'
   });
@@ -299,12 +299,12 @@ app.get('/api/test-db', async (req, res) => {
     try {
       const { rows } = await pool.query("SELECT * FROM archives LIMIT 10");
       archivesData = rows;
-    } catch (err) {}
+    } catch (err) { }
     let voteArchivesData = [];
     try {
       const { rows } = await pool.query("SELECT archive_id, title, total_votes, created_at, votes_data FROM vote_archives LIMIT 10");
       voteArchivesData = rows;
-    } catch (err) {}
+    } catch (err) { }
 
     res.json({
       ok: true,
@@ -723,9 +723,11 @@ app.get('/api/topic-data', async (req, res) => {
     const votedIds = myVotesResult.rows.map(r => r.contestant_id);
 
     const ev = eventResult.rows[0] || {};
-    const globalRatio = settingsResult.rows.length ? parseInt(settingsResult.rows[0].value) || 100 : 100;
-    const voteRatio = ev.vote_ratio ? parseInt(ev.vote_ratio) : globalRatio;
-    const maxAllowed = 10;
+    const globalRatio = settingsResult.rows.length ? parseInt(settingsResult.rows[0].value) || 80 : 80;
+    const voteRatio = (ev.vote_ratio !== null && ev.vote_ratio !== undefined) ? parseInt(ev.vote_ratio) : globalRatio;
+    const totalContestants = contestants.length;
+    // Tính số lượng thí sinh tối đa 1 người được bình chọn dựa trên tỉ lệ (ví dụ: 10 TS tỉ lệ 30% = 3 TS, 17 TS tỉ lệ 30% = 5 TS)
+    const maxAllowed = Math.max(1, Math.round((totalContestants * voteRatio) / 100));
 
     res.json({
       contestants,
@@ -742,12 +744,13 @@ app.get('/api/topic-data', async (req, res) => {
     console.warn('⚠️ [DB Fallback] GET /api/topic-data using fallback due to:', e.message);
     const eventContestants = DEFAULT_CONTESTANTS.filter(c => c.event_id === eventId || eventId.includes('net_dep') || eventId.includes('hoakhoi'));
     const finalContestants = eventContestants.length ? eventContestants : DEFAULT_CONTESTANTS.slice(0, 7);
+    const maxAllowed = Math.max(1, Math.round((finalContestants.length * 80) / 100));
     return res.json({
       contestants: finalContestants,
       votes: {},
       totalVotes: 0,
       votedIds: [],
-      maxAllowed: 10,
+      maxAllowed,
       voteRatio: 80,
       is_active: true,
       start_time: null,
@@ -832,7 +835,7 @@ app.get('/api/contestants/:id/photo', async (req, res) => {
       try {
         fs.writeFileSync(path.join(__dirname, 'public', 'uploads', `${id}.${ext}`), buffer);
         fs.writeFileSync(path.join(__dirname, 'uploads', `${id}.${ext}`), buffer);
-      } catch (err) {}
+      } catch (err) { }
       photoBufferCache.set(id, { mime, buffer });
       res.setHeader('Content-Type', mime);
       res.setHeader('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
@@ -849,7 +852,7 @@ app.get('/api/contestants/:id/photo', async (req, res) => {
     try {
       fs.writeFileSync(path.join(__dirname, 'public', 'uploads', `${id}.jpg`), buffer);
       fs.writeFileSync(path.join(__dirname, 'uploads', `${id}.jpg`), buffer);
-    } catch (err) {}
+    } catch (err) { }
     photoBufferCache.set(id, { mime: 'image/jpeg', buffer });
     res.setHeader('Content-Type', 'image/jpeg');
     res.setHeader('Cache-Control', 'public, max-age=604800, stale-while-revalidate=86400');
@@ -1253,7 +1256,7 @@ app.post('/api/vote', async (req, res) => {
           verifiedUid = payload.user_id || payload.sub || '';
         }
       }
-    } catch (err) {}
+    } catch (err) { }
   }
 
   if (!verifiedEmail) {
@@ -1357,6 +1360,17 @@ app.post('/api/vote', async (req, res) => {
       [currentEventId, contestant_id, verifiedEmail, cleanFp]
     );
 
+    // Lấy thông tin cuộc thi (trạng thái, tỉ lệ vote_ratio, thời gian)
+    const { rows: eventRow } = await pool.query("SELECT is_active, vote_ratio, end_time, start_time FROM events WHERE id = $1", [currentEventId]);
+    const { rows: settingsRows } = await pool.query("SELECT value FROM settings WHERE key = 'vote_ratio'");
+    const globalRatio = settingsRows.length ? parseInt(settingsRows[0].value) || 80 : 80;
+    const voteRatio = (eventRow.length && eventRow[0].vote_ratio !== null && eventRow[0].vote_ratio !== undefined) ? parseInt(eventRow[0].vote_ratio) : globalRatio;
+
+    // Lấy tổng số thí sinh của cuộc thi để tính số lượt bình chọn tối đa cho phép
+    const { rows: contestantCount } = await pool.query('SELECT COUNT(*)::int as cnt FROM contestants WHERE (event_id = $1 OR event_id IS NULL)', [currentEventId]);
+    const totalContestants = contestantCount[0]?.cnt || 10;
+    const maxAllowed = Math.max(1, Math.round((totalContestants * voteRatio) / 100));
+
     if (sameContestantVotes.length > 0) {
       // Nếu cử tri nhập lời chúc mới thì cập nhật lời chúc cho phiếu đã bầu
       if (comment && comment.trim() !== '' && comment.trim() !== 'Ủng hộ thí sinh!') {
@@ -1377,14 +1391,13 @@ app.post('/api/vote', async (req, res) => {
       }
 
       return res.status(400).json({
-        error: `Bạn đã bình chọn cho thí sinh "${sameContestantVotes[0].contestant_name || 'này'}" rồi! Mỗi tài khoản chỉ được bình chọn 1 lần cho mỗi thí sinh (tối đa 10 thí sinh khác nhau).`,
+        error: `Bạn đã bình chọn cho thí sinh "${sameContestantVotes[0].contestant_name || 'này'}" rồi! Mỗi tài khoản chỉ được bình chọn 1 lần cho mỗi thí sinh (tối đa ${maxAllowed} thí sinh khác nhau).`,
         code: 'ALREADY_VOTED_SAME_CONTESTANT',
         contestant_id: contestant_id
       });
     }
 
-    // 3. TỐI ĐA 10 THÍ SINH KHÁC NHAU: Kiểm tra tổng số thí sinh đã bình chọn
-    const maxAllowed = 10;
+    // 3. Kiểm tra tổng số thí sinh đã bình chọn theo maxAllowed (tính từ tỉ lệ vote_ratio)
     const { rows: totalVotedRows } = await pool.query(
       `SELECT COUNT(DISTINCT v.contestant_id)::int as total_voted 
        FROM votes v 
@@ -1399,13 +1412,12 @@ app.post('/api/vote', async (req, res) => {
     const totalVoted = totalVotedRows[0]?.total_voted || 0;
     if (totalVoted >= maxAllowed) {
       return res.status(400).json({
-        error: `Bạn đã sử dụng hết tối đa ${maxAllowed} lượt bình chọn cho ${maxAllowed} thí sinh khác nhau! Bạn có thể nhấn nút "Hủy" trên thí sinh đã chọn nếu muốn đổi người khác.`,
+        error: `Bạn đã sử dụng hết tối đa ${maxAllowed} lượt bình chọn cho ${maxAllowed} thí sinh khác nhau (tỉ lệ ${voteRatio}%)! Bạn có thể nhấn nút "Hủy" trên thí sinh đã chọn nếu muốn đổi người khác.`,
         code: 'QUOTA_EXCEEDED'
       });
     }
 
     // 4. Kiểm tra trạng thái bật/tắt, thời gian mở/kết thúc của cuộc thi này
-    const { rows: eventRow } = await pool.query("SELECT is_active, vote_ratio, end_time, start_time FROM events WHERE id = $1", [currentEventId]);
     if (eventRow.length && eventRow[0].is_active === false) {
       return res.status(400).json({
         error: 'Cổng bình chọn cho cuộc thi này hiện đang tắt (tạm đóng)!',
@@ -1433,33 +1445,31 @@ app.post('/api/vote', async (req, res) => {
       }
     }
 
-    const voteRatio = 100;
-
-    // 7. Ghi phiếu bầu kèm thông tin Google Auth + Device Hardware Fingerprint
-    const vote_id = 'vote_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
-    await pool.query(
-      `INSERT INTO votes (vote_id, contestant_id, event_id, voter_name, student_id, student_class, faculty, comment, voter_ip, voter_fp, google_email, google_uid) 
+        // 7. Ghi phiếu bầu kèm thông tin Google Auth + Device Hardware Fingerprint
+        const vote_id = 'vote_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+        await pool.query(
+          `INSERT INTO votes (vote_id, contestant_id, event_id, voter_name, student_id, student_class, faculty, comment, voter_ip, voter_fp, google_email, google_uid) 
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-      [vote_id, contestant_id, currentEventId, cleanVoterName, cleanStudentId, cleanStudentClass, cleanFaculty, comment || '', voterId, cleanFp, verifiedEmail, verifiedUid]
-    );
+          [vote_id, contestant_id, currentEventId, cleanVoterName, cleanStudentId, cleanStudentClass, cleanFaculty, comment || '', voterId, cleanFp, verifiedEmail, verifiedUid]
+        );
 
-    const { rows } = await pool.query('SELECT name FROM contestants WHERE id = $1', [contestant_id]);
-    const name = rows.length ? rows[0].name : contestant_id;
-    const remaining = Math.max(0, maxAllowed - (totalVoted + 1));
+        const { rows } = await pool.query('SELECT name FROM contestants WHERE id = $1', [contestant_id]);
+        const name = rows.length ? rows[0].name : contestant_id;
+        const remaining = Math.max(0, maxAllowed - (totalVoted + 1));
 
-    res.json({
-      success: true,
-      vote_id,
-      contestant_name: name,
-      remaining,
-      maxAllowed,
-      voteRatio
+        res.json({
+          success: true,
+          vote_id,
+          contestant_name: name,
+          remaining,
+          maxAllowed,
+          voteRatio
+        });
+      } catch (e) {
+        console.error('POST /api/vote error:', e);
+        res.status(500).json({ error: 'Lỗi ghi phiếu bầu' });
+      }
     });
-  } catch (e) {
-    console.error('POST /api/vote error:', e);
-    res.status(500).json({ error: 'Lỗi ghi phiếu bầu' });
-  }
-});
 
 // ─── POST /api/vote/cancel (Hủy / Thu hồi lượt bình chọn) ───────────────
 app.post('/api/vote/cancel', async (req, res) => {
@@ -1482,7 +1492,7 @@ app.post('/api/vote/cancel', async (req, res) => {
             verifiedEmail = payload.email.toLowerCase().trim();
           }
         }
-      } catch (err) {}
+      } catch (err) { }
     }
   }
 
@@ -1929,7 +1939,7 @@ app.post('/api/admin/cleanup-photos', requireAdminAuth, async (req, res) => {
             await pool.query('UPDATE vote_archives SET contestants_data = $1 WHERE id = $2', [JSON.stringify(contestants), arc.id]);
             archivesCleaned++;
           }
-        } catch (parseErr) {}
+        } catch (parseErr) { }
       }
     } catch (arcErr) {
       console.warn('Lỗi dọn dẹp archives (bỏ qua):', arcErr.message);
@@ -2082,7 +2092,7 @@ app.post('/api/archives/:id/restore', requireAdminAuth, async (req, res) => {
           contestantEventMap[c.id] = c.event_id || 'evt_net_dep_nu_sinh_muce_qua_ong_kinh_mvasalg8';
         }
       });
-    } catch (_) {}
+    } catch (_) { }
 
     await client.query('BEGIN');
 
@@ -2133,7 +2143,7 @@ app.post('/api/archives/:id/restore', requireAdminAuth, async (req, res) => {
       message: `✅ Đã khôi phục thành công ${totalRestored} phiếu bầu từ archive "${arc.title}"!`
     });
   } catch (e) {
-    await client.query('ROLLBACK').catch(() => {});
+    await client.query('ROLLBACK').catch(() => { });
     console.error('POST /api/archives/:id/restore error:', e);
     res.status(500).json({ error: 'Lỗi server: ' + e.message });
   } finally {

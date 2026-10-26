@@ -982,6 +982,7 @@
 
       <div style="display:flex;justify-content:space-between;font-size:.76rem;color:#475569;margin-top:.35rem;font-weight:700;">
         <span>10% (1/9)</span>
+        <span>30% (3/7)</span>
         <span>50% (5/5)</span>
         <span>70% (7/3)</span>
         <span>80% (8/2)</span>
@@ -990,8 +991,9 @@
 
       <div style="margin-top:.85rem;display:flex;gap:.45rem;flex-wrap:wrap;align-items:center;">
         <span style="font-size:.8rem;font-weight:700;color:#1e40af;">⚡ Chọn nhanh:</span>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickRatioModal(30)" style="font-size:.76rem;padding:.3rem .65rem;border:1.5px solid #2563eb;color:#1d4ed8;background:#eff6ff;font-weight:700;">3/7 (30%)</button>
         <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickRatioModal(50)" style="font-size:.76rem;padding:.3rem .65rem;background:#fff;border:1px solid #cbd5e1;font-weight:600;">5/5 (50%)</button>
-        <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickRatioModal(70)" style="font-size:.76rem;padding:.3rem .65rem;border:2px solid #2563eb;color:#1d4ed8;background:#eff6ff;font-weight:800;">7/3 (70%)</button>
+        <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickRatioModal(70)" style="font-size:.76rem;padding:.3rem .65rem;border:1.5px solid #cbd5e1;background:#fff;font-weight:600;">7/3 (70%)</button>
         <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickRatioModal(80)" style="font-size:.76rem;padding:.3rem .65rem;background:#fff;border:1px solid #cbd5e1;font-weight:600;">8/2 (80%)</button>
         <button type="button" class="btn btn-ghost btn-sm" onclick="setQuickRatioModal(100)" style="font-size:.76rem;padding:.3rem .65rem;background:#fff;border:1px solid #cbd5e1;font-weight:600;">10/0 (100%)</button>
         <button type="button" class="btn btn-gold btn-sm" onclick="saveEventRatioOnly()" style="font-weight:700;margin-left:auto;">
@@ -2966,6 +2968,16 @@ function renderAdminEvents() {
           <span>⏱️ Cài đặt</span>
         </button>
 
+        <!-- Button 4.5: Reset phiếu riêng cho cuộc thi -->
+        <button class="btn btn-ghost btn-sm" onclick="resetEventVotes('${ev.id}')" title="Đặt lại (xóa) phiếu bầu riêng cho cuộc thi này" style="border:1.5px solid #f97316;color:#ea580c;background:#fff;font-weight:600;border-radius:8px;padding:.52rem .85rem;display:inline-flex;align-items:center;gap:.35rem;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="1 4 1 10 7 10"></polyline>
+            <polyline points="23 20 23 14 17 14"></polyline>
+            <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"></path>
+          </svg>
+          <span>🔄 Reset phiếu</span>
+        </button>
+
         <!-- Button 5: Sửa cuộc thi matching screenshot -->
         <button class="btn btn-ghost btn-sm" onclick="openEditAdminEvent('${ev.id}')" style="border:1.5px solid #38bdf8;color:#0284c7;background:#fff;font-weight:600;border-radius:8px;padding:.52rem .85rem;display:inline-flex;align-items:center;gap:.35rem;">
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -3413,7 +3425,8 @@ function updateModalRatioDisplay() {
   const desc = document.getElementById('trModalRatioDesc');
 
   let ratioLabel = `${val}%`;
-  if (val === 50) ratioLabel = '50% (Tỉ lệ 5/5)';
+  if (val === 30) ratioLabel = '30% (Tỉ lệ 3/7 ~ 3/10)';
+  else if (val === 50) ratioLabel = '50% (Tỉ lệ 5/5)';
   else if (val === 70) ratioLabel = '70% (Tỉ lệ 7/3)';
   else if (val === 80) ratioLabel = '80% (Tỉ lệ 8/2)';
   else if (val === 100) ratioLabel = '100% (Tất cả)';
@@ -3425,12 +3438,13 @@ function updateModalRatioDisplay() {
 
   if (badge) badge.textContent = ratioLabel;
 
-  // Calculate quota estimation based on candidate count
-  const count = (appData.contestants && appData.contestants.length) ? appData.contestants.length : 6;
+  // Lấy chính xác số lượng thí sinh của cuộc thi đang mở cài đặt
+  const cList = (appData.contestants || []).filter(c => c.event_id === currentModalEventId || (!c.event_id && currentModalEventId === 'evt_hoakhoi_2026'));
+  const count = cList.length || 6;
   const quota = Math.max(1, Math.round((count * val) / 100));
 
   if (desc) {
-    desc.innerHTML = `💡 <strong>Quy tắc áp dụng:</strong> Hiện có <strong>${count} thí sinh</strong>, mỗi người dùng sẽ được bình chọn tối đa <strong>${quota} thí sinh</strong> khác nhau (${val}%). Mỗi thí sinh chỉ được bầu <strong>1 phiếu duy nhất</strong> (không được bình chọn lặp lại 2 lần).`;
+    desc.innerHTML = `💡 <strong>Quy tắc áp dụng:</strong> Cuộc thi hiện có <strong>${count} thí sinh</strong>. Với tỉ lệ <strong>${val}%</strong>, mỗi người dùng sẽ được bình chọn tối đa <strong>${quota} thí sinh</strong> khác nhau (${quota}/${count} thí sinh). Mỗi thí sinh chỉ được bầu <strong>1 phiếu duy nhất</strong> (không được bình chọn lặp lại 2 lần).`;
   }
 }
 
@@ -3702,6 +3716,43 @@ async function deleteAdminEvent(id) {
   } catch(e){}
 
   toast('Đã xóa cuộc thi!', 'info');
+}
+
+async function resetEventVotes(id) {
+  if (isCurrentUserMember()) {
+    toast('Tài khoản Thành viên không có quyền reset phiếu bầu!', 'error');
+    return;
+  }
+  const ev = adminEvents.find(e => e.id === id);
+  if (!ev) return;
+
+  const title = ev.title ? ev.title.replace(/<[^>]*>?/gm, '') : 'cuộc thi này';
+  const confirmed = confirm(
+    `⚠️ XÁC NHẬN ĐẶT LẠI (RESET) PHIẾU BẦU RIÊNG CHO CUỘC THI:\n\n` +
+    `👉 "${title}"\n\n` +
+    `🔒 ĐIỀU GÌ SẼ DIỄN RA:\n` +
+    `1. Toàn bộ phiếu bầu của cuộc thi này sẽ được TỰ ĐỘNG SAO LƯU vào Kho lưu trữ trước khi xóa.\n` +
+    `2. Phiếu bầu của CÁC CUỘC THI KHÁC SẼ ĐƯỢC GIỮ NGUYÊN (không bị mất).\n` +
+    `3. Bạn có thể xem lại hoặc khôi phục bất cứ lúc nào trong Kho lưu trữ.\n\n` +
+    `Nhấn OK để BẮT ĐẦU ĐẶT LẠI PHIẾU BẦU cho cuộc thi này!`
+  );
+  if (!confirmed) return;
+
+  try {
+    toast(`⏳ Đang sao lưu và đặt lại phiếu cho cuộc thi "${title}"...`, 'info', 4000);
+    const res = await api.post(`/api/events/${id}/reset-votes`, {
+      title: `Reset riêng: ${title} (${new Date().toLocaleString('vi-VN')})`
+    });
+    if (res && res.success) {
+      toast(res.message || `✓ Đã reset phiếu thành công cho cuộc thi "${title}"!`, 'success', 5000);
+      await loadData();
+    } else {
+      toast(`Lỗi: ${res ? res.error : 'Không thể reset'}`, 'error');
+    }
+  } catch(e) {
+    console.error('resetEventVotes error:', e);
+    toast('Lỗi kết nối khi reset phiếu bầu: ' + e.message, 'error');
+  }
 }
 
 async function resetDefaultAdminEvents() {
