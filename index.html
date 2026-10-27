@@ -1704,62 +1704,51 @@ function checkAndHandleInAppBrowser() {
   } catch (e) {}
 }
 
-/* ─── PURE HARDWARE INVARIANT DEVICE LOCK FINGERPRINT ─── */
-// Đọc toàn bộ các hằng số vật lý bất biến của màn hình, CPU, GPU, Timezone
-// Tuyệt đối đồng nhất 100% giữa Zalo, Messenger, Safari, Chrome và Tab ẩn danh trên cùng 1 máy!
-function getDeviceHardwareLock() {
+/* ─── UNIQUE CLIENT DEVICE TOKEN (ISOLATED PER DEVICE, ZERO COLLISION) ─── */
+function getUniqueDeviceToken() {
   try {
-    const screenW = Math.min(screen.width || 0, screen.height || 0);
-    const screenH = Math.max(screen.width || 0, screen.height || 0);
-    const dpr = Math.round((window.devicePixelRatio || 1) * 100) / 100;
-    const colorDepth = screen.colorDepth || 24;
-    const screenSig = `${screenW}x${screenH}@${dpr}:${colorDepth}`;
-
-    const cpuCores = navigator.hardwareConcurrency || 4;
-    const touchPoints = navigator.maxTouchPoints || 0;
-    const cpuSig = `${cpuCores}|${touchPoints}`;
-
-    let osSig = navigator.platform || '';
-    const ua = navigator.userAgent || '';
-    if (/iPhone|iPad|iPod/i.test(ua)) osSig = 'iOS';
-    else if (/Android/i.test(ua)) osSig = 'Android';
-    else if (/Windows/i.test(ua)) osSig = 'Windows';
-    else if (/Macintosh|Mac OS X/i.test(ua)) osSig = 'MacOS';
-    else if (/Linux/i.test(ua)) osSig = 'Linux';
-
-    const tzOffset = new Date().getTimezoneOffset();
-    const gamutP3 = (window.matchMedia && window.matchMedia('(color-gamut: p3)').matches) ? 'p3_1' : 'p3_0';
-    const hdr = (window.matchMedia && window.matchMedia('(dynamic-range: high)').matches) ? 'hdr_1' : 'hdr_0';
-
-    let glSig = 'gl_none';
-    try {
-      const canvas = document.createElement('canvas');
-      const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-      if (gl) {
-        const dbg = gl.getExtension('WEBGL_debug_renderer_info');
-        const renderer = dbg ? (gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || '') : '';
-        const vendor = dbg ? (gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) || '') : '';
-        const maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 0;
-        const maxRender = gl.getParameter(gl.MAX_RENDERBUFFER_SIZE) || 0;
-        glSig = [renderer, vendor, maxTex, maxRender].join(':');
+    let token = localStorage.getItem('hh:device_uuid');
+    if (!token || !token.startsWith('dev_')) {
+      const cMatch = document.cookie.match(/(?:^|; )hh_device_uuid=([^;]*)/);
+      if (cMatch && cMatch[1] && decodeURIComponent(cMatch[1]).startsWith('dev_')) {
+        token = decodeURIComponent(cMatch[1]);
+      } else {
+        const randPart = (typeof crypto !== 'undefined' && crypto.randomUUID) 
+          ? crypto.randomUUID().replace(/-/g, '') 
+          : (Math.random().toString(36).substring(2) + Math.random().toString(36).substring(2));
+        token = 'dev_' + Date.now().toString(36) + '_' + randPart;
       }
-    } catch (e) {}
-
-    const rawSig = [screenSig, cpuSig, osSig, tzOffset, gamutP3, hdr, glSig].join('###');
-    const hwLock = 'hw_lock_' + fastMurmurHash(rawSig);
-
+      localStorage.setItem('hh:device_uuid', token);
+      document.cookie = `hh_device_uuid=${encodeURIComponent(token)}; path=/; max-age=31536000; SameSite=Lax`;
+    }
+    // Dọn dẹp cache hw_lock cũ gây xung đột giữa các máy
     try {
-      localStorage.setItem('hh:voter_hw_lock', hwLock);
-      sessionStorage.setItem('hh:voter_hw_lock', hwLock);
-      document.cookie = `hh_voter_hw_lock=${hwLock}; path=/; max-age=31536000; SameSite=Lax`;
-    } catch(e){}
-    return hwLock;
+      localStorage.removeItem('hh:voter_hw_lock');
+      sessionStorage.removeItem('hh:voter_hw_lock');
+      document.cookie = 'hh_voter_hw_lock=; path=/; max-age=0; SameSite=Lax';
+    } catch(err){}
+    return token;
   } catch (err) {
-    return 'hw_lock_' + Math.abs((screen.width * 31 + screen.height * 17) ^ new Date().getTimezoneOffset()).toString(36);
+    return 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 10);
   }
 }
 
-const VOTER_FP = getDeviceHardwareLock();
+const VOTER_FP = getUniqueDeviceToken();
+
+function getVotedStorageKey(eventId) {
+  const email = (currentGoogleUser?.email || localStorage.getItem('hh:google_user_email') || '').toLowerCase().trim();
+  return email ? `hh:voted:${email}:${eventId}` : `hh:voted:guest:${eventId}`;
+}
+
+// Xóa bỏ các cache cũ không gắn với email để tránh nhầm lẫn lượt bình chọn
+try {
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith('hh:voted:evt_') && !k.includes('@')) {
+      localStorage.removeItem(k);
+    }
+  }
+} catch(e){}
 
 /* ─── API HELPER ─── */
 const api = {
@@ -2197,30 +2186,14 @@ function applyTopicData(combined, eventId, ev) {
 
   // Luôn hợp nhất danh sách đã bình chọn từ Server, localStorage và Cookie
   // Đảm bảo tuyệt đối không bị reset hay mất trạng thái khi người dùng nhấn F5 / làm mới trang
-  let localVoted = [];
-  try {
-    localVoted = JSON.parse(localStorage.getItem(`hh:voted:${eventId}`) || '[]');
-    if (!Array.isArray(localVoted)) localVoted = [];
-  } catch (e) {}
-
-  let cookieVoted = [];
-  try {
-    const cMatch = document.cookie.match(new RegExp(`(?:^|; )hh_voted_${eventId}=([^;]*)`));
-    if (cMatch) {
-      cookieVoted = JSON.parse(decodeURIComponent(cMatch[1]));
-      if (!Array.isArray(cookieVoted)) cookieVoted = [];
-    }
-  } catch (e) {}
-
   const serverVoted = Array.isArray(combined.votedIds) ? combined.votedIds : [];
   state.votedIds = serverVoted;
   try {
+    const vKey = getVotedStorageKey(eventId);
     if (serverVoted.length > 0) {
-      localStorage.setItem(`hh:voted:${eventId}`, JSON.stringify(serverVoted));
-      document.cookie = `hh_voted_${eventId}=${encodeURIComponent(JSON.stringify(serverVoted))}; path=/; max-age=31536000; SameSite=Lax`;
+      localStorage.setItem(vKey, JSON.stringify(serverVoted));
     } else {
-      localStorage.removeItem(`hh:voted:${eventId}`);
-      document.cookie = `hh_voted_${eventId}=; path=/; max-age=0; SameSite=Lax`;
+      localStorage.removeItem(vKey);
     }
   } catch (e) {}
   state.maxAllowed = (combined.maxAllowed !== undefined) ? combined.maxAllowed : Math.max(1, Math.round(((state.contestants || []).length * (ratio / 100))));
@@ -2267,7 +2240,8 @@ async function loadTopicContestantsAndVotes(eventId) {
   // 1. TỨC THÌ (0s): Nếu có cache danh sách thí sinh thì áp dụng vẽ tạm (đồng bộ với vote đã lưu)
   let savedVoted = [];
   try {
-    savedVoted = JSON.parse(localStorage.getItem(`hh:voted:${eventId}`) || '[]');
+    const vKey = getVotedStorageKey(eventId);
+    savedVoted = JSON.parse(localStorage.getItem(vKey) || '[]');
     if (!Array.isArray(savedVoted)) savedVoted = [];
   } catch (e) {}
 
@@ -2512,8 +2486,19 @@ function updateGoogleAuthUI(user) {
 if (typeof firebase !== 'undefined' && firebase.auth) {
   firebase.auth().onAuthStateChanged((user) => {
     updateGoogleAuthUI(user);
-    if (user && user.email && state && state.activeEventId) {
-      loadTopicContestantsAndVotes(state.activeEventId);
+    if (user && user.email) {
+      try { localStorage.setItem('hh:google_user_email', user.email.toLowerCase().trim()); } catch(e){}
+      if (state && state.activeEventId) {
+        loadTopicContestantsAndVotes(state.activeEventId);
+      }
+    } else {
+      try { localStorage.removeItem('hh:google_user_email'); } catch(e){}
+      state.votedIds = [];
+      if (state && state.activeEventId) {
+        renderTopicContestants();
+        const countEl = document.getElementById('topicMyVotesCount');
+        if (countEl) countEl.textContent = `0 / ${state.maxAllowed} thí sinh`;
+      }
     }
   });
 
@@ -2565,7 +2550,15 @@ async function loginWithGoogle() {
 async function logoutGoogle() {
   if (typeof firebase !== 'undefined' && firebase.auth) {
     await firebase.auth().signOut();
+    currentGoogleUser = null;
+    try { localStorage.removeItem('hh:google_user_email'); } catch(e){}
+    state.votedIds = [];
     updateGoogleAuthUI(null);
+    if (state && state.activeEventId) {
+      renderTopicContestants();
+      const countEl = document.getElementById('topicMyVotesCount');
+      if (countEl) countEl.textContent = `0 / ${state.maxAllowed} thí sinh`;
+    }
     toast('Đã đăng xuất tài khoản Google.', 'info');
   }
 }
@@ -2728,11 +2721,15 @@ async function cancelVote(cId) {
       state.votes[cId] = Math.max(0, (state.votes[cId] || 1) - 1);
     }
 
-    // Cập nhật localStorage và Cookie ngay lập tức
+    // Cập nhật localStorage ngay lập tức
     try {
       const eventId = state.activeEventId;
-      localStorage.setItem(`hh:voted:${eventId}`, JSON.stringify(state.votedIds));
-      document.cookie = `hh_voted_${eventId}=${encodeURIComponent(JSON.stringify(state.votedIds))}; path=/; max-age=31536000; SameSite=Lax`;
+      const vKey = getVotedStorageKey(eventId);
+      if (state.votedIds.length > 0) {
+        localStorage.setItem(vKey, JSON.stringify(state.votedIds));
+      } else {
+        localStorage.removeItem(vKey);
+      }
       
       const cacheKey = `hh:cache_topic:${eventId}`;
       const rawCache = localStorage.getItem(cacheKey);
@@ -3034,8 +3031,8 @@ document.getElementById('confirmVoteBtn').addEventListener('click', async () => 
           if (!state.votedIds.includes(cId)) state.votedIds.push(cId);
           state.votes[cId] = (state.votes[cId] || 0) + 1;
           try {
-            localStorage.setItem(`hh:voted:${eventId}`, JSON.stringify(state.votedIds));
-            document.cookie = `hh_voted_${eventId}=${encodeURIComponent(JSON.stringify(state.votedIds))}; path=/; max-age=31536000; SameSite=Lax`;
+            const vKey = getVotedStorageKey(eventId);
+            localStorage.setItem(vKey, JSON.stringify(state.votedIds));
           } catch (e) {}
           renderTopicContestants();
           closeVoteModal();
@@ -3048,11 +3045,7 @@ document.getElementById('confirmVoteBtn').addEventListener('click', async () => 
         }
       }
     } else if (res.code === 'ALREADY_VOTED_SAME_CONTESTANT') {
-      if (!state.votedIds.includes(cId)) state.votedIds.push(cId);
-      try {
-        localStorage.setItem(`hh:voted:${eventId}`, JSON.stringify(state.votedIds));
-      } catch (e) {}
-      renderTopicContestants();
+      await loadTopicContestantsAndVotes(eventId);
       closeVoteModal();
       toast(res.error || 'Bạn đã bình chọn cho thí sinh này rồi!', 'info');
     } else {
@@ -3061,14 +3054,14 @@ document.getElementById('confirmVoteBtn').addEventListener('click', async () => 
     return;
   }
 
-  // Server ghi phiếu thành công 100% -> cập nhật giao diện, localStorage & cookie
+  // Server ghi phiếu thành công 100% -> cập nhật giao diện & localStorage
   state.votes[cId] = (state.votes[cId] || 0) + 1;
   if (!state.votedIds.includes(cId)) {
     state.votedIds.push(cId);
   }
   try {
-    localStorage.setItem(`hh:voted:${eventId}`, JSON.stringify(state.votedIds));
-    document.cookie = `hh_voted_${eventId}=${encodeURIComponent(JSON.stringify(state.votedIds))}; path=/; max-age=31536000; SameSite=Lax`;
+    const vKey = getVotedStorageKey(eventId);
+    localStorage.setItem(vKey, JSON.stringify(state.votedIds));
   } catch (e) {}
 
   // Cập nhật ngay vào cache cuộc thi hh:cache_topic:${eventId} để F5 lập tức vẫn chuẩn xác 100%
@@ -3195,16 +3188,12 @@ async function init() {
   setTimeout(() => {
     (state.events || []).forEach(e => {
       const studentId = localStorage.getItem('hh:student_id') || '';
-      fetch(`/api/topic-data?event=${encodeURIComponent(e.id)}&fp=${encodeURIComponent(VOTER_FP)}&student_id=${encodeURIComponent(studentId)}`)
+      const email = (currentGoogleUser?.email || localStorage.getItem('hh:google_user_email') || '').toLowerCase().trim();
+      const emailParam = email ? `&google_email=${encodeURIComponent(email)}` : '';
+      fetch(`/api/topic-data?event=${encodeURIComponent(e.id)}&fp=${encodeURIComponent(VOTER_FP)}&student_id=${encodeURIComponent(studentId)}${emailParam}`)
         .then(r => r.json())
         .then(data => {
           if (data && Array.isArray(data.contestants)) {
-            // Hợp nhất với localVoted trước khi lưu đè cache
-            let localVoted = [];
-            try {
-              localVoted = JSON.parse(localStorage.getItem(`hh:voted:${e.id}`) || '[]');
-            } catch (err) {}
-            data.votedIds = Array.from(new Set([...(data.votedIds || []), ...localVoted]));
             localStorage.setItem(`hh:cache_topic:${e.id}`, JSON.stringify(data));
           }
         })

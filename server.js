@@ -684,29 +684,16 @@ app.get('/api/topic-data', async (req, res) => {
         WHERE c.event_id = $1
         GROUP BY c.id
       `, [eventId]),
-      // 3. My votes (Kiểm tra theo Google Email hoặc Device ID độc bản dev_)
-      // 3. My votes: Khớp theo Google Email HOẶC Thiết bị Phần cứng (fp)
+      // 3. My votes: Khớp CHÍNH XÁC theo Google Email của cử tri (không dùng chung fingerprint phần cứng tránh nhầm lẫn)
       (() => {
-        const conditions = [];
-        const p = [eventId];
         const googleEmail = (req.query.google_email || '').toLowerCase().trim();
         if (googleEmail) {
-          p.push(googleEmail);
-          conditions.push(`LOWER(google_email) = $${p.length}`);
+          return pool.query(
+            `SELECT DISTINCT contestant_id FROM votes WHERE (event_id = $1 OR event_id IS NULL) AND LOWER(google_email) = $2`,
+            [eventId, googleEmail]
+          );
         }
-        if (fp) {
-          p.push(fp);
-          conditions.push(`voter_fp = $${p.length}`);
-        }
-        if (studentId) {
-          p.push(studentId);
-          conditions.push(`(student_id = $${p.length} AND student_id != '')`);
-        }
-        if (conditions.length === 0) {
-          return pool.query('SELECT DISTINCT contestant_id FROM votes WHERE 1 = 0');
-        }
-        const q = `SELECT DISTINCT contestant_id FROM votes WHERE (event_id = $1 OR event_id IS NULL) AND (${conditions.join(' OR ')})`;
-        return pool.query(q, p);
+        return pool.query('SELECT DISTINCT contestant_id FROM votes WHERE 1 = 0');
       })(),
       // 4. Event info
       pool.query('SELECT is_active, vote_ratio, end_time, start_time FROM events WHERE id = $1', [eventId]),
@@ -1324,8 +1311,9 @@ app.post('/api/vote', async (req, res) => {
       }
     }
 
-    // 1. KHÓA 1: RÀNG BUỘC THIẾT BỊ VỚI TÀI KHOẢN GOOGLE DUY NHẤT (CHỐNG ĐỔI GMAIL TRÊN CÙNG 1 MÁY)
-    if (cleanFp) {
+    // 1. KHÓA 1: RÀNG BUỘC THIẾT BỊ ĐỘC BẢN dev_ (Chống đổi Gmail liên tục trên cùng 1 trình duyệt)
+    // Chỉ áp dụng cho mã token độc bản dev_ (UUID client), không dùng hash phần cứng chung để tránh chặn nhầm người dùng cùng dòng điện thoại
+    if (cleanFp && cleanFp.startsWith('dev_')) {
       const { rows: fpDeviceVotes } = await pool.query(
         `SELECT DISTINCT LOWER(google_email) as email 
          FROM votes 
@@ -1338,26 +1326,23 @@ app.post('/api/vote', async (req, res) => {
         const boundEmail = fpDeviceVotes[0].email;
         if (boundEmail && boundEmail !== verifiedEmail) {
           return res.status(400).json({
-            error: `🚫 Thiết bị này (điện thoại/laptop) đã được sử dụng để bình chọn bằng tài khoản Google khác (${boundEmail})! Để chống gian lận, mỗi thiết bị chỉ được dùng 1 tài khoản Google duy nhất, không thể đổi sang Gmail khác để bình chọn thêm.`,
+            error: `🚫 Trình duyệt trên thiết bị này đã được sử dụng để bình chọn bằng tài khoản Google (${boundEmail})! Để đảm bảo tính công bằng, mỗi thiết bị chỉ được dùng 1 tài khoản Google duy nhất.`,
             code: 'DEVICE_BOUND_TO_OTHER_GMAIL'
           });
         }
       }
     }
 
-    // 2. KHÓA 1 THÍ SINH: 1 tài khoản chỉ được vote 1 lần cho CÙNG 1 thí sinh
+    // 2. KHÓA 1 THÍ SINH: 1 tài khoản Google chỉ được vote 1 lần cho CÙNG 1 thí sinh
     const { rows: sameContestantVotes } = await pool.query(
       `SELECT v.id, c.name as contestant_name 
        FROM votes v 
        LEFT JOIN contestants c ON c.id = v.contestant_id 
        WHERE (v.event_id = $1 OR v.event_id IS NULL) 
          AND v.contestant_id = $2
-         AND (
-           LOWER(v.google_email) = $3 
-           OR ($4 != '' AND v.voter_fp = $4)
-         )
+         AND LOWER(v.google_email) = $3
        LIMIT 1`,
-      [currentEventId, contestant_id, verifiedEmail, cleanFp]
+      [currentEventId, contestant_id, verifiedEmail]
     );
 
     // Lấy thông tin cuộc thi (trạng thái, tỉ lệ vote_ratio, thời gian)
@@ -1397,16 +1382,13 @@ app.post('/api/vote', async (req, res) => {
       });
     }
 
-    // 3. Kiểm tra tổng số thí sinh đã bình chọn theo maxAllowed (tính từ tỉ lệ vote_ratio)
+    // 3. Kiểm tra tổng số thí sinh đã bình chọn theo maxAllowed của tài khoản Google này
     const { rows: totalVotedRows } = await pool.query(
       `SELECT COUNT(DISTINCT v.contestant_id)::int as total_voted 
        FROM votes v 
-       WHERE (v.event_id = $1 OR v.event_id IS NULL) 
-         AND (
-           LOWER(v.google_email) = $2 
-           OR ($3 != '' AND v.voter_fp = $3)
-         )`,
-      [currentEventId, verifiedEmail, cleanFp]
+       WHERE (event_id = $1 OR event_id IS NULL) 
+         AND LOWER(v.google_email) = $2`,
+      [currentEventId, verifiedEmail]
     );
 
     const totalVoted = totalVotedRows[0]?.total_voted || 0;
@@ -1473,10 +1455,9 @@ app.post('/api/vote', async (req, res) => {
 
 // ─── POST /api/vote/cancel (Hủy / Thu hồi lượt bình chọn) ───────────────
 app.post('/api/vote/cancel', async (req, res) => {
-  const { contestant_id, event_id, voter_fingerprint, google_token, google_email } = req.body;
+  const { contestant_id, event_id, google_token, google_email } = req.body;
 
   const currentEventId = event_id || 'evt_hoakhoi_2026';
-  const cleanFp = (voter_fingerprint || '').trim();
 
   let verifiedEmail = (google_email || '').toLowerCase().trim();
   if (google_token) {
@@ -1496,22 +1477,12 @@ app.post('/api/vote/cancel', async (req, res) => {
     }
   }
 
+  if (!verifiedEmail) {
+    return res.status(401).json({ error: 'Vui lòng đăng nhập Google để hủy lượt bình chọn!' });
+  }
+
   try {
-    const conditions = [];
-    const params = [currentEventId];
-    if (verifiedEmail) {
-      params.push(verifiedEmail);
-      conditions.push(`LOWER(google_email) = $${params.length}`);
-    }
-    if (cleanFp) {
-      params.push(cleanFp);
-      conditions.push(`voter_fp = $${params.length}`);
-    }
-
-    if (conditions.length === 0) {
-      return res.status(400).json({ error: 'Không tìm thấy thông tin tài khoản để hủy!' });
-    }
-
+    const params = [currentEventId, verifiedEmail];
     let contestantFilter = '';
     if (contestant_id) {
       params.push(contestant_id);
@@ -1523,8 +1494,8 @@ app.post('/api/vote/cancel', async (req, res) => {
       WHERE id IN (
         SELECT id FROM votes 
         WHERE (event_id = $1 OR event_id IS NULL) 
+          AND LOWER(google_email) = $2
           ${contestantFilter}
-          AND (${conditions.join(' OR ')})
         ORDER BY id DESC
         LIMIT 1
       )
@@ -1558,35 +1529,13 @@ app.post('/api/vote/cancel', async (req, res) => {
 // ─── GET /api/my-votes ────────────────────────────
 app.get('/api/my-votes', async (req, res) => {
   const eventId = req.query.event || req.query.event_id || 'evt_hoakhoi_2026';
-  const voterIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
-    || req.headers['x-real-ip']
-    || req.socket?.remoteAddress
-    || 'unknown';
-  const fp = (req.query.fp || '').trim();
-  const voterId = fp ? `${voterIp}_${fp}` : voterIp;
-  const studentId = (req.query.student_id || '').trim();
   const googleEmail = (req.query.google_email || '').toLowerCase().trim();
 
   try {
-    const myVotesConditions = [];
-    const myVotesParams = [eventId];
-    if (googleEmail) {
-      myVotesParams.push(googleEmail);
-      myVotesConditions.push(`LOWER(google_email) = $${myVotesParams.length}`);
-    }
-    if (fp) {
-      myVotesParams.push(fp);
-      myVotesConditions.push(`voter_fp = $${myVotesParams.length}`);
-    }
-    if (studentId) {
-      myVotesParams.push(studentId);
-      myVotesConditions.push(`(student_id = $${myVotesParams.length} AND student_id != '')`);
-    }
-
     let votedIds = [];
-    if (myVotesConditions.length > 0) {
-      const myVotesQuery = `SELECT DISTINCT contestant_id FROM votes WHERE (event_id = $1 OR event_id IS NULL) AND (${myVotesConditions.join(' OR ')})`;
-      const { rows } = await pool.query(myVotesQuery, myVotesParams);
+    if (googleEmail) {
+      const myVotesQuery = `SELECT DISTINCT contestant_id FROM votes WHERE (event_id = $1 OR event_id IS NULL) AND LOWER(google_email) = $2`;
+      const { rows } = await pool.query(myVotesQuery, [eventId, googleEmail]);
       votedIds = rows.map(r => r.contestant_id);
     }
 
@@ -2148,6 +2097,57 @@ app.post('/api/archives/:id/restore', requireAdminAuth, async (req, res) => {
     res.status(500).json({ error: 'Lỗi server: ' + e.message });
   } finally {
     client.release();
+  }
+});
+
+// ─── POST /api/events/:id/reset-votes (Đặt lại phiếu riêng từng cuộc thi) ───
+app.post('/api/events/:id/reset-votes', requireAdminAuth, async (req, res) => {
+  const eventId = req.params.id;
+  const { title } = req.body || {};
+  try {
+    const { rows: cnt } = await pool.query(
+      'SELECT COUNT(*)::int as c FROM votes WHERE event_id = $1 OR (event_id IS NULL AND $1 = \'evt_hoakhoi_2026\')',
+      [eventId]
+    );
+    if (cnt[0]?.c > 0) {
+      const archive_id = 'arc_ev_' + eventId + '_' + Date.now();
+      const finalTitle = title || (`Reset cuộc thi ${eventId} (` + new Date().toLocaleString('vi-VN') + `)`);
+      const { rows: contestants } = await pool.query('SELECT id, event_id, name, subtitle, color, sort_order, faculty, hometown FROM contestants WHERE event_id = $1 ORDER BY sort_order, id', [eventId]);
+      const { rows: votesData } = await pool.query(`
+        SELECT contestant_id as id, COUNT(*)::int as count 
+        FROM votes WHERE event_id = $1 OR (event_id IS NULL AND $1 = 'evt_hoakhoi_2026') GROUP BY contestant_id
+      `, [eventId]);
+      const votes = {};
+      votesData.forEach(r => { votes[r.id] = r.count; });
+      const { rows: voteLog } = await pool.query(`
+        SELECT v.vote_id, v.contestant_id as id, c.name, v.voter_name as "voterName",
+               COALESCE(v.student_id, '') as "studentId",
+               COALESCE(v.student_class, '') as "studentClass",
+               COALESCE(v.faculty, '') as "faculty",
+               v.comment, v.created_at as ts
+        FROM votes v
+        LEFT JOIN contestants c ON c.id = v.contestant_id
+        WHERE v.event_id = $1 OR (v.event_id IS NULL AND $1 = 'evt_hoakhoi_2026')
+        ORDER BY v.created_at ASC
+      `, [eventId]);
+      await pool.query(`
+        INSERT INTO vote_archives (archive_id, title, notes, total_votes, contestants_data, votes_data, vote_log_data)
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `, [
+        archive_id,
+        finalTitle,
+        `Tự động lưu trữ trước khi reset cuộc thi ${eventId}`,
+        cnt[0].c,
+        JSON.stringify(contestants),
+        JSON.stringify(votes),
+        JSON.stringify(voteLog)
+      ]);
+    }
+    await pool.query('DELETE FROM votes WHERE event_id = $1 OR (event_id IS NULL AND $1 = \'evt_hoakhoi_2026\')', [eventId]);
+    res.json({ success: true, archived: true, message: 'Đã đặt lại phiếu bầu thành công cho cuộc thi này!' });
+  } catch (e) {
+    console.error('POST /api/events/:id/reset-votes error:', e);
+    res.status(500).json({ error: 'Lỗi server: ' + e.message });
   }
 });
 
