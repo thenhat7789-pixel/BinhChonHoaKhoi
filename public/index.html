@@ -3069,7 +3069,7 @@ document.getElementById('confirmVoteBtn').addEventListener('click', async () => 
     const cacheKey = `hh:cache_topic:${eventId}`;
     const rawCache = localStorage.getItem(cacheKey);
     let parsedCache = rawCache ? JSON.parse(rawCache) : {};
-    parsedCache.votedIds = state.votedIds;
+    delete parsedCache.votedIds;
     parsedCache.votes = state.votes;
     localStorage.setItem(cacheKey, JSON.stringify(parsedCache));
   } catch (e) {}
@@ -3194,7 +3194,9 @@ async function init() {
         .then(r => r.json())
         .then(data => {
           if (data && Array.isArray(data.contestants)) {
-            localStorage.setItem(`hh:cache_topic:${e.id}`, JSON.stringify(data));
+            const publicData = { ...data };
+            delete publicData.votedIds;
+            localStorage.setItem(`hh:cache_topic:${e.id}`, JSON.stringify(publicData));
           }
         })
         .catch(() => {});

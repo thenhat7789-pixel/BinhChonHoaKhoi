@@ -166,6 +166,9 @@ async function initDB() {
       UPDATE events SET benefit_badge = '', benefit = '' WHERE benefit_badge ILIKE '%nctxh%' OR benefit ILIKE '%nctxh%';
       UPDATE events SET location = REPLACE(location, ' (Bán kính: 5000m)', '') WHERE location ILIKE '%5000m%';
 
+      -- Mở lại cổng bình chọn cho tất cả các cuộc thi
+      UPDATE events SET is_active = TRUE;
+
       -- Index để kiểm tra duplicate vote và quota nhanh hơn
       CREATE INDEX IF NOT EXISTS idx_votes_voter_ip ON votes (voter_ip);
       CREATE INDEX IF NOT EXISTS idx_votes_voter_contestant ON votes (voter_ip, contestant_id);
@@ -193,6 +196,21 @@ async function initDB() {
       `, [c.id, c.event_id, c.name, c.subtitle, c.color, i, c.faculty || '', c.hometown || '']);
     }
     console.log('✅ Checked and seeded default contestants across all competitions');
+
+    // Đảm bảo mở cổng bình chọn và xóa thời gian kết thúc cũ nếu đã quá hạn
+    try {
+      await client.query('UPDATE events SET is_active = TRUE');
+      const { rows: evs } = await client.query("SELECT id, end_time FROM events WHERE end_time IS NOT NULL AND end_time != ''");
+      for (const ev of evs) {
+        const t = new Date(ev.end_time).getTime();
+        if (!isNaN(t) && t < Date.now()) {
+          await client.query("UPDATE events SET end_time = NULL WHERE id = $1", [ev.id]);
+          console.log('✅ Cleared expired end_time for event ' + ev.id);
+        }
+      }
+    } catch (e) {
+      console.warn('Check end_time error:', e.message);
+    }
 
     // Seed default competitions/events nếu bảng events trống
     const { rows: eventRows } = await client.query('SELECT COUNT(*) as cnt FROM events');

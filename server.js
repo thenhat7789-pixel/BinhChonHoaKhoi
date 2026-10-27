@@ -713,8 +713,8 @@ app.get('/api/topic-data', async (req, res) => {
     const globalRatio = settingsResult.rows.length ? parseInt(settingsResult.rows[0].value) || 80 : 80;
     const voteRatio = (ev.vote_ratio !== null && ev.vote_ratio !== undefined) ? parseInt(ev.vote_ratio) : globalRatio;
     const totalContestants = contestants.length;
-    // Tính số lượng thí sinh tối đa 1 người được bình chọn dựa trên tỉ lệ (ví dụ: 10 TS tỉ lệ 30% = 3 TS, 17 TS tỉ lệ 30% = 5 TS)
-    const maxAllowed = Math.max(1, Math.round((totalContestants * voteRatio) / 100));
+    // Quy định chuẩn BTC: Mỗi tài khoản Google được bình chọn tối đa 3 thí sinh khác nhau (1 phiếu / 1 thí sinh)
+    const maxAllowed = (ev.vote_ratio && ev.vote_ratio > 0 && ev.vote_ratio <= 10) ? parseInt(ev.vote_ratio) : 3;
 
     res.json({
       contestants,
@@ -731,7 +731,7 @@ app.get('/api/topic-data', async (req, res) => {
     console.warn('⚠️ [DB Fallback] GET /api/topic-data using fallback due to:', e.message);
     const eventContestants = DEFAULT_CONTESTANTS.filter(c => c.event_id === eventId || eventId.includes('net_dep') || eventId.includes('hoakhoi'));
     const finalContestants = eventContestants.length ? eventContestants : DEFAULT_CONTESTANTS.slice(0, 7);
-    const maxAllowed = Math.max(1, Math.round((finalContestants.length * 80) / 100));
+    const maxAllowed = 3;
     return res.json({
       contestants: finalContestants,
       votes: {},
@@ -1311,29 +1311,7 @@ app.post('/api/vote', async (req, res) => {
       }
     }
 
-    // 1. KHÓA 1: RÀNG BUỘC THIẾT BỊ ĐỘC BẢN dev_ (Chống đổi Gmail liên tục trên cùng 1 trình duyệt)
-    // Chỉ áp dụng cho mã token độc bản dev_ (UUID client), không dùng hash phần cứng chung để tránh chặn nhầm người dùng cùng dòng điện thoại
-    if (cleanFp && cleanFp.startsWith('dev_')) {
-      const { rows: fpDeviceVotes } = await pool.query(
-        `SELECT DISTINCT LOWER(google_email) as email 
-         FROM votes 
-         WHERE (event_id = $1 OR event_id IS NULL) 
-           AND voter_fp = $2 
-           AND google_email IS NOT NULL AND google_email != ''`,
-        [currentEventId, cleanFp]
-      );
-      if (fpDeviceVotes.length > 0) {
-        const boundEmail = fpDeviceVotes[0].email;
-        if (boundEmail && boundEmail !== verifiedEmail) {
-          return res.status(400).json({
-            error: `🚫 Trình duyệt trên thiết bị này đã được sử dụng để bình chọn bằng tài khoản Google (${boundEmail})! Để đảm bảo tính công bằng, mỗi thiết bị chỉ được dùng 1 tài khoản Google duy nhất.`,
-            code: 'DEVICE_BOUND_TO_OTHER_GMAIL'
-          });
-        }
-      }
-    }
-
-    // 2. KHÓA 1 THÍ SINH: 1 tài khoản Google chỉ được vote 1 lần cho CÙNG 1 thí sinh
+    // 1. KHÓA 1 THÍ SINH: 1 tài khoản Google chỉ được vote 1 lần cho CÙNG 1 thí sinh (không bình chọn trùng người)
     const { rows: sameContestantVotes } = await pool.query(
       `SELECT v.id, c.name as contestant_name 
        FROM votes v 
@@ -1351,10 +1329,13 @@ app.post('/api/vote', async (req, res) => {
     const globalRatio = settingsRows.length ? parseInt(settingsRows[0].value) || 80 : 80;
     const voteRatio = (eventRow.length && eventRow[0].vote_ratio !== null && eventRow[0].vote_ratio !== undefined) ? parseInt(eventRow[0].vote_ratio) : globalRatio;
 
-    // Lấy tổng số thí sinh của cuộc thi để tính số lượt bình chọn tối đa cho phép
+    // Lấy tổng số thí sinh của cuộc thi
     const { rows: contestantCount } = await pool.query('SELECT COUNT(*)::int as cnt FROM contestants WHERE (event_id = $1 OR event_id IS NULL)', [currentEventId]);
     const totalContestants = contestantCount[0]?.cnt || 10;
-    const maxAllowed = Math.max(1, Math.round((totalContestants * voteRatio) / 100));
+    // Quy định chuẩn BTC: Mỗi tài khoản Google được bình chọn tối đa 3 thí sinh khác nhau (1 phiếu / 1 thí sinh)
+    const maxAllowed = (eventRow.length && eventRow[0].vote_ratio && eventRow[0].vote_ratio > 0 && eventRow[0].vote_ratio <= 10) 
+      ? parseInt(eventRow[0].vote_ratio) 
+      : 3;
 
     if (sameContestantVotes.length > 0) {
       // Nếu cử tri nhập lời chúc mới thì cập nhật lời chúc cho phiếu đã bầu
@@ -1394,7 +1375,7 @@ app.post('/api/vote', async (req, res) => {
     const totalVoted = totalVotedRows[0]?.total_voted || 0;
     if (totalVoted >= maxAllowed) {
       return res.status(400).json({
-        error: `Bạn đã sử dụng hết tối đa ${maxAllowed} lượt bình chọn cho ${maxAllowed} thí sinh khác nhau (tỉ lệ ${voteRatio}%)! Bạn có thể nhấn nút "Hủy" trên thí sinh đã chọn nếu muốn đổi người khác.`,
+        error: `Bạn đã sử dụng hết tối đa ${maxAllowed} lượt bình chọn cho ${maxAllowed} thí sinh khác nhau! Mỗi tài khoản Google chỉ được bình chọn 1 lần cho tối đa ${maxAllowed} thí sinh khác nhau.`,
         code: 'QUOTA_EXCEEDED'
       });
     }
@@ -1545,7 +1526,9 @@ app.get('/api/my-votes', async (req, res) => {
     const voteRatio = (eventRow.length && eventRow[0].vote_ratio) ? parseInt(eventRow[0].vote_ratio) : globalRatio;
     const { rows: contestantCount } = await pool.query('SELECT COUNT(*)::int as cnt FROM contestants WHERE (event_id = $1 OR event_id IS NULL)', [eventId]);
     const totalContestants = contestantCount[0].cnt || 0;
-    const maxAllowed = Math.max(1, Math.round((totalContestants * voteRatio) / 100));
+    const maxAllowed = (eventRow.length && eventRow[0].vote_ratio && eventRow[0].vote_ratio > 0 && eventRow[0].vote_ratio <= 10) 
+      ? parseInt(eventRow[0].vote_ratio) 
+      : 3;
     const isDeviceBanned = votedIds.length >= maxAllowed;
 
     res.json({
