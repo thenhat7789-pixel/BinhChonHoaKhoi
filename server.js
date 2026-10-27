@@ -689,7 +689,11 @@ app.get('/api/topic-data', async (req, res) => {
         const googleEmail = (req.query.google_email || '').toLowerCase().trim();
         if (googleEmail) {
           return pool.query(
-            `SELECT DISTINCT contestant_id FROM votes WHERE (event_id = $1 OR event_id IS NULL) AND LOWER(google_email) = $2`,
+            `SELECT DISTINCT v.contestant_id 
+             FROM votes v 
+             LEFT JOIN contestants c ON c.id = v.contestant_id 
+             WHERE (v.event_id = $1 OR c.event_id = $1 OR v.event_id IS NULL) 
+               AND LOWER(v.google_email) = $2`,
             [eventId, googleEmail]
           );
         }
@@ -1311,20 +1315,41 @@ app.post('/api/vote', async (req, res) => {
       }
     }
 
-    // 1. KHÓA 1 THÍ SINH: 1 tài khoản Google chỉ được vote 1 lần cho CÙNG 1 thí sinh (không bình chọn trùng người)
+    const actualEventId = (contestantExists[0] && contestantExists[0].event_id) ? contestantExists[0].event_id : currentEventId;
+
+    // 1. KHÓA 1 THÍ SINH THEO TÀI KHOẢN GOOGLE: 1 tài khoản chỉ được vote 1 lần cho CÙNG 1 thí sinh (khóa toàn hệ thống, không phụ thuộc event_id)
     const { rows: sameContestantVotes } = await pool.query(
       `SELECT v.id, c.name as contestant_name 
        FROM votes v 
        LEFT JOIN contestants c ON c.id = v.contestant_id 
-       WHERE (v.event_id = $1 OR v.event_id IS NULL) 
-         AND v.contestant_id = $2
-         AND LOWER(v.google_email) = $3
+       WHERE v.contestant_id = $1 
+         AND LOWER(v.google_email) = $2
        LIMIT 1`,
-      [currentEventId, contestant_id, verifiedEmail]
+      [contestant_id, verifiedEmail]
     );
 
+    // 2. KHÓA 1 THÍ SINH THEO THIẾT BỊ: 1 thiết bị chỉ được vote 1 lần cho CÙNG 1 thí sinh (chống đổi Gmail trên cùng 1 máy để buff vote cho 1 người)
+    if (cleanFp && cleanFp.startsWith('dev_')) {
+      const { rows: deviceSameVotes } = await pool.query(
+        `SELECT v.id, c.name as contestant_name 
+         FROM votes v 
+         LEFT JOIN contestants c ON c.id = v.contestant_id 
+         WHERE v.contestant_id = $1 
+           AND v.voter_fp = $2
+         LIMIT 1`,
+        [contestant_id, cleanFp]
+      );
+      if (deviceSameVotes.length > 0) {
+        return res.status(400).json({
+          error: `Thiết bị này đã được sử dụng để bình chọn cho thí sinh "${deviceSameVotes[0].contestant_name || 'này'}" rồi! Để đảm bảo tính công bằng, mỗi thiết bị chỉ được bình chọn 1 lần cho mỗi thí sinh.`,
+          code: 'ALREADY_VOTED_SAME_CONTESTANT_DEVICE',
+          contestant_id: contestant_id
+        });
+      }
+    }
+
     // Lấy thông tin cuộc thi (trạng thái, tỉ lệ vote_ratio, thời gian)
-    const { rows: eventRow } = await pool.query("SELECT is_active, vote_ratio, end_time, start_time FROM events WHERE id = $1", [currentEventId]);
+    const { rows: eventRow } = await pool.query("SELECT is_active, vote_ratio, end_time, start_time FROM events WHERE id = $1", [actualEventId]);
     const { rows: settingsRows } = await pool.query("SELECT value FROM settings WHERE key = 'vote_ratio'");
     const globalRatio = settingsRows.length ? parseInt(settingsRows[0].value) || 80 : 80;
     const voteRatio = (eventRow.length && eventRow[0].vote_ratio !== null && eventRow[0].vote_ratio !== undefined) ? parseInt(eventRow[0].vote_ratio) : globalRatio;
@@ -1412,8 +1437,9 @@ app.post('/api/vote', async (req, res) => {
         const vote_id = 'vote_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         await pool.query(
           `INSERT INTO votes (vote_id, contestant_id, event_id, voter_name, student_id, student_class, faculty, comment, voter_ip, voter_fp, google_email, google_uid) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-          [vote_id, contestant_id, currentEventId, cleanVoterName, cleanStudentId, cleanStudentClass, cleanFaculty, comment || '', voterId, cleanFp, verifiedEmail, verifiedUid]
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       ON CONFLICT (LOWER(google_email), contestant_id) DO NOTHING`,
+          [vote_id, contestant_id, actualEventId, cleanVoterName, cleanStudentId, cleanStudentClass, cleanFaculty, comment || '', voterId, cleanFp, verifiedEmail, verifiedUid]
         );
 
         const { rows } = await pool.query('SELECT name FROM contestants WHERE id = $1', [contestant_id]);

@@ -208,8 +208,36 @@ async function initDB() {
           console.log('✅ Cleared expired end_time for event ' + ev.id);
         }
       }
+
+      // Xóa các phiếu bầu trùng lặp trước đó (giữ lại phiếu mới nhất)
+      await client.query(`
+        DELETE FROM votes v1
+        USING votes v2
+        WHERE v1.id < v2.id
+          AND v1.contestant_id = v2.contestant_id
+          AND v1.google_email IS NOT NULL AND v1.google_email != ''
+          AND LOWER(v1.google_email) = LOWER(v2.google_email)
+      `);
+
+      // Xóa các phiếu bầu trùng lặp trên cùng thiết bị cho cùng 1 thí sinh
+      await client.query(`
+        DELETE FROM votes v1
+        USING votes v2
+        WHERE v1.id < v2.id
+          AND v1.contestant_id = v2.contestant_id
+          AND v1.voter_fp IS NOT NULL AND v1.voter_fp LIKE 'dev_%'
+          AND v1.voter_fp = v2.voter_fp
+      `);
+
+      // Tạo UNIQUE INDEX ngăn chặn vĩnh viễn ở tầng Database
+      await client.query(`
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_votes_unique_google_contestant 
+        ON votes (LOWER(google_email), contestant_id) 
+        WHERE google_email IS NOT NULL AND google_email != ''
+      `);
+      console.log('✅ Deduplicated votes and created unique constraint on (google_email, contestant_id)');
     } catch (e) {
-      console.warn('Check end_time error:', e.message);
+      console.warn('Check end_time / deduplicate error:', e.message);
     }
 
     // Seed default competitions/events nếu bảng events trống
