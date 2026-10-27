@@ -14,7 +14,13 @@ if (process.env.DATABASE_URL) {
     connectionString: process.env.DATABASE_URL,
     ssl: isSSL ? { rejectUnauthorized: false } : false,
     connectionTimeoutMillis: 10000,
-    idleTimeoutMillis: 30000
+    idleTimeoutMillis: 30000,
+    max: 15
+  });
+
+  // BẢO VỆ CHỐNG SẬP TIẾN TRÌNH: Bắt buộc lắng nghe error trên idle client của PostgreSQL
+  pool.on('error', (err) => {
+    console.warn('⚠️ [DB Pool] Idle client connection reset (tự động phục hồi kết nối):', err.message);
   });
 }
 

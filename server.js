@@ -1,4 +1,13 @@
 require('dotenv').config();
+
+// BẢO VỆ SERVER KHÔNG BAO GIỜ CRASH / CHẾT TIẾN TRÌNH
+process.on('uncaughtException', (err) => {
+  console.error('⚠️ [Server Safeguard] Uncaught Exception:', err.message, err.stack);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('⚠️ [Server Safeguard] Unhandled Rejection:', reason);
+});
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -2446,10 +2455,14 @@ app.get('*', (req, res) => {
 });
 
 // ─── Start Server ─────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`🚀 Server running at http://localhost:${PORT}`);
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server running on 0.0.0.0:${PORT}`);
   // Khởi tạo DB trong nền để Render luôn nhận cổng HTTP ngay lập tức
   initDB().catch(e => {
     console.error('⚠️ [DB Warning] Lỗi khởi tạo DB trong nền:', e.message);
   });
 });
+
+// Cấu hình timeout theo khuyến nghị chính thức của Render để chống lỗi 502 / Connection reset
+server.keepAliveTimeout = 120000;
+server.headersTimeout = 120000;
