@@ -1437,8 +1437,7 @@ app.post('/api/vote', async (req, res) => {
         const vote_id = 'vote_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         await pool.query(
           `INSERT INTO votes (vote_id, contestant_id, event_id, voter_name, student_id, student_class, faculty, comment, voter_ip, voter_fp, google_email, google_uid) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-       ON CONFLICT (LOWER(google_email), contestant_id) DO NOTHING`,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
           [vote_id, contestant_id, actualEventId, cleanVoterName, cleanStudentId, cleanStudentClass, cleanFaculty, comment || '', voterId, cleanFp, verifiedEmail, verifiedUid]
         );
 
@@ -1456,7 +1455,13 @@ app.post('/api/vote', async (req, res) => {
         });
       } catch (e) {
         console.error('POST /api/vote error:', e);
-        res.status(500).json({ error: 'Lỗi ghi phiếu bầu' });
+        if (e.code === '23505') {
+          return res.status(400).json({
+            error: 'Bạn đã bình chọn cho thí sinh này rồi!',
+            code: 'ALREADY_VOTED_SAME_CONTESTANT'
+          });
+        }
+        res.status(500).json({ error: 'Lỗi ghi phiếu bầu: ' + (e.message || '') });
       }
     });
 
