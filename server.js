@@ -686,7 +686,8 @@ app.get('/api/topic-data', async (req, res) => {
       votesResult,
       myVotesResult,
       eventResult,
-      settingsResult
+      settingsResult,
+      boundEmailResult
     ] = await Promise.all([
       // 1. Contestants (KHÔNG lấy trường photo để giảm payload - ảnh load riêng)
       pool.query('SELECT id, event_id, name, subtitle, color, sort_order, faculty, hometown FROM contestants WHERE event_id = $1 ORDER BY sort_order, id', [eventId]),
@@ -716,7 +717,30 @@ app.get('/api/topic-data', async (req, res) => {
       // 4. Event info
       pool.query('SELECT is_active, vote_ratio, end_time, start_time FROM events WHERE id = $1', [eventId]),
       // 5. Global settings
-      pool.query("SELECT value FROM settings WHERE key = 'vote_ratio'")
+      pool.query("SELECT value FROM settings WHERE key = 'vote_ratio'"),
+      // 6. Device bound email (nếu thiết bị này đã từng bình chọn)
+      (() => {
+        const cleanFp = (req.query.fp || '').trim();
+        const cleanHw = (req.query.hw || '').trim();
+        if (cleanFp && cleanFp.startsWith('dev_')) {
+          return pool.query(
+            `SELECT LOWER(google_email) as email 
+             FROM votes 
+             WHERE voter_fp = $1 AND google_email IS NOT NULL AND google_email != '' 
+             ORDER BY id DESC LIMIT 1`,
+            [cleanFp]
+          );
+        } else if (cleanHw && cleanHw.startsWith('hw_') && voterIp && voterIp !== 'unknown') {
+          return pool.query(
+            `SELECT LOWER(google_email) as email 
+             FROM votes 
+             WHERE hardware_sig = $1 AND voter_ip = $2 AND google_email IS NOT NULL AND google_email != '' 
+             ORDER BY id DESC LIMIT 1`,
+            [cleanHw, voterIp]
+          );
+        }
+        return pool.query('SELECT NULL as email WHERE 1 = 0');
+      })()
     ]);
 
     const contestants = contestantsResult.rows;
@@ -734,12 +758,15 @@ app.get('/api/topic-data', async (req, res) => {
     // Quy định chuẩn BTC: Mỗi tài khoản Google được bình chọn tối đa 3 thí sinh khác nhau (1 phiếu / 1 thí sinh)
     const maxAllowed = (ev.vote_ratio && ev.vote_ratio > 0 && ev.vote_ratio <= 10) ? parseInt(ev.vote_ratio) : 3;
 
+    const boundEmail = boundEmailResult?.rows?.[0]?.email || null;
+
     res.json({
       contestants,
       votes,
       totalVotes,
       votedIds,
       maxAllowed,
+      boundEmail,
       voteRatio,
       is_active: ev.is_active !== false,
       start_time: ev.start_time || null,
@@ -1277,6 +1304,10 @@ app.post('/api/vote', async (req, res) => {
   const cleanStudentClass = (student_class || '').trim();
   const cleanFaculty = (faculty || '').trim();
   const cleanFp = (voter_fingerprint || '').trim();
+  const cleanHwSig = (req.body.hardware_sig || '').trim();
+  const cleanLat = (req.body.latitude || '').trim();
+  const cleanLng = (req.body.longitude || '').trim();
+  const cleanAcc = (req.body.location_accuracy || '').trim();
 
   // 5. CHUẨN HÓA HỌ VÀ TÊN NGƯỜI BÌNH CHỌN (CHỐNG GÕ BỪA SPAM)
   const nameError = validateVoterName(cleanVoterName);
@@ -1331,6 +1362,50 @@ app.post('/api/vote', async (req, res) => {
 
     const actualEventId = (contestantExists[0] && contestantExists[0].event_id) ? contestantExists[0].event_id : currentEventId;
 
+    // 0. KHÓA CỐ ĐỊNH THIẾT BỊ VỚI 1 TÀI KHOẢN GMAIL DUY NHẤT (CHỐNG ĐỔI GMAIL):
+    // Một khi thiết bị (Điện thoại / Máy tính) đã bình chọn bằng 1 tài khoản Google thì vĩnh viễn không thể đổi sang Gmail khác
+    if (cleanFp && cleanFp.startsWith('dev_')) {
+      const { rows: boundFpVotes } = await pool.query(
+        `SELECT DISTINCT LOWER(google_email) as email 
+         FROM votes 
+         WHERE voter_fp = $1 
+           AND google_email IS NOT NULL AND google_email != ''`,
+        [cleanFp]
+      );
+      if (boundFpVotes.length > 0) {
+        const boundEmail = boundFpVotes[0].email;
+        if (boundEmail && boundEmail !== verifiedEmail) {
+          return res.status(400).json({
+            error: `🚫 Thiết bị này đã được liên kết cố định với tài khoản Google (${boundEmail})! Theo quy chế bình chọn, mỗi thiết bị chỉ được sử dụng duy nhất 1 tài khoản Google và không thể đổi Gmail khác.`,
+            code: 'DEVICE_BOUND_TO_OTHER_GMAIL',
+            bound_email: boundEmail
+          });
+        }
+      }
+    }
+
+    // Khóa dấu vân tay phần cứng + IP (chống xóa dữ liệu trình duyệt hoặc mở tab ẩn danh để đổi Gmail mới):
+    if (cleanHwSig && cleanHwSig.startsWith('hw_') && voterIp && voterIp !== 'unknown') {
+      const { rows: boundHwVotes } = await pool.query(
+        `SELECT DISTINCT LOWER(google_email) as email 
+         FROM votes 
+         WHERE hardware_sig = $1 
+           AND voter_ip = $2 
+           AND google_email IS NOT NULL AND google_email != ''`,
+        [cleanHwSig, voterIp]
+      );
+      if (boundHwVotes.length > 0) {
+        const boundEmail = boundHwVotes[0].email;
+        if (boundEmail && boundEmail !== verifiedEmail) {
+          return res.status(400).json({
+            error: `🚫 Máy tính / Điện thoại này đã được sử dụng để bình chọn bằng tài khoản Google (${boundEmail})! Theo quy chế bình chọn, mỗi thiết bị chỉ được gắn với 1 tài khoản Google duy nhất và không thể đổi sang Gmail khác.`,
+            code: 'HARDWARE_BOUND_TO_OTHER_GMAIL',
+            bound_email: boundEmail
+          });
+        }
+      }
+    }
+
     // 1. KHÓA 1 THÍ SINH THEO TÀI KHOẢN GOOGLE: 1 tài khoản chỉ được vote 1 lần cho CÙNG 1 thí sinh (khóa toàn hệ thống, không phụ thuộc event_id)
     const { rows: sameContestantVotes } = await pool.query(
       `SELECT v.id, c.name as contestant_name 
@@ -1342,10 +1417,7 @@ app.post('/api/vote', async (req, res) => {
       [contestant_id, verifiedEmail]
     );
 
-    const cleanHwSig = (req.body.hardware_sig || '').trim();
-    const cleanLat = (req.body.latitude || '').trim();
-    const cleanLng = (req.body.longitude || '').trim();
-    const cleanAcc = (req.body.location_accuracy || '').trim();
+    // (cleanHwSig, cleanLat, cleanLng, cleanAcc đã được khai báo ở đầu hàm)
 
     // 2. KHÓA 1 THÍ SINH THEO THIẾT BỊ (TOKEN CLIENT dev_):
     if (cleanFp && cleanFp.startsWith('dev_')) {

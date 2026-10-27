@@ -1361,10 +1361,10 @@
             <div id="googleUserEmail" style="font-size:0.75rem;color:#15803d;">email@gmail.com</div>
           </div>
         </div>
-        <button type="button" onclick="logoutGoogle()" style="background:#fee2e2;border:none;color:#dc2626;font-size:0.75rem;padding:4px 8px;border-radius:6px;cursor:pointer;font-weight:600;">Đổi Gmail</button>
+        <span style="background:#f0fdf4;border:1px solid #bbf7d0;color:#16a34a;font-size:0.72rem;padding:4px 8px;border-radius:6px;font-weight:700;display:inline-flex;align-items:center;gap:4px;">🔒 Đã khóa Gmail</span>
       </div>
       <div style="font-size:0.75rem;color:#047857;display:flex;align-items:center;gap:4px;">
-        <span>✓</span> <span>Tài khoản Google chính chủ đã được xác thực an toàn.</span>
+        <span>🔒</span> <span>Tài khoản Google đã liên kết cố định với thiết bị này (không thể đổi Gmail khác).</span>
       </div>
     </div>
 
@@ -2382,9 +2382,24 @@ async function loadTopicContestantsAndVotes(eventId) {
       : (localStorage.getItem('hh:google_user_email') || '');
     const googleEmailParam = cachedEmail ? `&google_email=${encodeURIComponent(cachedEmail)}` : '';
     const voterNameParam = voterName ? `&voter_name=${encodeURIComponent(voterName)}` : '';
+    const hwSigParam = (typeof getHardwareSignature === 'function') ? `&hw=${encodeURIComponent(getHardwareSignature())}` : '';
     const combined = await api.get(
-      `/api/topic-data?event=${encodeURIComponent(eventId)}&fp=${encodeURIComponent(VOTER_FP)}&student_id=${encodeURIComponent(studentId)}${voterNameParam}${googleEmailParam}`
+      `/api/topic-data?event=${encodeURIComponent(eventId)}&fp=${encodeURIComponent(VOTER_FP)}&student_id=${encodeURIComponent(studentId)}${voterNameParam}${googleEmailParam}${hwSigParam}`
     );
+
+    // Nếu server thông báo thiết bị này đã liên kết với Gmail cố định
+    if (combined && combined.boundEmail) {
+      const bound = combined.boundEmail.toLowerCase().trim();
+      try {
+        localStorage.setItem('hh:bound_device_email', bound);
+        document.cookie = `hh_bound_email=${encodeURIComponent(bound)}; path=/; max-age=31536000; SameSite=Lax`;
+      } catch(e){}
+      const curUser = (typeof firebase !== 'undefined' && firebase.auth) ? firebase.auth().currentUser : null;
+      if (curUser && curUser.email && curUser.email.toLowerCase().trim() !== bound) {
+        alert(`🚫 Thiết bị này đã được liên kết cố định với tài khoản Google (${bound})!\n\nTheo quy chế bình chọn, mỗi thiết bị chỉ được sử dụng duy nhất 1 tài khoản Google và không thể đổi sang Gmail khác.`);
+        firebase.auth().signOut();
+      }
+    }
 
     if (combined && Array.isArray(combined.contestants)) {
       try { localStorage.setItem(cacheKey, JSON.stringify(combined)); } catch(e){}
@@ -2600,13 +2615,39 @@ function updateGoogleAuthUI(user) {
 
 if (typeof firebase !== 'undefined' && firebase.auth) {
   firebase.auth().onAuthStateChanged((user) => {
-    updateGoogleAuthUI(user);
     if (user && user.email) {
-      try { localStorage.setItem('hh:google_user_email', user.email.toLowerCase().trim()); } catch(e){}
+      const currentEmail = user.email.toLowerCase().trim();
+      let boundEmail = '';
+      try {
+        boundEmail = localStorage.getItem('hh:bound_device_email') || '';
+        if (!boundEmail) {
+          const cMatch = document.cookie.match(/(?:^|; )hh_bound_email=([^;]*)/);
+          if (cMatch && cMatch[1]) boundEmail = decodeURIComponent(cMatch[1]);
+        }
+      } catch(e){}
+
+      // Nếu thiết bị này đã từng liên kết với Gmail khác thì từ chối ngay lập tức
+      if (boundEmail && boundEmail !== currentEmail) {
+        alert(`🚫 Thiết bị này đã được liên kết cố định với tài khoản Google (${boundEmail})!\n\nTheo quy chế bình chọn, mỗi thiết bị chỉ được sử dụng duy nhất 1 tài khoản Google và không thể đổi sang Gmail khác.`);
+        if (typeof firebase !== 'undefined' && firebase.auth) {
+          firebase.auth().signOut();
+        }
+        return;
+      }
+
+      // Khóa cố định thiết bị với Gmail này
+      try {
+        localStorage.setItem('hh:bound_device_email', currentEmail);
+        localStorage.setItem('hh:google_user_email', currentEmail);
+        document.cookie = `hh_bound_email=${encodeURIComponent(currentEmail)}; path=/; max-age=31536000; SameSite=Lax`;
+      } catch(e){}
+
+      updateGoogleAuthUI(user);
       if (state && state.activeEventId) {
         loadTopicContestantsAndVotes(state.activeEventId);
       }
     } else {
+      updateGoogleAuthUI(null);
       try { localStorage.removeItem('hh:google_user_email'); } catch(e){}
       state.votedIds = [];
       if (state && state.activeEventId) {
@@ -2633,10 +2674,36 @@ async function loginWithGoogle() {
     return null;
   }
   const provider = new firebase.auth.GoogleAuthProvider();
-  provider.setCustomParameters({ prompt: 'select_account' });
+
+  let boundEmail = '';
+  try {
+    boundEmail = localStorage.getItem('hh:bound_device_email') || '';
+    if (!boundEmail) {
+      const cMatch = document.cookie.match(/(?:^|; )hh_bound_email=([^;]*)/);
+      if (cMatch && cMatch[1]) boundEmail = decodeURIComponent(cMatch[1]);
+    }
+  } catch(e){}
+
+  if (boundEmail) {
+    provider.setCustomParameters({ login_hint: boundEmail });
+  } else {
+    provider.setCustomParameters({ prompt: 'select_account' });
+  }
+
   try {
     const result = await firebase.auth().signInWithPopup(provider);
     if (result && result.user) {
+      const currentEmail = (result.user.email || '').toLowerCase().trim();
+      if (boundEmail && boundEmail !== currentEmail) {
+        alert(`🚫 Thiết bị này đã được liên kết cố định với tài khoản Google (${boundEmail})!\n\nTheo quy chế, mỗi thiết bị chỉ được sử dụng duy nhất 1 tài khoản Google và không thể đổi sang Gmail khác.`);
+        await firebase.auth().signOut();
+        return null;
+      }
+      try {
+        localStorage.setItem('hh:bound_device_email', currentEmail);
+        localStorage.setItem('hh:google_user_email', currentEmail);
+        document.cookie = `hh_bound_email=${encodeURIComponent(currentEmail)}; path=/; max-age=31536000; SameSite=Lax`;
+      } catch(e){}
       updateGoogleAuthUI(result.user);
       toast(`✓ Xác thực thành công: ${result.user.email}`, 'success');
       return result.user;
@@ -2663,6 +2730,20 @@ async function loginWithGoogle() {
 }
 
 async function logoutGoogle() {
+  let boundEmail = '';
+  try {
+    boundEmail = localStorage.getItem('hh:bound_device_email') || '';
+    if (!boundEmail) {
+      const cMatch = document.cookie.match(/(?:^|; )hh_bound_email=([^;]*)/);
+      if (cMatch && cMatch[1]) boundEmail = decodeURIComponent(cMatch[1]);
+    }
+  } catch(e){}
+
+  if (boundEmail) {
+    toast(`🔒 Tài khoản Google (${boundEmail}) đã được khóa cố định trên thiết bị này theo quy chế bình chọn!`, 'warning', 5000);
+    return;
+  }
+
   if (typeof firebase !== 'undefined' && firebase.auth) {
     await firebase.auth().signOut();
     currentGoogleUser = null;
