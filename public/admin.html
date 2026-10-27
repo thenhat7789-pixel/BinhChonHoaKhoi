@@ -4279,6 +4279,22 @@ function renderTimeline() {
   }).join('');
 }
 
+async function adminBanIp(ip) {
+  if (!confirm(`Bạn có chắc chắn muốn BAN địa chỉ IP "${ip}" không?\n\nSau khi ban, thiết bị từ đường truyền mạng này sẽ bị chặn hoàn toàn không thể bình chọn.`)) return;
+  const reason = prompt('Nhập lý do ban IP:', 'Buff phiếu / Gian lận') || 'Buff phiếu / Gian lận';
+  try {
+    const res = await api.post('/api/admin/ban-ip', { ip, reason });
+    if (res && res.success) {
+      toast(res.message || `Đã ban IP ${ip} thành công!`, 'success');
+      if (typeof loadAdminData === 'function') loadAdminData();
+    } else {
+      toast(res?.error || 'Lỗi khi ban IP!', 'error');
+    }
+  } catch(e) {
+    toast('Lỗi kết nối: ' + e.message, 'error');
+  }
+}
+
 /* ─── LOG TABLE ─────────────────────────────────────────── */
 function renderLogTable() {
   const body = document.getElementById('logTableBody');
@@ -4374,7 +4390,25 @@ function renderLogTable() {
         </div>
         ${entry.contestantSubtitle ? `<div style="font-size:0.72rem;color:#64748b;margin-top:2px;">${esc(entry.contestantSubtitle)}</div>` : ''}
       </td>
-      <td class="td-name fw-600" style="color:var(--text-0)">${esc(voter)}</td>
+      <td class="td-name fw-600" style="color:var(--text-0)">
+        <div>${esc(voter)}</div>
+        ${entry.googleEmail ? `<div style="font-size:0.7rem;color:#0284c7;font-weight:600;">${esc(entry.googleEmail)}</div>` : ''}
+        ${entry.voterIp ? `
+          <div style="font-size:0.7rem;color:#64748b;display:flex;align-items:center;gap:4px;margin-top:2px;">
+            <span>IP: ${esc(entry.voterIp)}</span>
+            ${entry.voterIp !== 'unknown' ? `
+              <button type="button" onclick="adminBanIp('${esc(entry.voterIp)}')" style="border:none;background:#fee2e2;color:#dc2626;padding:1px 6px;border-radius:4px;font-size:0.65rem;font-weight:700;cursor:pointer;" title="Chặn IP này vĩnh viễn">Ban IP</button>
+            ` : ''}
+          </div>
+        ` : ''}
+        ${(entry.latitude && entry.longitude) ? `
+          <div style="font-size:0.68rem;margin-top:2px;">
+            <a href="https://www.google.com/maps?q=${esc(entry.latitude)},${esc(entry.longitude)}" target="_blank" rel="noopener noreferrer" style="color:#16a34a;text-decoration:none;font-weight:700;">
+              📍 Vị trí GPS (${esc(entry.latitude)}, ${esc(entry.longitude)})
+            </a>
+          </div>
+        ` : ''}
+      </td>
       <td style="color:var(--text-1);font-style:italic;max-width:320px;word-break:break-word;">"${esc(comment)}"</td>
       <td style="text-align: right;">
         <div style="display: flex; gap: 4px; justify-content: flex-end;">
@@ -4510,6 +4544,10 @@ async function handleAdjustVote(contestantId, amount, eventId) {
           studentClass: entry.studentClass || '',
           faculty: entry.faculty || '',
           comment: entry.comment || '',
+          voterIp: entry.voterIp || entry.voter_ip || '',
+          googleEmail: entry.googleEmail || entry.google_email || '',
+          latitude: entry.latitude || '',
+          longitude: entry.longitude || '',
           ts: entry.ts ? new Date(entry.ts).getTime() : Date.now(),
           eventId: entry.eventId || 'evt_hoakhoi_2026',
           eventTitle: entry.eventTitle || 'Bình Chọn Hoa Khôi 2026',
