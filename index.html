@@ -1735,6 +1735,121 @@ function getUniqueDeviceToken() {
 
 const VOTER_FP = getUniqueDeviceToken();
 
+/* ─── HARDWARE FINGERPRINT (CANVAS 2D + WEBGL GPU + SCREEN + CPU + AUDIO CONTEXT) ─── */
+/* Dấu vân tay phần cứng vật lý không bị mất khi xóa dữ liệu trình duyệt hay mở tab ẩn danh */
+async function getHardwareSignature() {
+  try {
+    const components = [];
+
+    // 1. Canvas 2D Rasterization
+    try {
+      const cvs = document.createElement('canvas');
+      cvs.width = 240;
+      cvs.height = 60;
+      const ctx = cvs.getContext('2d');
+      if (ctx) {
+        ctx.textBaseline = 'top';
+        ctx.font = '14px Arial, Helvetica, sans-serif';
+        ctx.fillStyle = '#f60';
+        ctx.fillRect(10, 5, 62, 20);
+        ctx.fillStyle = '#069';
+        ctx.fillText('BinhChonHoaKhoi2026! 👑🌟', 2, 15);
+        ctx.fillStyle = 'rgba(102, 204, 0, 0.7)';
+        ctx.fillText('BinhChonHoaKhoi2026! 👑🌟', 4, 17);
+        components.push(cvs.toDataURL());
+      }
+    } catch(e){}
+
+    // 2. WebGL GPU Unmasked Renderer & Vendor
+    try {
+      const glCanvas = document.createElement('canvas');
+      const gl = glCanvas.getContext('webgl') || glCanvas.getContext('experimental-webgl');
+      if (gl) {
+        const dbg = gl.getExtension('WEBGL_debug_renderer_info');
+        if (dbg) {
+          components.push(gl.getParameter(dbg.UNMASKED_VENDOR_WEBGL) || '');
+          components.push(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) || '');
+        }
+        components.push(gl.getParameter(gl.SHADING_LANGUAGE_VERSION) || '');
+      }
+    } catch(e){}
+
+    // 3. Screen, Cores, Memory, Platform, Timezone
+    components.push((screen.width || 0) + 'x' + (screen.height || 0) + 'x' + (screen.colorDepth || 24));
+    components.push((navigator.hardwareConcurrency || 4).toString());
+    components.push((navigator.deviceMemory || 4).toString());
+    components.push(navigator.platform || '');
+    components.push(new Date().getTimezoneOffset().toString());
+    try {
+      components.push(Intl.DateTimeFormat().resolvedOptions().timeZone || '');
+    } catch(e){}
+
+    // 4. OfflineAudioContext Dynamics Compressor Fingerprint
+    try {
+      const AudioCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+      if (AudioCtx) {
+        const audioCtx = new AudioCtx(1, 44100, 44100);
+        const osc = audioCtx.createOscillator();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(10000, audioCtx.currentTime);
+        const comp = audioCtx.createDynamicsCompressor();
+        comp.threshold.setValueAtTime(-50, audioCtx.currentTime);
+        comp.knee.setValueAtTime(40, audioCtx.currentTime);
+        comp.ratio.setValueAtTime(12, audioCtx.currentTime);
+        comp.reduction.setValueAtTime(-20, audioCtx.currentTime);
+        comp.attack.setValueAtTime(0, audioCtx.currentTime);
+        comp.release.setValueAtTime(0.25, audioCtx.currentTime);
+        osc.connect(comp);
+        comp.connect(audioCtx.destination);
+        osc.start(0);
+        const audioBuffer = await audioCtx.startRendering();
+        let audioSum = 0;
+        const channelData = audioBuffer.getChannelData(0);
+        for (let i = 0; i < 500; i += 10) {
+          audioSum += Math.abs(channelData[i]);
+        }
+        components.push(audioSum.toFixed(5));
+      }
+    } catch(e){}
+
+    const rawStr = components.join('|||');
+    if (typeof crypto !== 'undefined' && crypto.subtle && crypto.subtle.digest) {
+      const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(rawStr));
+      const hash = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 32);
+      return 'hw_' + hash;
+    } else {
+      let hash = 0;
+      for (let i = 0; i < rawStr.length; i++) {
+        hash = ((hash << 5) - hash) + rawStr.charCodeAt(i);
+        hash |= 0;
+      }
+      return 'hw_' + Math.abs(hash).toString(16);
+    }
+  } catch(e) {
+    return 'hw_fallback';
+  }
+}
+
+/* ─── DEVICE GEOLOCATION COORDINATES ─── */
+function getDeviceCoordinates() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        resolve({
+          lat: pos.coords.latitude.toFixed(5),
+          lng: pos.coords.longitude.toFixed(5),
+          acc: Math.round(pos.coords.accuracy || 0)
+        });
+      },
+      (err) => {
+        resolve(null);
+      },
+      { timeout: 3500, maximumAge: 60000, enableHighAccuracy: true }
+    );
+  });
+}
+
 function getVotedStorageKey(eventId) {
   const email = (currentGoogleUser?.email || localStorage.getItem('hh:google_user_email') || '').toLowerCase().trim();
   return email ? `hh:voted:${email}:${eventId}` : `hh:voted:guest:${eventId}`;
@@ -2963,6 +3078,12 @@ document.getElementById('confirmVoteBtn').addEventListener('click', async () => 
   confirmBtn.disabled = true;
   confirmBtn.innerHTML = '⏳ Đang ghi phiếu...';
 
+  // Lấy Dấu vân tay phần cứng và Tọa độ thiết bị để chống gian lận
+  const [hwSig, coords] = await Promise.all([
+    getHardwareSignature(),
+    getDeviceCoordinates()
+  ]);
+
   // Submit to Server API first
   const res = await api.post('/api/vote', {
     contestant_id: cId,
@@ -2973,6 +3094,10 @@ document.getElementById('confirmVoteBtn').addEventListener('click', async () => 
     faculty: '',
     comment: comment || 'Ủng hộ thí sinh!',
     voter_fingerprint: VOTER_FP,
+    hardware_sig: hwSig,
+    latitude: coords?.lat || '',
+    longitude: coords?.lng || '',
+    location_accuracy: coords?.acc || '',
     hp_token: trapVal,
     is_automated: isAutomated,
     vote_duration: elapsedVoteMs,

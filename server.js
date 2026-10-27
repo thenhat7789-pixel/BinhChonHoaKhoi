@@ -589,10 +589,24 @@ app.post('/api/check-in', async (req, res) => {
   if (!cleanStudentClass) return res.status(400).json({ error: 'Vui lòng nhập Lớp của bạn!' });
   if (!cleanFaculty) return res.status(400).json({ error: 'Vui lòng nhập Khoa của bạn!' });
 
-  const voterIp = req.headers['x-forwarded-for']?.split(',')[0]?.trim()
+  const voterIp = req.headers['cf-connecting-ip']
+    || req.headers['x-forwarded-for']?.split(',')[0]?.trim()
     || req.headers['x-real-ip']
     || req.socket?.remoteAddress
     || 'unknown';
+
+  // 0. KIỂM TRA ĐỊA CHỈ IP BỊ BAN (BLACKLIST)
+  if (voterIp && voterIp !== 'unknown') {
+    try {
+      const { rows: bannedRows } = await pool.query('SELECT ip, reason FROM banned_ips WHERE ip = $1', [voterIp]);
+      if (bannedRows.length > 0) {
+        return res.status(403).json({
+          error: `🚫 Địa chỉ mạng (IP: ${voterIp}) của bạn đã bị Ban do vi phạm quy chế bình chọn (${bannedRows[0].reason || 'Buff phiếu'})!`,
+          code: 'IP_BANNED'
+        });
+      }
+    } catch (e) {}
+  }
   const cleanFp = (voter_fingerprint || '').trim();
   const voterId = cleanFp ? `${voterIp}_${cleanFp}` : voterIp;
 
@@ -1328,7 +1342,12 @@ app.post('/api/vote', async (req, res) => {
       [contestant_id, verifiedEmail]
     );
 
-    // 2. KHÓA 1 THÍ SINH THEO THIẾT BỊ: 1 thiết bị chỉ được vote 1 lần cho CÙNG 1 thí sinh (chống đổi Gmail trên cùng 1 máy để buff vote cho 1 người)
+    const cleanHwSig = (req.body.hardware_sig || '').trim();
+    const cleanLat = (req.body.latitude || '').trim();
+    const cleanLng = (req.body.longitude || '').trim();
+    const cleanAcc = (req.body.location_accuracy || '').trim();
+
+    // 2. KHÓA 1 THÍ SINH THEO THIẾT BỊ (TOKEN CLIENT dev_):
     if (cleanFp && cleanFp.startsWith('dev_')) {
       const { rows: deviceSameVotes } = await pool.query(
         `SELECT v.id, c.name as contestant_name 
@@ -1343,6 +1362,71 @@ app.post('/api/vote', async (req, res) => {
         return res.status(400).json({
           error: `Thiết bị này đã được sử dụng để bình chọn cho thí sinh "${deviceSameVotes[0].contestant_name || 'này'}" rồi! Để đảm bảo tính công bằng, mỗi thiết bị chỉ được bình chọn 1 lần cho mỗi thí sinh.`,
           code: 'ALREADY_VOTED_SAME_CONTESTANT_DEVICE',
+          contestant_id: contestant_id
+        });
+      }
+    }
+
+    // 3. KHÓA PHẦN CỨNG MÁY TÍNH / ĐIỆN THOẠI (HẠ GỤC TAB ẨN DANH / XÓA DỮ LIỆU TRÌNH DUYỆT):
+    // Dấu vân tay phần cứng (Canvas 2D + WebGL GPU + Screen + CPU + AudioContext) không bị xóa khi xóa cookie
+    if (cleanHwSig && cleanHwSig.startsWith('hw_')) {
+      const { rows: hwVotes } = await pool.query(
+        `SELECT v.id, c.name as contestant_name 
+         FROM votes v 
+         LEFT JOIN contestants c ON c.id = v.contestant_id 
+         WHERE v.contestant_id = $1 
+           AND (
+             (v.hardware_sig = $2 AND v.voter_ip = $3)
+             OR (v.hardware_sig = $2 AND v.voter_fp = $4)
+           )
+         LIMIT 1`,
+        [contestant_id, cleanHwSig, voterIp, cleanFp]
+      );
+      if (hwVotes.length > 0) {
+        return res.status(400).json({
+          error: `🚫 Thiết bị này đã được sử dụng để bình chọn cho thí sinh "${hwVotes[0].contestant_name || 'này'}" rồi! Hệ thống đã nhận diện dấu vân tay phần cứng máy tính/điện thoại. Việc xóa dữ liệu duyệt web hoặc mở tab ẩn danh trên cùng máy không thể bình chọn lại!`,
+          code: 'HARDWARE_ALREADY_VOTED',
+          contestant_id: contestant_id
+        });
+      }
+    }
+
+    // 4. GIỚI HẠN THEO ĐỊA CHỈ IP MẠNG (CHỐNG DỒN PHIẾU TỪ 1 ĐƯỜNG TRUYỀN):
+    // Mỗi địa chỉ IP mạng chỉ được gửi tối đa 2 phiếu cho CÙNG 1 thí sinh
+    if (voterIp && voterIp !== 'unknown') {
+      const { rows: ipCountRows } = await pool.query(
+        `SELECT COUNT(*)::int as count 
+         FROM votes 
+         WHERE contestant_id = $1 AND voter_ip = $2`,
+        [contestant_id, voterIp]
+      );
+      const ipVoteCount = ipCountRows[0]?.count || 0;
+      const MAX_VOTES_PER_IP_CONTESTANT = 2;
+      if (ipVoteCount >= MAX_VOTES_PER_IP_CONTESTANT) {
+        return res.status(400).json({
+          error: `🚫 Đường truyền mạng (IP: ${voterIp}) đã đạt giới hạn tối đa ${MAX_VOTES_PER_IP_CONTESTANT} lượt bình chọn cho thí sinh này! Để ngăn chặn buff phiếu gian lận, mỗi kết nối mạng chỉ được bình chọn tối đa ${MAX_VOTES_PER_IP_CONTESTANT} lần cho cùng 1 thí sinh. Bạn có thể bình chọn cho thí sinh khác.`,
+          code: 'IP_CONTESTANT_LIMIT_EXCEEDED',
+          contestant_id: contestant_id
+        });
+      }
+    }
+
+    // 5. GIỚI HẠN TỌA ĐỘ VỊ TRÍ ĐỊA LÝ (GPS / GEOLOCATION):
+    if (cleanLat && cleanLng && !isNaN(parseFloat(cleanLat)) && !isNaN(parseFloat(cleanLng))) {
+      const { rows: geoCountRows } = await pool.query(
+        `SELECT COUNT(*)::int as count 
+         FROM votes 
+         WHERE contestant_id = $1 
+           AND latitude IS NOT NULL AND latitude != ''
+           AND ROUND(latitude::numeric, 3) = ROUND($2::numeric, 3)
+           AND ROUND(longitude::numeric, 3) = ROUND($3::numeric, 3)`,
+        [contestant_id, cleanLat, cleanLng]
+      );
+      const geoCount = geoCountRows[0]?.count || 0;
+      if (geoCount >= 2) {
+        return res.status(400).json({
+          error: `🚫 Vị trí địa lý này đã đạt giới hạn tối đa 2 lượt bình chọn cho thí sinh này! Để đảm bảo công bằng cho cuộc thi, hệ thống không chấp nhận dồn nhiều phiếu tại cùng một vị trí vật lý.`,
+          code: 'GEOLOCATION_LIMIT_EXCEEDED',
           contestant_id: contestant_id
         });
       }
@@ -1436,9 +1520,9 @@ app.post('/api/vote', async (req, res) => {
         // 7. Ghi phiếu bầu kèm thông tin Google Auth + Device Hardware Fingerprint
         const vote_id = 'vote_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
         await pool.query(
-          `INSERT INTO votes (vote_id, contestant_id, event_id, voter_name, student_id, student_class, faculty, comment, voter_ip, voter_fp, google_email, google_uid) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-          [vote_id, contestant_id, actualEventId, cleanVoterName, cleanStudentId, cleanStudentClass, cleanFaculty, comment || '', voterId, cleanFp, verifiedEmail, verifiedUid]
+          `INSERT INTO votes (vote_id, contestant_id, event_id, voter_name, student_id, student_class, faculty, comment, voter_ip, voter_fp, google_email, google_uid, hardware_sig, latitude, longitude, location_accuracy) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)`,
+          [vote_id, contestant_id, actualEventId, cleanVoterName, cleanStudentId, cleanStudentClass, cleanFaculty, comment || '', voterId, cleanFp, verifiedEmail, verifiedUid, cleanHwSig, cleanLat, cleanLng, cleanAcc]
         );
 
         const { rows } = await pool.query('SELECT name FROM contestants WHERE id = $1', [contestant_id]);
@@ -1594,7 +1678,13 @@ app.get('/api/vote-log', async (req, res) => {
              v.comment, v.created_at as ts,
              COALESCE(v.event_id, c.event_id, 'evt_hoakhoi_2026') as "eventId",
              COALESCE(ev.title, 'Bình Chọn Hoa Khôi 2026') as "eventTitle",
-             COALESCE(ev.tag, '# CUỘC THI') as "eventTag"
+             COALESCE(ev.tag, '# CUỘC THI') as "eventTag",
+             COALESCE(v.voter_ip, '') as "voterIp",
+             COALESCE(v.google_email, '') as "googleEmail",
+             COALESCE(v.hardware_sig, '') as "hardwareSig",
+             COALESCE(v.latitude, '') as "latitude",
+             COALESCE(v.longitude, '') as "longitude",
+             COALESCE(v.location_accuracy, '') as "locationAccuracy"
       FROM votes v
       LEFT JOIN contestants c ON c.id = v.contestant_id
       LEFT JOIN events ev ON ev.id = COALESCE(v.event_id, c.event_id, 'evt_hoakhoi_2026')
@@ -1626,6 +1716,41 @@ app.post('/api/share', async (req, res) => {
   } catch (e) {
     console.error('POST /api/share error:', e);
     res.status(500).json({ error: 'Lỗi ghi lượt chia sẻ' });
+  }
+});
+
+// ─── ADMIN BAN / UNBAN IP API ─────────────────────
+app.get('/api/admin/banned-ips', requireAdminAuth, async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM banned_ips ORDER BY created_at DESC');
+    res.json({ bannedIps: rows });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/admin/ban-ip', requireAdminAuth, async (req, res) => {
+  const { ip, reason } = req.body;
+  if (!ip) return res.status(400).json({ error: 'Thiếu địa chỉ IP' });
+  try {
+    await pool.query(
+      'INSERT INTO banned_ips (ip, reason) VALUES ($1, $2) ON CONFLICT (ip) DO UPDATE SET reason = EXCLUDED.reason',
+      [ip.trim(), (reason || 'Buff phiếu gian lận').trim()]
+    );
+    res.json({ success: true, message: `Đã ban IP ${ip} thành công!` });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/admin/unban-ip', requireAdminAuth, async (req, res) => {
+  const { ip } = req.body;
+  if (!ip) return res.status(400).json({ error: 'Thiếu địa chỉ IP' });
+  try {
+    await pool.query('DELETE FROM banned_ips WHERE ip = $1', [ip.trim()]);
+    res.json({ success: true, message: `Đã mở khóa IP ${ip} thành công!` });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
   }
 });
 

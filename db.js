@@ -152,6 +152,19 @@ async function initDB() {
       ALTER TABLE votes ADD COLUMN IF NOT EXISTS voter_fp VARCHAR(100) DEFAULT '';
       ALTER TABLE votes ADD COLUMN IF NOT EXISTS google_email VARCHAR(255) DEFAULT '';
       ALTER TABLE votes ADD COLUMN IF NOT EXISTS google_uid VARCHAR(128) DEFAULT '';
+      ALTER TABLE votes ADD COLUMN IF NOT EXISTS hardware_sig VARCHAR(100) DEFAULT '';
+      ALTER TABLE votes ADD COLUMN IF NOT EXISTS latitude VARCHAR(50) DEFAULT '';
+      ALTER TABLE votes ADD COLUMN IF NOT EXISTS longitude VARCHAR(50) DEFAULT '';
+      ALTER TABLE votes ADD COLUMN IF NOT EXISTS location_accuracy VARCHAR(50) DEFAULT '';
+
+      CREATE TABLE IF NOT EXISTS banned_ips (
+        ip VARCHAR(100) PRIMARY KEY,
+        reason TEXT DEFAULT 'Spam / Buff vote',
+        created_at TIMESTAMP DEFAULT NOW()
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_votes_hardware_sig ON votes (hardware_sig);
+      CREATE INDEX IF NOT EXISTS idx_votes_hw_contestant ON votes (hardware_sig, contestant_id);
 
       -- Gán slug mặc định cho 4 cuộc thi chính nếu chưa có
       UPDATE events SET slug = 'hoakhoi' WHERE id = 'evt_hoakhoi_2026' AND (slug IS NULL OR slug = '');
