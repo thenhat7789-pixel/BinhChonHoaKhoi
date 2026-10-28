@@ -2746,7 +2746,38 @@ function showTab(name) {
     renderLogTable();
     renderTimeline();
     loadShareLogs();
+    refreshVoteLogFromApi();
   }
+}
+
+async function refreshVoteLogFromApi() {
+  try {
+    const res = await api.get('/api/vote-log');
+    if (res && Array.isArray(res.log)) {
+      appData.voteLog = res.log.map(entry => ({
+        voteId: entry.vote_id || entry.voteId,
+        id: entry.id,
+        name: entry.name,
+        contestantSubtitle: entry.contestantSubtitle || '',
+        voterName: entry.voterName,
+        studentId: entry.studentId || '',
+        studentClass: entry.studentClass || '',
+        faculty: entry.faculty || '',
+        comment: entry.comment || '',
+        voterIp: entry.voterIp || entry.voter_ip || '',
+        googleEmail: entry.googleEmail || entry.google_email || '',
+        hardwareSig: entry.hardwareSig || entry.hardware_sig || '',
+        latitude: entry.latitude || '',
+        longitude: entry.longitude || '',
+        ts: entry.ts ? new Date(entry.ts).getTime() : Date.now(),
+        eventId: entry.eventId || 'evt_hoakhoi_2026',
+        eventTitle: entry.eventTitle || 'Bình Chọn Hoa Khôi 2026',
+        eventTag: entry.eventTag || '# CUỘC THI'
+      }));
+      renderLogTable();
+      renderTimeline();
+    }
+  } catch(e) {}
 }
 
 /* ─── EVENTS MANAGER FUNCTIONS (CUỘC THI BÌNH CHỌN) ─── */
@@ -3939,7 +3970,7 @@ function applyAdminPayload(data) {
 
   // Vote log
   appData.voteLog = (data.log || []).map(entry => ({
-    voteId: entry.vote_id,
+    voteId: entry.vote_id || entry.voteId,
     id: entry.id,
     name: entry.name,
     contestantSubtitle: entry.contestantSubtitle || '',
@@ -3947,8 +3978,13 @@ function applyAdminPayload(data) {
     studentId: entry.studentId || '',
     studentClass: entry.studentClass || '',
     faculty: entry.faculty || '',
-    comment: entry.comment,
-    ts: new Date(entry.ts).getTime(),
+    comment: entry.comment || '',
+    voterIp: entry.voterIp || entry.voter_ip || '',
+    googleEmail: entry.googleEmail || entry.google_email || '',
+    hardwareSig: entry.hardwareSig || entry.hardware_sig || '',
+    latitude: entry.latitude || '',
+    longitude: entry.longitude || '',
+    ts: entry.ts ? new Date(entry.ts).getTime() : Date.now(),
     eventId: entry.eventId || 'evt_hoakhoi_2026',
     eventTitle: entry.eventTitle || 'Bình Chọn Hoa Khôi 2026',
     eventTag: entry.eventTag || '# CUỘC THI'
@@ -4322,11 +4358,17 @@ function renderLogTable() {
       const cId = (e.id || '').toLowerCase();
       const comment = (e.comment || '').toLowerCase();
       const evTitle = (e.eventTitle || '').toLowerCase();
+      const email = (e.googleEmail || '').toLowerCase();
+      const ip = (e.voterIp || '').toLowerCase();
+      const voteId = (e.voteId || '').toLowerCase();
       return vName.includes(voteLogSearchKeyword) ||
              cName.includes(voteLogSearchKeyword) ||
              cId.includes(voteLogSearchKeyword) ||
              comment.includes(voteLogSearchKeyword) ||
-             evTitle.includes(voteLogSearchKeyword);
+             evTitle.includes(voteLogSearchKeyword) ||
+             email.includes(voteLogSearchKeyword) ||
+             ip.includes(voteLogSearchKeyword) ||
+             voteId.includes(voteLogSearchKeyword);
     });
   }
 

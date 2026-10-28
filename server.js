@@ -1893,7 +1893,7 @@ app.get('/api/admin-data', async (req, res) => {
         WHERE s.contestant_id IS NOT NULL
         GROUP BY s.contestant_id
       `).catch(() => ({ rows: [] })),
-      // 5. Vote log (giới hạn 500 bản ghi gần nhất để tránh payload lớn)
+      // 5. Vote log (tải tới 10.000 bản ghi để trang Admin tìm kiếm và thống kê đầy đủ toàn bộ lịch sử)
       pool.query(`
         SELECT v.vote_id, v.contestant_id as id, 
                COALESCE(c.name, v.contestant_id) as name,
@@ -1905,12 +1905,17 @@ app.get('/api/admin-data', async (req, res) => {
                v.comment, v.created_at as ts,
                COALESCE(v.event_id, c.event_id, 'evt_hoakhoi_2026') as "eventId",
                COALESCE(ev.title, 'Bình Chọn Hoa Khôi 2026') as "eventTitle",
-               COALESCE(ev.tag, '# CUỘC THI') as "eventTag"
+               COALESCE(ev.tag, '# CUỘC THI') as "eventTag",
+               COALESCE(v.voter_ip, '') as "voterIp",
+               COALESCE(v.google_email, '') as "googleEmail",
+               COALESCE(v.hardware_sig, '') as "hardwareSig",
+               COALESCE(v.latitude, '') as "latitude",
+               COALESCE(v.longitude, '') as "longitude"
         FROM votes v
         LEFT JOIN contestants c ON c.id = v.contestant_id
         LEFT JOIN events ev ON ev.id = v.event_id
         ORDER BY v.created_at DESC
-        LIMIT 500
+        LIMIT 10000
       `),
       // 6. Settings
       pool.query('SELECT key, value FROM settings')
