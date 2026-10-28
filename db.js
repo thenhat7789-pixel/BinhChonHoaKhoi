@@ -195,9 +195,15 @@ async function initDB() {
       CREATE INDEX IF NOT EXISTS idx_votes_fp_contestant ON votes (voter_fp, contestant_id);
       CREATE INDEX IF NOT EXISTS idx_votes_google_email ON votes (google_email);
       CREATE INDEX IF NOT EXISTS idx_votes_google_contestant ON votes (google_email, contestant_id);
+      CREATE INDEX IF NOT EXISTS idx_votes_lower_google_email ON votes (LOWER(google_email));
+      CREATE INDEX IF NOT EXISTS idx_votes_lower_google_contestant ON votes (LOWER(google_email), contestant_id);
+      CREATE INDEX IF NOT EXISTS idx_votes_voter_fp_email ON votes (voter_fp, google_email);
+      CREATE INDEX IF NOT EXISTS idx_votes_hw_email ON votes (hardware_sig, google_email);
+      CREATE INDEX IF NOT EXISTS idx_votes_contestant_ip ON votes (contestant_id, voter_ip);
       CREATE INDEX IF NOT EXISTS idx_votes_student_id ON votes (student_id);
       CREATE INDEX IF NOT EXISTS idx_votes_event_id ON votes (event_id);
       CREATE INDEX IF NOT EXISTS idx_contestants_event_id ON contestants (event_id);
+      CREATE INDEX IF NOT EXISTS idx_banned_ips_ip ON banned_ips (ip);
     `);
 
     // Đảm bảo tất cả thí sinh mặc định của 4 cuộc thi luôn có trong database

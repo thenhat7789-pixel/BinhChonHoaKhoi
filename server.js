@@ -138,7 +138,7 @@ function checkVoteRateLimit(ip) {
   if (!ip || ip === 'unknown') return true;
   const now = Date.now();
   const windowMs = 60 * 1000; // 1 phút
-  const maxVotesPerMinute = 8; // Tối đa 8 request vote / phút / 1 IP (Đủ cho nhiều người cùng Wi-Fi nhưng chặn bot spam)
+  const maxVotesPerMinute = 30; // Tối đa 30 request vote / phút / 1 IP (Đảm bảo Wi-Fi chung trường học không bị chặn oan)
 
   let timestamps = voteRateLimitMap.get(ip) || [];
   timestamps = timestamps.filter(t => now - t < windowMs);
@@ -148,6 +148,26 @@ function checkVoteRateLimit(ip) {
   timestamps.push(now);
   voteRateLimitMap.set(ip, timestamps);
   return true;
+}
+
+// ─── BANNED IPS IN-MEMORY CACHE (SIÊU TỐC 0MS) ───────────
+const bannedIpsCache = new Map();
+let lastBannedIpsFetch = 0;
+
+async function checkIpBannedCached(ip) {
+  if (!ip || ip === 'unknown') return null;
+  const now = Date.now();
+  if (now - lastBannedIpsFetch > 30000 || bannedIpsCache.size === 0) {
+    try {
+      if (pool) {
+        const { rows } = await pool.query('SELECT ip, reason FROM banned_ips');
+        bannedIpsCache.clear();
+        for (const r of rows) bannedIpsCache.set(r.ip, r.reason || 'Buff phiếu');
+        lastBannedIpsFetch = now;
+      }
+    } catch (e) {}
+  }
+  return bannedIpsCache.get(ip) || null;
 }
 
 // Dọn dẹp bộ nhớ RAM định kỳ mỗi 5 phút
@@ -1354,20 +1374,15 @@ app.post('/api/vote', async (req, res) => {
     || 'unknown';
   const voterId = cleanFp ? `${voterIp}_${cleanFp}` : voterIp;
 
-  // 5.5. CHẶN VĨNH VIỄN NẾU IP ĐÃ BỊ BAN
+  // 5.5. CHẶN VĨNH VIỄN NẾU IP ĐÃ BỊ BAN (KIỂM TRA CACHE 0MS)
   if (voterIp && voterIp !== 'unknown') {
-    try {
-      const { rows: bannedRows } = await pool.query(
-        'SELECT ip, reason FROM banned_ips WHERE ip = $1',
-        [voterIp]
-      );
-      if (bannedRows.length > 0) {
-        return res.status(403).json({
-          error: `🚫 Địa chỉ IP mạng (${voterIp}) của bạn đã bị BAN vĩnh viễn do vi phạm quy chế bình chọn (${bannedRows[0].reason || 'Buff phiếu gian lận'})!`,
-          code: 'IP_BANNED'
-        });
-      }
-    } catch (e) {}
+    const banReason = await checkIpBannedCached(voterIp);
+    if (banReason) {
+      return res.status(403).json({
+        error: `🚫 Địa chỉ IP mạng (${voterIp}) của bạn đã bị BAN do vi phạm quy chế bình chọn (${banReason})!`,
+        code: 'IP_BANNED'
+      });
+    }
   }
 
   // 6. GIỚI HẠN TẦN SUẤT GỬI PHIẾU (RATE LIMITING)
@@ -1387,22 +1402,16 @@ app.post('/api/vote', async (req, res) => {
   }
 
   try {
-    // HÀM TỰ ĐỘNG BAN IP & XÓA SẠCH VOTE GIAN LẬN KHI PHÁT HIỆN BUFF LẦN 2
+    // HÀM TỰ ĐỘNG BAN IP KHI PHÁT HIỆN TOOL BOT GIẢ LẬP
     const triggerAutoBanAndPurge = async (reason) => {
       try {
         if (voterIp && voterIp !== 'unknown') {
+          bannedIpsCache.set(voterIp, reason);
           await pool.query(
             `INSERT INTO banned_ips (ip, reason) VALUES ($1, $2) ON CONFLICT (ip) DO UPDATE SET reason = EXCLUDED.reason`,
             [voterIp, reason]
           );
-        }
-        // Xóa tất cả các phiếu gian lận trước đó liên quan đến IP này cho thí sinh
-        if (voterIp && voterIp !== 'unknown') {
-          const { rowCount } = await pool.query(
-            `DELETE FROM votes WHERE contestant_id = $1 AND (voter_ip = $2 OR voter_ip LIKE $3) RETURNING id`,
-            [contestant_id, voterIp, `${voterIp}_%`]
-          );
-          console.warn(`🚨 [AUTO-BAN & PURGE] Đã tự động BAN IP ${voterIp} và xóa bỏ ${rowCount || 0} phiếu gian lận cho thí sinh ${contestant_id}. Lý do: ${reason}`);
+          console.warn(`🚨 [AUTO-BAN] Đã tự động BAN IP bot ${voterIp}. Lý do: ${reason}`);
         }
       } catch (err) {
         console.error('Lỗi triggerAutoBanAndPurge:', err.message);
@@ -1514,17 +1523,15 @@ app.post('/api/vote', async (req, res) => {
       );
       if (deviceSameVotes.length > 0) {
         const cName = deviceSameVotes[0].contestant_name || 'thí sinh này';
-        await triggerAutoBanAndPurge(`Đổi Gmail trên cùng thiết bị để buff lần 2 cho thí sinh ${cName}`);
         return res.status(403).json({
-          error: `🚫 HỆ THỐNG PHÁT HIỆN HÀNH VI BUFF PHIẾU LẦN 2! Thiết bị này đã dùng Gmail khác để bình chọn cho "${cName}". IP (${voterIp}) đã bị BAN VĨNH VIỄN và các phiếu gian lận trước đó đã bị xóa bỏ!`,
-          code: 'AUTO_BANNED_SAME_CONTESTANT_DEVICE',
+          error: `🚫 Thiết bị này đã dùng tài khoản Gmail khác để bình chọn cho "${cName}". Theo quy chế cuộc thi, mỗi thiết bị chỉ được bình chọn 1 lần cho mỗi thí sinh!`,
+          code: 'ALREADY_VOTED_SAME_CONTESTANT_DEVICE',
           contestant_id: contestant_id
         });
       }
     }
 
     // 3. KHÓA PHẦN CỨNG MÁY TÍNH / ĐIỆN THOẠI (HẠ GỤC TAB ẨN DANH / XÓA DỮ LIỆU TRÌNH DUYỆT):
-    // Dấu vân tay phần cứng (Canvas 2D + WebGL GPU + Screen + CPU) không bị xóa khi xóa cookie
     if (cleanHwSig && cleanHwSig.startsWith('hw_') && cleanHwSig !== 'hw_fallback') {
       const { rows: hwVotes } = await pool.query(
         `SELECT v.id, c.name as contestant_name 
@@ -1541,57 +1548,55 @@ app.post('/api/vote', async (req, res) => {
       );
       if (hwVotes.length > 0) {
         const cName = hwVotes[0].contestant_name || 'thí sinh này';
-        await triggerAutoBanAndPurge(`Dùng chung phần cứng máy tính/điện thoại đổi Gmail buff lần 2 cho thí sinh ${cName}`);
         return res.status(403).json({
-          error: `🚫 HỆ THỐNG PHÁT HIỆN HÀNH VI BUFF PHIẾU LẦN 2! Phần cứng thiết bị đã bình chọn cho "${cName}". IP (${voterIp}) đã bị BAN VĨNH VIỄN và các phiếu gian lận trước đó đã bị xóa bỏ!`,
-          code: 'AUTO_BANNED_HARDWARE_ALREADY_VOTED',
+          error: `🚫 Thiết bị này đã bình chọn cho "${cName}". Theo quy chế cuộc thi, mỗi thiết bị chỉ được bình chọn 1 lần cho mỗi thí sinh!`,
+          code: 'HARDWARE_ALREADY_VOTED',
           contestant_id: contestant_id
         });
       }
     }
 
-    // 3.5. KHÓA THEO TÊN NGƯỜI BÌNH CHỌN: Chống tool đổi hàng loạt Gmail clone nhưng giữ nguyên tên
-    if (cleanVoterName && cleanVoterName !== 'Người ẩn danh' && cleanVoterName !== 'Sinh viên') {
+    // 3.5. KHÓA THEO TÊN TRÊN CÙNG THIẾT BỊ: Chống spam đổi Gmail trên cùng 1 máy
+    if (cleanVoterName && cleanVoterName !== 'Người ẩn danh' && cleanVoterName !== 'Sinh viên' && cleanFp && cleanFp.startsWith('dev_')) {
       const { rows: sameNameVotes } = await pool.query(
         `SELECT v.id, c.name as contestant_name 
          FROM votes v 
          LEFT JOIN contestants c ON c.id = v.contestant_id 
          WHERE v.contestant_id = $1 
-           AND LOWER(TRIM(v.voter_name)) = LOWER(TRIM($2))
-           AND (v.google_email IS NULL OR LOWER(v.google_email) != $3)
+           AND v.voter_fp = $2
+           AND LOWER(TRIM(v.voter_name)) = LOWER(TRIM($3))
+           AND (v.google_email IS NULL OR LOWER(v.google_email) != $4)
          LIMIT 1`,
-        [contestant_id, cleanVoterName, verifiedEmail]
+        [contestant_id, cleanFp, cleanVoterName, verifiedEmail]
       );
       if (sameNameVotes.length > 0) {
         const cName = sameNameVotes[0].contestant_name || 'thí sinh này';
-        await triggerAutoBanAndPurge(`Người bình chọn "${cleanVoterName}" đổi Gmail để buff lần 2 cho thí sinh ${cName}`);
         return res.status(403).json({
-          error: `🚫 HỆ THỐNG PHÁT HIỆN HÀNH VI BUFF PHIẾU LẦN 2! Người bình chọn "${cleanVoterName}" đã có phiếu cho "${cName}". Hành vi đổi Gmail gửi lại đã bị ngăn chặn, IP (${voterIp}) đã bị BAN và các phiếu gian lận trước đó đã bị xóa bỏ!`,
-          code: 'AUTO_BANNED_SAME_NAME_CONTESTANT',
+          error: `🚫 Người bình chọn "${cleanVoterName}" đã bình chọn cho "${cName}" trên thiết bị này!`,
+          code: 'ALREADY_VOTED_SAME_NAME',
           contestant_id: contestant_id
         });
       }
     }
 
     // 4. GIỚI HẠN THEO ĐỊA CHỈ IP MẠNG (CHỐNG DỒN PHIẾU TỪ 1 ĐƯỜNG TRUYỀN):
-    // Mỗi địa chỉ IP mạng chỉ được gửi tối đa 2 phiếu cho CÙNG 1 thí sinh (không tính phiếu của chính tài khoản này)
+    // Cho phép tối đa 50 phiếu cho CÙNG 1 thí sinh từ 1 địa chỉ IP (đảm bảo cho Wi-Fi trường ĐH Xây dựng Miền Trung & Ký túc xá)
     if (voterIp && voterIp !== 'unknown') {
       const { rows: ipCountRows } = await pool.query(
         `SELECT COUNT(*)::int as count 
          FROM votes 
          WHERE contestant_id = $1 
-           AND (voter_ip = $2 OR voter_ip LIKE $3)
-           AND (google_email IS NULL OR LOWER(google_email) != $4)`,
-        [contestant_id, voterIp, `${voterIp}_%`, verifiedEmail]
+           AND voter_ip = $2
+           AND (google_email IS NULL OR LOWER(google_email) != $3)`,
+        [contestant_id, voterIp, verifiedEmail]
       );
       const ipVoteCount = ipCountRows[0]?.count || 0;
-      const MAX_VOTES_PER_IP_CONTESTANT = 2;
+      const MAX_VOTES_PER_IP_CONTESTANT = 50;
       if (ipVoteCount >= MAX_VOTES_PER_IP_CONTESTANT) {
         const cName = (contestantExists[0] && contestantExists[0].name) ? contestantExists[0].name : 'thí sinh này';
-        await triggerAutoBanAndPurge(`Đường truyền IP ${voterIp} cố tình gửi quá ${MAX_VOTES_PER_IP_CONTESTANT} phiếu cho thí sinh ${cName}`);
-        return res.status(403).json({
-          error: `🚫 PHÁT HIỆN HÀNH VI BUFF PHIẾU! Đường truyền IP (${voterIp}) đã vượt quá giới hạn và tiếp tục gửi phiếu gian lận lần 2. IP đã bị BAN và các phiếu dồn gian lận trước đó đã bị xóa bỏ!`,
-          code: 'AUTO_BANNED_IP_LIMIT_EXCEEDED',
+        return res.status(429).json({
+          error: `Đường truyền IP (${voterIp}) đã đạt giới hạn tối đa (${MAX_VOTES_PER_IP_CONTESTANT} lượt bình chọn) cho thí sinh ${cName}. Để tiếp tục bình chọn, bạn vui lòng chuyển sang kết nối 4G/5G trên điện thoại!`,
+          code: 'IP_CONTESTANT_LIMIT_EXCEEDED',
           contestant_id: contestant_id
         });
       }
@@ -1924,9 +1929,11 @@ app.post('/api/admin/ban-ip', requireAdminAuth, async (req, res) => {
   const { ip, reason } = req.body;
   if (!ip) return res.status(400).json({ error: 'Thiếu địa chỉ IP' });
   try {
+    const cleanReason = (reason || 'Buff phiếu gian lận').trim();
+    bannedIpsCache.set(ip.trim(), cleanReason);
     await pool.query(
       'INSERT INTO banned_ips (ip, reason) VALUES ($1, $2) ON CONFLICT (ip) DO UPDATE SET reason = EXCLUDED.reason',
-      [ip.trim(), (reason || 'Buff phiếu gian lận').trim()]
+      [ip.trim(), cleanReason]
     );
     res.json({ success: true, message: `Đã ban IP ${ip} thành công!` });
   } catch (e) {
@@ -1938,6 +1945,7 @@ app.post('/api/admin/unban-ip', requireAdminAuth, async (req, res) => {
   const { ip } = req.body;
   if (!ip) return res.status(400).json({ error: 'Thiếu địa chỉ IP' });
   try {
+    bannedIpsCache.delete(ip.trim());
     await pool.query('DELETE FROM banned_ips WHERE ip = $1', [ip.trim()]);
     res.json({ success: true, message: `Đã mở khóa IP ${ip} thành công!` });
   } catch (e) {

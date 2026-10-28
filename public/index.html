@@ -3278,16 +3278,18 @@ document.getElementById('confirmVoteBtn').addEventListener('click', async () => 
     } else if (
       res.code === 'ALREADY_VOTED_SAME_CONTESTANT' ||
       res.code === 'ALREADY_VOTED_SAME_CONTESTANT_DEVICE' ||
-      res.code === 'HARDWARE_ALREADY_VOTED'
+      res.code === 'HARDWARE_ALREADY_VOTED' ||
+      res.code === 'ALREADY_VOTED_SAME_NAME'
     ) {
       await loadTopicContestantsAndVotes(eventId);
       closeVoteModal();
       toast(res.error || 'Bạn đã bình chọn cho thí sinh này rồi!', 'info');
-    } else if (res.code === 'MAX_VOTES_REACHED') {
+    } else if (res.code === 'MAX_VOTES_REACHED' || res.code === 'QUOTA_EXCEEDED') {
       await loadTopicContestantsAndVotes(eventId);
       closeVoteModal();
       toast(res.error || 'Bạn đã sử dụng hết số lượt bình chọn cho phép!', 'warning');
     } else {
+      closeVoteModal();
       toast(res.error || 'Lỗi khi gửi phiếu bầu', 'error');
     }
     return;
