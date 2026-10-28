@@ -192,18 +192,23 @@ const adjustCooldownMap = new Map();
 // Xác thực tính hợp lệ của token Firebase trực tiếp với máy chủ Google
 async function verifyFirebaseTokenWithGoogle(token) {
   if (!token) return null;
+  const controller = new AbortController();
+  const tid = setTimeout(() => controller.abort(), 2500);
   try {
     const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${FIREBASE_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ idToken: token })
+      body: JSON.stringify({ idToken: token }),
+      signal: controller.signal
     });
+    clearTimeout(tid);
     if (!res.ok) return null;
     const data = await res.json();
     if (data && data.users && data.users.length > 0) {
       return data.users[0];
     }
   } catch (err) {
+    clearTimeout(tid);
     console.warn('Google Identity Toolkit verify warning:', err.message);
   }
   return null;
@@ -223,21 +228,22 @@ async function requireAdminAuth(req, res, next) {
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : (req.headers['x-firebase-token'] || '');
 
   if (token) {
-    const googleUser = await verifyFirebaseTokenWithGoogle(token);
     let email = null;
-    if (googleUser && googleUser.email) {
-      email = googleUser.email.toLowerCase();
-    } else {
-      // Fallback decode nếu mạng gọi Google Identity Toolkit bị chập chờn
-      try {
-        const parts = token.split('.');
-        if (parts.length === 3) {
-          const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
-          if (payload.exp && Date.now() / 1000 < payload.exp) {
-            email = (payload.email || '').toLowerCase();
-          }
+    try {
+      const parts = token.split('.');
+      if (parts.length === 3) {
+        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+        if (payload.exp && Date.now() / 1000 < payload.exp) {
+          email = (payload.email || '').toLowerCase();
         }
-      } catch (err) { }
+      }
+    } catch (err) { }
+
+    if (!email) {
+      const googleUser = await verifyFirebaseTokenWithGoogle(token);
+      if (googleUser && googleUser.email) {
+        email = googleUser.email.toLowerCase();
+      }
     }
 
     if (email) {
@@ -1326,22 +1332,24 @@ app.post('/api/vote', async (req, res) => {
     });
   }
 
-  const googleUser = await verifyFirebaseTokenWithGoogle(google_token);
-  let verifiedEmail = (googleUser?.email || '').toLowerCase().trim();
-  let verifiedUid = googleUser?.localId || googleUser?.uid || '';
-
-  // Fallback decode nếu mạng server gọi Google Identity Toolkit chập chờn
-  if (!verifiedEmail) {
-    try {
-      const parts = google_token.split('.');
-      if (parts.length === 3) {
-        const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
-        if (payload.exp && Date.now() / 1000 < payload.exp && payload.email) {
-          verifiedEmail = payload.email.toLowerCase().trim();
-          verifiedUid = payload.user_id || payload.sub || '';
-        }
+  let verifiedEmail = '';
+  let verifiedUid = '';
+  try {
+    const parts = (google_token || '').split('.');
+    if (parts.length === 3) {
+      const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+      if (payload.exp && Date.now() / 1000 < payload.exp && payload.email) {
+        verifiedEmail = payload.email.toLowerCase().trim();
+        verifiedUid = payload.user_id || payload.sub || '';
       }
-    } catch (err) { }
+    }
+  } catch (err) { }
+
+  // Nếu JWT decode chưa ra thì mới gọi Google Identity Toolkit
+  if (!verifiedEmail) {
+    const googleUser = await verifyFirebaseTokenWithGoogle(google_token);
+    verifiedEmail = (googleUser?.email || '').toLowerCase().trim();
+    verifiedUid = googleUser?.localId || googleUser?.uid || '';
   }
 
   if (!verifiedEmail) {
