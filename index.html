@@ -3,6 +3,9 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>Cổng Bình Chọn Trực Tuyến – Trường Đại Học Xây Dựng Miền Trung</title>
   <link rel="icon" type="image/png" href="/app-icon-192.png" />
   <meta name="description" content="Cổng bình chọn trực tiếp các cuộc thi Hoa Khôi, Nam Vương, Tiếng Hát Sinh Viên, Gương Mặt Đại Sứ – Đoàn TNCS Hồ Chí Minh & Hội Sinh Viên MUCE" />
@@ -1784,90 +1787,71 @@ async function getHardwareSignature() {
       components.push(Intl.DateTimeFormat().resolvedOptions().timeZone || '');
     } catch(e){}
 
-    // 4. OfflineAudioContext Dynamics Compressor Fingerprint
-    try {
-      const AudioCtx = window.OfflineAudioContext || window.webkitOfflineAudioContext;
-      if (AudioCtx) {
-        const audioCtx = new AudioCtx(1, 44100, 44100);
-        const osc = audioCtx.createOscillator();
-        osc.type = 'triangle';
-        osc.frequency.setValueAtTime(10000, audioCtx.currentTime);
-        const comp = audioCtx.createDynamicsCompressor();
-        comp.threshold.setValueAtTime(-50, audioCtx.currentTime);
-        comp.knee.setValueAtTime(40, audioCtx.currentTime);
-        comp.ratio.setValueAtTime(12, audioCtx.currentTime);
-        comp.reduction.setValueAtTime(-20, audioCtx.currentTime);
-        comp.attack.setValueAtTime(0, audioCtx.currentTime);
-        comp.release.setValueAtTime(0.25, audioCtx.currentTime);
-        osc.connect(comp);
-        comp.connect(audioCtx.destination);
-        osc.start(0);
-        // Bọc Promise.race với timeout 400ms để không bao giờ bị treo trên iOS/Facebook WebView
-        const audioBuffer = await Promise.race([
-          audioCtx.startRendering(),
-          new Promise(r => setTimeout(() => r(null), 400))
-        ]);
-        let audioSum = 0;
-        const channelData = audioBuffer.getChannelData(0);
-        for (let i = 0; i < 500; i += 10) {
-          audioSum += Math.abs(channelData[i]);
-        }
-        components.push(audioSum.toFixed(5));
-      }
-    } catch(e){}
-
     const rawStr = components.join('|||');
     if (typeof crypto !== 'undefined' && crypto.subtle && crypto.subtle.digest) {
       const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(rawStr));
       const hash = Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 32);
-      return 'hw_' + hash;
+      cachedHwSig = 'hw_' + hash;
+      return cachedHwSig;
     } else {
       let hash = 0;
       for (let i = 0; i < rawStr.length; i++) {
         hash = ((hash << 5) - hash) + rawStr.charCodeAt(i);
         hash |= 0;
       }
-      return 'hw_' + Math.abs(hash).toString(16);
+      cachedHwSig = 'hw_' + Math.abs(hash).toString(16);
+      return cachedHwSig;
     }
   } catch(e) {
+    cachedHwSig = 'hw_fallback';
     return 'hw_fallback';
   }
 }
 
+// Chạy tính toán vân tay phần cứng ngầm ngay khi tải trang để sẵn sàng tức thì (0ms) khi bấm vote
+let cachedHwSig = null;
+setTimeout(() => { try { getHardwareSignature(); } catch(e){} }, 50);
+
 /* ─── DEVICE GEOLOCATION COORDINATES ─── */
+let cachedCoords = null;
 function getDeviceCoordinates() {
+  if (cachedCoords) return Promise.resolve(cachedCoords);
   return new Promise((resolve) => {
     let resolved = false;
-    // Bắt buộc timeout độc lập 1.2 giây để tránh treo trên iOS WebKit/Facebook in-app browser
-    const timer = setTimeout(() => {
-      if (!resolved) { resolved = true; resolve(null); }
-    }, 1200);
+    const finish = (val) => {
+      if (!resolved) {
+        resolved = true;
+        if (val) cachedCoords = val;
+        resolve(val);
+      }
+    };
+    // Tối đa 500ms không phản hồi là bỏ qua để không bao giờ làm đơ nút bình chọn
+    const timer = setTimeout(() => finish(null), 500);
 
     if (!navigator.geolocation || typeof navigator.geolocation.getCurrentPosition !== 'function') {
       clearTimeout(timer);
-      return resolve(null);
+      return finish(null);
     }
 
     try {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
-          if (!resolved) {
-            resolved = true;
-            clearTimeout(timer);
-            resolve({
-              lat: pos.coords.latitude.toFixed(5),
-              lng: pos.coords.longitude.toFixed(5),
-              acc: Math.round(pos.coords.accuracy || 0)
-            });
-          }
+          clearTimeout(timer);
+          finish({
+            lat: pos.coords.latitude.toFixed(5),
+            lng: pos.coords.longitude.toFixed(5),
+            acc: Math.round(pos.coords.accuracy || 0)
+          });
         },
         (err) => {
-          if (!resolved) { resolved = true; clearTimeout(timer); resolve(null); }
+          clearTimeout(timer);
+          finish(null);
         },
-        { timeout: 1000, maximumAge: 60000, enableHighAccuracy: false }
+        { timeout: 450, maximumAge: 300000, enableHighAccuracy: false }
       );
     } catch(e) {
-      if (!resolved) { resolved = true; clearTimeout(timer); resolve(null); }
+      clearTimeout(timer);
+      finish(null);
     }
   });
 }
@@ -1887,22 +1871,35 @@ try {
   }
 } catch(e){}
 
-/* ─── API HELPER ─── */
+/* ─── API HELPER (Có Timeout 8 Giây Chống Treo Mạng) ─── */
 const api = {
   async get(url) {
     try {
-      const res = await fetch(url);
+      const controller = new AbortController();
+      const tid = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(tid);
       if (!res.ok) throw new Error('API error');
       return await res.json();
     } catch (e) { return null; }
   },
   async post(url, body) {
     try {
-      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      const controller = new AbortController();
+      const tid = setTimeout(() => controller.abort(), 8000);
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+        signal: controller.signal
+      });
+      clearTimeout(tid);
       const data = await res.json();
       if (!res.ok) data._error = true;
       return data;
-    } catch (e) { return { _error: true, error: 'Lỗi kết nối' }; }
+    } catch (e) {
+      return { _error: true, error: 'Quá thời gian phản hồi hoặc mất kết nối máy chủ! Vui lòng thử lại.' };
+    }
   }
 };
 
@@ -2404,7 +2401,7 @@ async function loadTopicContestantsAndVotes(eventId) {
       : (localStorage.getItem('hh:google_user_email') || '');
     const googleEmailParam = cachedEmail ? `&google_email=${encodeURIComponent(cachedEmail)}` : '';
     const voterNameParam = voterName ? `&voter_name=${encodeURIComponent(voterName)}` : '';
-    const hwSigParam = (typeof getHardwareSignature === 'function') ? `&hw=${encodeURIComponent(getHardwareSignature())}` : '';
+    const hwSigParam = (typeof cachedHwSig === 'string' && cachedHwSig) ? `&hw=${encodeURIComponent(cachedHwSig)}` : '';
     const combined = await api.get(
       `/api/topic-data?event=${encodeURIComponent(eventId)}&fp=${encodeURIComponent(VOTER_FP)}&student_id=${encodeURIComponent(studentId)}${voterNameParam}${googleEmailParam}${hwSigParam}`
     );
@@ -3278,10 +3275,18 @@ document.getElementById('confirmVoteBtn').addEventListener('click', async () => 
           return;
         }
       }
-    } else if (res.code === 'ALREADY_VOTED_SAME_CONTESTANT') {
+    } else if (
+      res.code === 'ALREADY_VOTED_SAME_CONTESTANT' ||
+      res.code === 'ALREADY_VOTED_SAME_CONTESTANT_DEVICE' ||
+      res.code === 'HARDWARE_ALREADY_VOTED'
+    ) {
       await loadTopicContestantsAndVotes(eventId);
       closeVoteModal();
       toast(res.error || 'Bạn đã bình chọn cho thí sinh này rồi!', 'info');
+    } else if (res.code === 'MAX_VOTES_REACHED') {
+      await loadTopicContestantsAndVotes(eventId);
+      closeVoteModal();
+      toast(res.error || 'Bạn đã sử dụng hết số lượt bình chọn cho phép!', 'warning');
     } else {
       toast(res.error || 'Lỗi khi gửi phiếu bầu', 'error');
     }

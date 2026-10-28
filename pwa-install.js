@@ -10,16 +10,14 @@
   let deferredPrompt = null;
   let activeTab = 'desktop';
 
-  // 1. Đăng ký Service Worker
+  // 1. Đăng ký Service Worker & tự động cập nhật phiên bản mới nhất
   if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker.register('./sw.js').then(
         (reg) => {
-          // SW registered successfully
+          reg.update().catch(() => {});
         },
-        (err) => {
-          // Registration failed (offline or localhost SSL restrictions)
-        }
+        (err) => {}
       );
     });
   }

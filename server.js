@@ -265,13 +265,23 @@ app.use((req, res, next) => {
 app.use('/uploads', express.static(UPLOADS_DIR_PUBLIC));
 app.use('/uploads', express.static(UPLOADS_DIR_ROOT));
 
+// Đảm bảo trình duyệt luôn nhận mã nguồn mới nhất (không bị Service Worker hay browser cache HTML/JS cũ)
+app.get(['/', '/index.html', '/sw.js', '/pwa-install.js', '/public/sw.js', '/public/pwa-install.js'], (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  next();
+});
+
 app.use(express.static(__dirname));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.get('/', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 app.get('/index.html', (req, res) => {
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.sendFile(path.join(__dirname, 'index.html'));
 });
 app.get('/admin.html', (req, res) => {
@@ -1429,6 +1439,7 @@ app.post('/api/vote', async (req, res) => {
     // (cleanHwSig, cleanLat, cleanLng, cleanAcc đã được khai báo ở đầu hàm)
 
     // 2. KHÓA 1 THÍ SINH THEO THIẾT BỊ (TOKEN CLIENT dev_):
+    // Chỉ chặn nếu thiết bị này đã từng vote cho thí sinh dưới TÀI KHOẢN KHÁC (chống đổi Gmail)
     if (cleanFp && cleanFp.startsWith('dev_')) {
       const { rows: deviceSameVotes } = await pool.query(
         `SELECT v.id, c.name as contestant_name 
@@ -1436,12 +1447,13 @@ app.post('/api/vote', async (req, res) => {
          LEFT JOIN contestants c ON c.id = v.contestant_id 
          WHERE v.contestant_id = $1 
            AND v.voter_fp = $2
+           AND (v.google_email IS NULL OR LOWER(v.google_email) != $3)
          LIMIT 1`,
-        [contestant_id, cleanFp]
+        [contestant_id, cleanFp, verifiedEmail]
       );
       if (deviceSameVotes.length > 0) {
         return res.status(400).json({
-          error: `Thiết bị này đã được sử dụng để bình chọn cho thí sinh "${deviceSameVotes[0].contestant_name || 'này'}" rồi! Để đảm bảo tính công bằng, mỗi thiết bị chỉ được bình chọn 1 lần cho mỗi thí sinh.`,
+          error: `Thiết bị này đã được sử dụng để bình chọn cho thí sinh "${deviceSameVotes[0].contestant_name || 'này'}" bằng tài khoản khác! Để đảm bảo tính công bằng, mỗi thiết bị chỉ được bình chọn 1 lần cho mỗi thí sinh.`,
           code: 'ALREADY_VOTED_SAME_CONTESTANT_DEVICE',
           contestant_id: contestant_id
         });
@@ -1449,7 +1461,7 @@ app.post('/api/vote', async (req, res) => {
     }
 
     // 3. KHÓA PHẦN CỨNG MÁY TÍNH / ĐIỆN THOẠI (HẠ GỤC TAB ẨN DANH / XÓA DỮ LIỆU TRÌNH DUYỆT):
-    // Dấu vân tay phần cứng (Canvas 2D + WebGL GPU + Screen + CPU + AudioContext) không bị xóa khi xóa cookie
+    // Dấu vân tay phần cứng (Canvas 2D + WebGL GPU + Screen + CPU) không bị xóa khi xóa cookie
     if (cleanHwSig && cleanHwSig.startsWith('hw_') && cleanHwSig !== 'hw_fallback') {
       const { rows: hwVotes } = await pool.query(
         `SELECT v.id, c.name as contestant_name 
@@ -1460,8 +1472,9 @@ app.post('/api/vote', async (req, res) => {
              (v.hardware_sig = $2 AND v.voter_ip = $3)
              OR (v.hardware_sig = $2 AND v.voter_fp = $4)
            )
+           AND (v.google_email IS NULL OR LOWER(v.google_email) != $5)
          LIMIT 1`,
-        [contestant_id, cleanHwSig, voterIp, cleanFp]
+        [contestant_id, cleanHwSig, voterIp, cleanFp, verifiedEmail]
       );
       if (hwVotes.length > 0) {
         return res.status(400).json({
@@ -1473,13 +1486,15 @@ app.post('/api/vote', async (req, res) => {
     }
 
     // 4. GIỚI HẠN THEO ĐỊA CHỈ IP MẠNG (CHỐNG DỒN PHIẾU TỪ 1 ĐƯỜNG TRUYỀN):
-    // Mỗi địa chỉ IP mạng chỉ được gửi tối đa 2 phiếu cho CÙNG 1 thí sinh
+    // Mỗi địa chỉ IP mạng chỉ được gửi tối đa 2 phiếu cho CÙNG 1 thí sinh (không tính phiếu của chính tài khoản này)
     if (voterIp && voterIp !== 'unknown') {
       const { rows: ipCountRows } = await pool.query(
         `SELECT COUNT(*)::int as count 
          FROM votes 
-         WHERE contestant_id = $1 AND voter_ip = $2`,
-        [contestant_id, voterIp]
+         WHERE contestant_id = $1 
+           AND (voter_ip = $2 OR voter_ip LIKE $3)
+           AND (google_email IS NULL OR LOWER(google_email) != $4)`,
+        [contestant_id, voterIp, `${voterIp}_%`, verifiedEmail]
       );
       const ipVoteCount = ipCountRows[0]?.count || 0;
       const MAX_VOTES_PER_IP_CONTESTANT = 2;
