@@ -1871,12 +1871,12 @@ try {
   }
 } catch(e){}
 
-/* ─── API HELPER (Có Timeout 8 Giây Chống Treo Mạng) ─── */
+/* ─── API HELPER (Có Timeout 25 Giây Chống Mạng 4G Yếu Bị Ngắt) ─── */
 const api = {
   async get(url) {
     try {
       const controller = new AbortController();
-      const tid = setTimeout(() => controller.abort(), 8000);
+      const tid = setTimeout(() => controller.abort(), 25000);
       const res = await fetch(url, { signal: controller.signal });
       clearTimeout(tid);
       if (!res.ok) throw new Error('API error');
@@ -1886,7 +1886,7 @@ const api = {
   async post(url, body) {
     try {
       const controller = new AbortController();
-      const tid = setTimeout(() => controller.abort(), 8000);
+      const tid = setTimeout(() => controller.abort(), 25000);
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
