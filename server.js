@@ -1396,23 +1396,13 @@ app.post('/api/vote', async (req, res) => {
             [voterIp, reason]
           );
         }
-        // Xóa tất cả các phiếu gian lận trước đó liên quan đến IP này hoặc voterName này cho thí sinh
-        let deleteSql = `DELETE FROM votes WHERE contestant_id = $1 AND (`;
-        const params = [contestant_id];
-        const orList = [];
+        // Xóa tất cả các phiếu gian lận trước đó liên quan đến IP này cho thí sinh
         if (voterIp && voterIp !== 'unknown') {
-          params.push(voterIp);
-          params.push(`${voterIp}_%`);
-          orList.push(`voter_ip = $${params.length - 1} OR voter_ip LIKE $${params.length}`);
-        }
-        if (cleanVoterName && cleanVoterName !== 'Người ẩn danh' && cleanVoterName !== 'Sinh viên') {
-          params.push(cleanVoterName.trim().toLowerCase());
-          orList.push(`LOWER(TRIM(voter_name)) = $${params.length}`);
-        }
-        if (orList.length > 0) {
-          deleteSql += orList.join(' OR ') + `) RETURNING id`;
-          const { rowCount } = await pool.query(deleteSql, params);
-          console.warn(`🚨 [AUTO-BAN & PURGE] Đã tự động BAN IP ${voterIp} và xóa bỏ ${rowCount || 0} phiếu gian lận của "${cleanVoterName}" cho thí sinh ${contestant_id}. Lý do: ${reason}`);
+          const { rowCount } = await pool.query(
+            `DELETE FROM votes WHERE contestant_id = $1 AND (voter_ip = $2 OR voter_ip LIKE $3) RETURNING id`,
+            [contestant_id, voterIp, `${voterIp}_%`]
+          );
+          console.warn(`🚨 [AUTO-BAN & PURGE] Đã tự động BAN IP ${voterIp} và xóa bỏ ${rowCount || 0} phiếu gian lận cho thí sinh ${contestant_id}. Lý do: ${reason}`);
         }
       } catch (err) {
         console.error('Lỗi triggerAutoBanAndPurge:', err.message);
