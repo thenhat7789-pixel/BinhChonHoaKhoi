@@ -1117,107 +1117,12 @@ app.get('/api/votes', async (req, res) => {
 });
 
 // ─── POST /api/votes/adjust (Dành riêng cho Chủ hệ thống tăng/giảm vote) ───
+// ─── POST /api/votes/adjust (ĐÃ VÔ HIỆU HÓA HOÀN TOÀN) ───
 app.post('/api/votes/adjust', requireAdminAuth, async (req, res) => {
-  const { contestant_id, amount, event_id } = req.body;
-  if (!contestant_id) return res.status(400).json({ error: 'Thiếu contestant_id' });
-  const delta = parseInt(amount, 10);
-  if (isNaN(delta) || delta === 0) return res.status(400).json({ error: 'Số lượng điều chỉnh không hợp lệ' });
-
-  // CHỐNG HACK / BƠM VOTE: Giới hạn tối đa 5 phiếu mỗi lần gọi API
-  if (Math.abs(delta) > 5) {
-    return res.status(400).json({ error: 'Bảo mật: Mỗi lần chỉ được điều chỉnh tối đa 5 phiếu (+5 / -5)!' });
-  }
-
-  // COOLDOWN BẢO VỆ PHÍA SERVER: Giới hạn tối thiểu 10 giây giữa các lần điều chỉnh
-  const now = Date.now();
-  const lastAdjust = adjustCooldownMap.get(contestant_id) || 0;
-  if (now - lastAdjust < 10000) {
-    const waitSec = Math.ceil((10000 - (now - lastAdjust)) / 1000);
-    return res.status(429).json({ error: `Hệ thống đang bảo vệ: Vui lòng đợi ${waitSec} giây trước khi điều chỉnh tiếp!` });
-  }
-  adjustCooldownMap.set(contestant_id, now);
-
-  const currentEventId = event_id || 'evt_hoakhoi_2026';
-
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-
-    // Kiểm tra thí sinh tồn tại, nếu chưa có tạo từ default hoặc nạp
-    let { rows: contestantExists } = await client.query(
-      'SELECT id, name, event_id, faculty FROM contestants WHERE id = $1',
-      [contestant_id]
-    );
-    if (contestantExists.length === 0) {
-      const def = Array.isArray(DEFAULT_CONTESTANTS) ? DEFAULT_CONTESTANTS.find(d => d.id === contestant_id) : null;
-      if (def) {
-        await client.query(
-          'INSERT INTO contestants (id, event_id, name, subtitle, color, sort_order, faculty, hometown) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) ON CONFLICT (id) DO NOTHING',
-          [def.id, def.event_id, def.name, def.subtitle, def.color, 0, def.faculty || '', def.hometown || '']
-        );
-        contestantExists = [{ id: def.id, name: def.name, event_id: def.event_id, faculty: def.faculty || '' }];
-      }
-    }
-
-    if (delta > 0) {
-      // Tăng vote: chèn delta phiếu với người bình chọn Việt Nam & lời chúc ngẫu nhiên (không còn MSSV, Lớp, Khoa)
-      // Giãn cách thời gian mỗi lượt bình chọn cách nhau 3 giây (tổng 15 giây cho 5 phiếu) để tự nhiên
-      const baseNow = Date.now();
-      for (let i = 0; i < delta; i++) {
-        // Mỗi lượt cách nhau 3 giây (lượt cuối cùng là hiện tại, các lượt trước lùi 3s, 6s, 9s, 12s...)
-        const voteTs = new Date(baseNow - (delta - 1 - i) * 3000);
-        const vote_id = 'v_' + voteTs.getTime() + '_' + Math.random().toString(36).substr(2, 6) + '_' + i;
-        const voterName = getRandomVietnameseName();
-        const comment = getRandomVietnameseComment();
-        const voterIp = getRandomVoterIp();
-
-        await client.query(
-          `INSERT INTO votes (vote_id, contestant_id, event_id, voter_name, student_id, student_class, faculty, comment, voter_ip, created_at) 
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
-          [vote_id, contestant_id, currentEventId, voterName, '', '', '', comment, voterIp, voteTs]
-        );
-      }
-    } else {
-      // Giảm vote: xóa ngẫu nhiên |delta| phiếu đã có trước đó của thí sinh
-      const countToDelete = Math.abs(delta);
-      await client.query(
-        `DELETE FROM votes WHERE id IN (
-           SELECT id FROM votes WHERE contestant_id = $1 ORDER BY RANDOM() LIMIT $2
-         )`,
-        [contestant_id, countToDelete]
-      );
-    }
-
-    await client.query('COMMIT');
-
-    // Lấy số phiếu mới nhất của thí sinh
-    const { rows: countRows } = await pool.query(
-      'SELECT COUNT(*)::int as count FROM votes WHERE contestant_id = $1',
-      [contestant_id]
-    );
-    const newCount = countRows[0]?.count || 0;
-
-    // Lấy tổng số phiếu toàn cuộc thi
-    const { rows: totalRows } = await pool.query(
-      'SELECT COUNT(*)::int as total FROM votes WHERE event_id = $1 OR event_id IS NULL',
-      [currentEventId]
-    );
-    const totalVotes = totalRows[0]?.total || 0;
-
-    res.json({
-      success: true,
-      contestant_id,
-      amount: delta,
-      new_count: newCount,
-      total_votes: totalVotes
-    });
-  } catch (e) {
-    await client.query('ROLLBACK');
-    console.error('POST /api/votes/adjust error:', e);
-    res.status(500).json({ error: 'Lỗi khi điều chỉnh số phiếu: ' + e.message });
-  } finally {
-    client.release();
-  }
+  return res.status(403).json({
+    error: 'Chức năng điều chỉnh (+/-) số phiếu đã bị vô hiệu hóa vĩnh viễn trên toàn hệ thống để đảm bảo tính công bằng và minh bạch 100%!',
+    code: 'VOTE_ADJUST_DISABLED'
+  });
 });
 
 // ─── ALL /api/votes/purge-injected (Khôi phục / Xóa sạch vote ảo bị hack spam) ───

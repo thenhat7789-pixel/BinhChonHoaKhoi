@@ -4821,68 +4821,10 @@ function renderContestantList(targetEventId) {
       </div>
 
       <!-- Votes & Shares stats -->
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.25rem;min-width:195px;">
-        ${!isCurrentUserMember() ? `
-          <div style="display:flex;align-items:center;gap:4px;">
-            <button type="button" 
-              class="vote-adj-btn btn-adj-minus5" 
-              id="btn_dec5_${esc(c.id)}" 
-              onclick="handleAdjustVote('${esc(c.id)}', -5, '${esc(currentContestantEventId)}')" 
-              title="Bấm -5: Trừ ngẫu nhiên 5 phiếu đã có (chờ 15 giây)"
-              style="width:28px;height:26px;border-radius:6px;border:1px solid #fecaca;background:#fff1f2;color:#e11d48;font-size:.74rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:all .15s ease;"
-              onmouseover="if(!this.disabled) this.style.background='#ffe4e6'"
-              onmouseout="if(!this.disabled) this.style.background='#fff1f2'">
-              -5
-            </button>
-            <button type="button" 
-              class="vote-adj-btn btn-adj-minus" 
-              id="btn_dec_${esc(c.id)}" 
-              onclick="handleAdjustVote('${esc(c.id)}', -1, '${esc(currentContestantEventId)}')" 
-              title="Bấm -1: Trừ ngẫu nhiên 1 phiếu đã có (chờ 15 giây)"
-              style="width:28px;height:26px;border-radius:6px;border:1px solid #fca5a5;background:#fef2f2;color:#dc2626;font-size:.78rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:all .15s ease;"
-              onmouseover="if(!this.disabled) this.style.background='#fee2e2'"
-              onmouseout="if(!this.disabled) this.style.background='#fef2f2'">
-              -1
-            </button>
-            <span id="vote_badge_${esc(c.id)}" style="font-size:.92rem;font-weight:800;color:#0284c7;background:#f0f9ff;padding:2px 8px;border-radius:6px;border:1px solid #bae6fd;white-space:nowrap;transition:all .2s ease;">
-              ${votes.toLocaleString('vi-VN')} phiếu
-            </span>
-            <button type="button" 
-              class="vote-adj-btn btn-adj-plus" 
-              id="btn_inc_${esc(c.id)}" 
-              onclick="handleAdjustVote('${esc(c.id)}', 1, '${esc(currentContestantEventId)}')" 
-              title="Bấm +1: Thêm 1 phiếu (ngẫu nhiên người bình chọn Việt Nam & lời chúc, chờ 15 giây)"
-              style="width:28px;height:26px;border-radius:6px;border:1px solid #86efac;background:#f0fdf4;color:#16a34a;font-size:.78rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:all .15s ease;"
-              onmouseover="if(!this.disabled) this.style.background='#dcfce7'"
-              onmouseout="if(!this.disabled) this.style.background='#f0fdf4'">
-              +1
-            </button>
-            <button type="button" 
-              class="vote-adj-btn btn-adj-plus5" 
-              id="btn_inc5_${esc(c.id)}" 
-              onclick="handleAdjustVote('${esc(c.id)}', 5, '${esc(currentContestantEventId)}')" 
-              title="Bấm +5: Thêm 5 phiếu (ngẫu nhiên 5 người bình chọn Việt Nam & 5 lời chúc khác nhau, chờ 15 giây)"
-              style="width:28px;height:26px;border-radius:6px;border:1px solid #6ee7b7;background:#ecfdf5;color:#059669;font-size:.74rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:all .15s ease;"
-              onmouseover="if(!this.disabled) this.style.background='#d1fae5'"
-              onmouseout="if(!this.disabled) this.style.background='#ecfdf5'">
-              +5
-            </button>
-            <button type="button" 
-              class="vote-adj-btn" 
-              onclick="purgeFakeVotes('${esc(c.id)}', '${esc(c.name)}')" 
-              title="🧹 Xóa phiếu vote ảo (bị hack/bơm) của thí sinh này, bảo lưu phiếu thật"
-              style="width:28px;height:26px;border-radius:6px;border:1px solid #cbd5e1;background:#f8fafc;color:#64748b;font-size:.78rem;font-weight:800;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;transition:all .15s ease;"
-              onmouseover="this.style.background='#fee2e2';this.style.color='#ef4444';this.style.borderColor='#fca5a5';"
-              onmouseout="this.style.background='#f8fafc';this.style.color='#64748b';this.style.borderColor='#cbd5e1';">
-              🧹
-            </button>
-          </div>
-          <div id="vote_cooldown_${esc(c.id)}" style="display:none;font-size:.72rem;color:#d97706;font-weight:700;align-items:center;gap:3px;">
-            ⏳ Chờ <span id="vote_cd_num_${esc(c.id)}">15</span>s
-          </div>
-        ` : `
-          <span style="font-size:.92rem;font-weight:800;color:#0284c7;background:#f0f9ff;padding:2px 10px;border-radius:6px;border:1px solid #bae6fd;">${votes.toLocaleString('vi-VN')} phiếu</span>
-        `}
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:.25rem;min-width:130px;">
+        <span id="vote_badge_${esc(c.id)}" style="font-size:.95rem;font-weight:800;color:#0284c7;background:#f0f9ff;padding:4px 12px;border-radius:6px;border:1px solid #bae6fd;white-space:nowrap;">
+          ${votes.toLocaleString('vi-VN')} phiếu
+        </span>
         <span style="font-size:.76rem;color:#7c3aed;font-weight:600;">📤 ${shares.toLocaleString('vi-VN')} chia sẻ</span>
       </div>
 
