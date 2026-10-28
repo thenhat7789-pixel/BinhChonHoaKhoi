@@ -1802,7 +1802,11 @@ async function getHardwareSignature() {
         osc.connect(comp);
         comp.connect(audioCtx.destination);
         osc.start(0);
-        const audioBuffer = await audioCtx.startRendering();
+        // Bọc Promise.race với timeout 400ms để không bao giờ bị treo trên iOS/Facebook WebView
+        const audioBuffer = await Promise.race([
+          audioCtx.startRendering(),
+          new Promise(r => setTimeout(() => r(null), 400))
+        ]);
         let audioSum = 0;
         const channelData = audioBuffer.getChannelData(0);
         for (let i = 0; i < 500; i += 10) {
@@ -1833,20 +1837,38 @@ async function getHardwareSignature() {
 /* ─── DEVICE GEOLOCATION COORDINATES ─── */
 function getDeviceCoordinates() {
   return new Promise((resolve) => {
-    if (!navigator.geolocation) return resolve(null);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        resolve({
-          lat: pos.coords.latitude.toFixed(5),
-          lng: pos.coords.longitude.toFixed(5),
-          acc: Math.round(pos.coords.accuracy || 0)
-        });
-      },
-      (err) => {
-        resolve(null);
-      },
-      { timeout: 3500, maximumAge: 60000, enableHighAccuracy: true }
-    );
+    let resolved = false;
+    // Bắt buộc timeout độc lập 1.2 giây để tránh treo trên iOS WebKit/Facebook in-app browser
+    const timer = setTimeout(() => {
+      if (!resolved) { resolved = true; resolve(null); }
+    }, 1200);
+
+    if (!navigator.geolocation || typeof navigator.geolocation.getCurrentPosition !== 'function') {
+      clearTimeout(timer);
+      return resolve(null);
+    }
+
+    try {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          if (!resolved) {
+            resolved = true;
+            clearTimeout(timer);
+            resolve({
+              lat: pos.coords.latitude.toFixed(5),
+              lng: pos.coords.longitude.toFixed(5),
+              acc: Math.round(pos.coords.accuracy || 0)
+            });
+          }
+        },
+        (err) => {
+          if (!resolved) { resolved = true; clearTimeout(timer); resolve(null); }
+        },
+        { timeout: 1000, maximumAge: 60000, enableHighAccuracy: false }
+      );
+    } catch(e) {
+      if (!resolved) { resolved = true; clearTimeout(timer); resolve(null); }
+    }
   });
 }
 
@@ -3159,34 +3181,40 @@ document.getElementById('confirmVoteBtn').addEventListener('click', async () => 
   confirmBtn.disabled = true;
   confirmBtn.innerHTML = '⏳ Đang ghi phiếu...';
 
-  // Lấy Dấu vân tay phần cứng và Tọa độ thiết bị để chống gian lận
-  const [hwSig, coords] = await Promise.all([
-    getHardwareSignature(),
-    getDeviceCoordinates()
-  ]);
+  let res = null;
+  try {
+    // Lấy Dấu vân tay phần cứng và Tọa độ thiết bị (chạy song song, tối đa 1.2s)
+    const [hwSig, coords] = await Promise.all([
+      getHardwareSignature().catch(() => 'hw_fallback'),
+      getDeviceCoordinates().catch(() => null)
+    ]);
 
-  // Submit to Server API first
-  const res = await api.post('/api/vote', {
-    contestant_id: cId,
-    event_id: eventId,
-    voter_name: name,
-    student_id: '',
-    student_class: '',
-    faculty: '',
-    comment: comment || 'Ủng hộ thí sinh!',
-    voter_fingerprint: VOTER_FP,
-    hardware_sig: hwSig,
-    latitude: coords?.lat || '',
-    longitude: coords?.lng || '',
-    location_accuracy: coords?.acc || '',
-    hp_token: trapVal,
-    is_automated: isAutomated,
-    vote_duration: elapsedVoteMs,
-    google_token: googleToken
-  });
-
-  confirmBtn.disabled = false;
-  confirmBtn.innerHTML = originalBtnText;
+    // Submit to Server API
+    res = await api.post('/api/vote', {
+      contestant_id: cId,
+      event_id: eventId,
+      voter_name: name,
+      student_id: '',
+      student_class: '',
+      faculty: '',
+      comment: comment || 'Ủng hộ thí sinh!',
+      voter_fingerprint: VOTER_FP,
+      hardware_sig: hwSig,
+      latitude: coords?.lat || '',
+      longitude: coords?.lng || '',
+      location_accuracy: coords?.acc || '',
+      hp_token: trapVal,
+      is_automated: isAutomated,
+      vote_duration: elapsedVoteMs,
+      google_token: googleToken
+    });
+  } catch (netErr) {
+    console.error('Lỗi gửi request bình chọn:', netErr);
+    res = { _error: true, error: 'Lỗi kết nối máy chủ! Vui lòng thử lại.' };
+  } finally {
+    confirmBtn.disabled = false;
+    confirmBtn.innerHTML = originalBtnText;
+  }
 
   if (res && res.updated_comment) {
     closeVoteModal();

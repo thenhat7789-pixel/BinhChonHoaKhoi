@@ -739,7 +739,7 @@ app.get('/api/topic-data', async (req, res) => {
              ORDER BY id DESC LIMIT 1`,
             [cleanFp]
           );
-        } else if (cleanHw && cleanHw.startsWith('hw_') && voterIp && voterIp !== 'unknown') {
+        } else if (cleanHw && cleanHw.startsWith('hw_') && cleanHw !== 'hw_fallback' && voterIp && voterIp !== 'unknown') {
           return pool.query(
             `SELECT LOWER(google_email) as email 
              FROM votes 
@@ -1394,7 +1394,7 @@ app.post('/api/vote', async (req, res) => {
     }
 
     // Khóa dấu vân tay phần cứng + IP (chống xóa dữ liệu trình duyệt hoặc mở tab ẩn danh để đổi Gmail mới):
-    if (cleanHwSig && cleanHwSig.startsWith('hw_') && voterIp && voterIp !== 'unknown') {
+    if (cleanHwSig && cleanHwSig.startsWith('hw_') && cleanHwSig !== 'hw_fallback' && voterIp && voterIp !== 'unknown') {
       const { rows: boundHwVotes } = await pool.query(
         `SELECT DISTINCT LOWER(google_email) as email 
          FROM votes 
@@ -1450,7 +1450,7 @@ app.post('/api/vote', async (req, res) => {
 
     // 3. KHÓA PHẦN CỨNG MÁY TÍNH / ĐIỆN THOẠI (HẠ GỤC TAB ẨN DANH / XÓA DỮ LIỆU TRÌNH DUYỆT):
     // Dấu vân tay phần cứng (Canvas 2D + WebGL GPU + Screen + CPU + AudioContext) không bị xóa khi xóa cookie
-    if (cleanHwSig && cleanHwSig.startsWith('hw_')) {
+    if (cleanHwSig && cleanHwSig.startsWith('hw_') && cleanHwSig !== 'hw_fallback') {
       const { rows: hwVotes } = await pool.query(
         `SELECT v.id, c.name as contestant_name 
          FROM votes v 
@@ -1498,9 +1498,14 @@ app.post('/api/vote', async (req, res) => {
         `SELECT COUNT(*)::int as count 
          FROM votes 
          WHERE contestant_id = $1 
-           AND latitude IS NOT NULL AND latitude != ''
-           AND ROUND(latitude::numeric, 3) = ROUND($2::numeric, 3)
-           AND ROUND(longitude::numeric, 3) = ROUND($3::numeric, 3)`,
+           AND (
+             CASE 
+               WHEN latitude IS NOT NULL AND latitude != '' AND latitude ~ '^-?[0-9]+(\\.[0-9]+)?$' 
+                    AND longitude IS NOT NULL AND longitude != '' AND longitude ~ '^-?[0-9]+(\\.[0-9]+)?$'
+               THEN ROUND(latitude::numeric, 3) = ROUND($2::numeric, 3) AND ROUND(longitude::numeric, 3) = ROUND($3::numeric, 3)
+               ELSE FALSE 
+             END
+           )`,
         [contestant_id, cleanLat, cleanLng]
       );
       const geoCount = geoCountRows[0]?.count || 0;
