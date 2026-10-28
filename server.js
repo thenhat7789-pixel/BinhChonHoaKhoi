@@ -2581,3 +2581,5 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 // Cấu hình timeout theo khuyến nghị chính thức của Render để chống lỗi 502 / Connection reset
 server.keepAliveTimeout = 120000;
 server.headersTimeout = 120000;
+
+module.exports = app;
