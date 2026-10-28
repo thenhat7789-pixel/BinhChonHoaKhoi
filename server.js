@@ -1206,22 +1206,36 @@ app.all('/api/votes/purge-injected', requireAdminAuth, async (req, res) => {
     let deleteQuery = '';
     let params = [];
 
-    // Phiếu ảo do tool hack / adjust sinh ra có đặc điểm:
-    // vote_id LIKE 'v_%' VÀ (student_id = '' OR student_id IS NULL)
+    // Phiếu ảo do tool hack / bot spam sinh ra có đặc điểm:
+    // voter_ip LIKE '%_iphone%' OR google_email LIKE '%@example.invalid%' OR vote_id LIKE 'v_%'
+    const botCondition = `(voter_ip LIKE '%_iphone%' OR google_email LIKE '%@example.invalid%' OR vote_id LIKE 'v_%')`;
+
+    // 1. Tự động thêm các IP của phiếu bot này vào banned_ips
+    try {
+      await client.query(`
+        INSERT INTO banned_ips (ip, reason)
+        SELECT DISTINCT split_part(voter_ip, '_', 1) as ip, 'Tự động Ban: Bị thanh lọc do phát hiện tool bot buff phiếu gian lận'
+        FROM votes
+        WHERE ${botCondition} AND voter_ip != '' AND voter_ip != 'unknown'
+        ON CONFLICT (ip) DO UPDATE SET reason = EXCLUDED.reason
+      `);
+    } catch(banErr) {}
+
+    // 2. Xóa sạch các phiếu bot ảo
     if (contestant_id) {
-      deleteQuery = `DELETE FROM votes WHERE contestant_id = $1 AND vote_id LIKE 'v_%' RETURNING id`;
+      deleteQuery = `DELETE FROM votes WHERE contestant_id = $1 AND ${botCondition} RETURNING id`;
       params = [contestant_id];
     } else if (contestant_name) {
       deleteQuery = `
         DELETE FROM votes 
         WHERE contestant_id IN (SELECT id FROM contestants WHERE LOWER(name) LIKE $1)
-          AND vote_id LIKE 'v_%'
+          AND ${botCondition}
         RETURNING id
       `;
       params = [`%${contestant_name.trim().toLowerCase()}%`];
     } else {
-      // Mặc định: Xóa toàn bộ vote ảo v_% trên toàn hệ thống
-      deleteQuery = `DELETE FROM votes WHERE vote_id LIKE 'v_%' RETURNING id`;
+      // Mặc định: Xóa toàn bộ vote ảo trên toàn hệ thống
+      deleteQuery = `DELETE FROM votes WHERE ${botCondition} RETURNING id`;
       params = [];
     }
 
@@ -1340,6 +1354,22 @@ app.post('/api/vote', async (req, res) => {
     || 'unknown';
   const voterId = cleanFp ? `${voterIp}_${cleanFp}` : voterIp;
 
+  // 5.5. CHẶN VĨNH VIỄN NẾU IP ĐÃ BỊ BAN
+  if (voterIp && voterIp !== 'unknown') {
+    try {
+      const { rows: bannedRows } = await pool.query(
+        'SELECT ip, reason FROM banned_ips WHERE ip = $1',
+        [voterIp]
+      );
+      if (bannedRows.length > 0) {
+        return res.status(403).json({
+          error: `🚫 Địa chỉ IP mạng (${voterIp}) của bạn đã bị BAN vĩnh viễn do vi phạm quy chế bình chọn (${bannedRows[0].reason || 'Buff phiếu gian lận'})!`,
+          code: 'IP_BANNED'
+        });
+      }
+    } catch (e) {}
+  }
+
   // 6. GIỚI HẠN TẦN SUẤT GỬI PHIẾU (RATE LIMITING)
   if (!checkVoteRateLimit(voterIp)) {
     return res.status(429).json({
@@ -1357,6 +1387,47 @@ app.post('/api/vote', async (req, res) => {
   }
 
   try {
+    // HÀM TỰ ĐỘNG BAN IP & XÓA SẠCH VOTE GIAN LẬN KHI PHÁT HIỆN BUFF LẦN 2
+    const triggerAutoBanAndPurge = async (reason) => {
+      try {
+        if (voterIp && voterIp !== 'unknown') {
+          await pool.query(
+            `INSERT INTO banned_ips (ip, reason) VALUES ($1, $2) ON CONFLICT (ip) DO UPDATE SET reason = EXCLUDED.reason`,
+            [voterIp, reason]
+          );
+        }
+        // Xóa tất cả các phiếu gian lận trước đó liên quan đến IP này hoặc voterName này cho thí sinh
+        let deleteSql = `DELETE FROM votes WHERE contestant_id = $1 AND (`;
+        const params = [contestant_id];
+        const orList = [];
+        if (voterIp && voterIp !== 'unknown') {
+          params.push(voterIp);
+          params.push(`${voterIp}_%`);
+          orList.push(`voter_ip = $${params.length - 1} OR voter_ip LIKE $${params.length}`);
+        }
+        if (cleanVoterName && cleanVoterName !== 'Người ẩn danh' && cleanVoterName !== 'Sinh viên') {
+          params.push(cleanVoterName.trim().toLowerCase());
+          orList.push(`LOWER(TRIM(voter_name)) = $${params.length}`);
+        }
+        if (orList.length > 0) {
+          deleteSql += orList.join(' OR ') + `) RETURNING id`;
+          const { rowCount } = await pool.query(deleteSql, params);
+          console.warn(`🚨 [AUTO-BAN & PURGE] Đã tự động BAN IP ${voterIp} và xóa bỏ ${rowCount || 0} phiếu gian lận của "${cleanVoterName}" cho thí sinh ${contestant_id}. Lý do: ${reason}`);
+        }
+      } catch (err) {
+        console.error('Lỗi triggerAutoBanAndPurge:', err.message);
+      }
+    };
+
+    // CHẶN & BAN TOOL BOT GIẢ LẬP IPHONE / EMAIL ẢO INVALID
+    if (cleanFp.toLowerCase().includes('iphone') || verifiedEmail.includes('@example.invalid')) {
+      await triggerAutoBanAndPurge('Phát hiện sử dụng tool bot giả lập thiết bị/email ảo');
+      return res.status(403).json({
+        error: `🚫 HỆ THỐNG PHÁT HIỆN TOOL BUFF TỰ ĐỘNG! Địa chỉ IP (${voterIp}) đã bị BAN vĩnh viễn và toàn bộ phiếu gian lận đã bị hủy bỏ!`,
+        code: 'AUTO_BANNED_BOT_TOOL'
+      });
+    }
+
     // 0. Kiểm tra thí sinh có tồn tại trong database không
     let { rows: contestantExists } = await pool.query(
       'SELECT id, name, event_id FROM contestants WHERE id = $1',
@@ -1439,7 +1510,7 @@ app.post('/api/vote', async (req, res) => {
     // (cleanHwSig, cleanLat, cleanLng, cleanAcc đã được khai báo ở đầu hàm)
 
     // 2. KHÓA 1 THÍ SINH THEO THIẾT BỊ (TOKEN CLIENT dev_):
-    // Chỉ chặn nếu thiết bị này đã từng vote cho thí sinh dưới TÀI KHOẢN KHÁC (chống đổi Gmail)
+    // Phát hiện đổi Gmail trên cùng thiết bị để buff lần 2 cho cùng 1 thí sinh -> TỰ ĐỘNG BAN & XÓA VOTE
     if (cleanFp && cleanFp.startsWith('dev_')) {
       const { rows: deviceSameVotes } = await pool.query(
         `SELECT v.id, c.name as contestant_name 
@@ -1452,9 +1523,11 @@ app.post('/api/vote', async (req, res) => {
         [contestant_id, cleanFp, verifiedEmail]
       );
       if (deviceSameVotes.length > 0) {
-        return res.status(400).json({
-          error: `Thiết bị này đã được sử dụng để bình chọn cho thí sinh "${deviceSameVotes[0].contestant_name || 'này'}" bằng tài khoản khác! Để đảm bảo tính công bằng, mỗi thiết bị chỉ được bình chọn 1 lần cho mỗi thí sinh.`,
-          code: 'ALREADY_VOTED_SAME_CONTESTANT_DEVICE',
+        const cName = deviceSameVotes[0].contestant_name || 'thí sinh này';
+        await triggerAutoBanAndPurge(`Đổi Gmail trên cùng thiết bị để buff lần 2 cho thí sinh ${cName}`);
+        return res.status(403).json({
+          error: `🚫 HỆ THỐNG PHÁT HIỆN HÀNH VI BUFF PHIẾU LẦN 2! Thiết bị này đã dùng Gmail khác để bình chọn cho "${cName}". IP (${voterIp}) đã bị BAN VĨNH VIỄN và các phiếu gian lận trước đó đã bị xóa bỏ!`,
+          code: 'AUTO_BANNED_SAME_CONTESTANT_DEVICE',
           contestant_id: contestant_id
         });
       }
@@ -1477,9 +1550,34 @@ app.post('/api/vote', async (req, res) => {
         [contestant_id, cleanHwSig, voterIp, cleanFp, verifiedEmail]
       );
       if (hwVotes.length > 0) {
-        return res.status(400).json({
-          error: `🚫 Thiết bị này đã được sử dụng để bình chọn cho thí sinh "${hwVotes[0].contestant_name || 'này'}" rồi! Hệ thống đã nhận diện dấu vân tay phần cứng máy tính/điện thoại. Việc xóa dữ liệu duyệt web hoặc mở tab ẩn danh trên cùng máy không thể bình chọn lại!`,
-          code: 'HARDWARE_ALREADY_VOTED',
+        const cName = hwVotes[0].contestant_name || 'thí sinh này';
+        await triggerAutoBanAndPurge(`Dùng chung phần cứng máy tính/điện thoại đổi Gmail buff lần 2 cho thí sinh ${cName}`);
+        return res.status(403).json({
+          error: `🚫 HỆ THỐNG PHÁT HIỆN HÀNH VI BUFF PHIẾU LẦN 2! Phần cứng thiết bị đã bình chọn cho "${cName}". IP (${voterIp}) đã bị BAN VĨNH VIỄN và các phiếu gian lận trước đó đã bị xóa bỏ!`,
+          code: 'AUTO_BANNED_HARDWARE_ALREADY_VOTED',
+          contestant_id: contestant_id
+        });
+      }
+    }
+
+    // 3.5. KHÓA THEO TÊN NGƯỜI BÌNH CHỌN: Chống tool đổi hàng loạt Gmail clone nhưng giữ nguyên tên
+    if (cleanVoterName && cleanVoterName !== 'Người ẩn danh' && cleanVoterName !== 'Sinh viên') {
+      const { rows: sameNameVotes } = await pool.query(
+        `SELECT v.id, c.name as contestant_name 
+         FROM votes v 
+         LEFT JOIN contestants c ON c.id = v.contestant_id 
+         WHERE v.contestant_id = $1 
+           AND LOWER(TRIM(v.voter_name)) = LOWER(TRIM($2))
+           AND (v.google_email IS NULL OR LOWER(v.google_email) != $3)
+         LIMIT 1`,
+        [contestant_id, cleanVoterName, verifiedEmail]
+      );
+      if (sameNameVotes.length > 0) {
+        const cName = sameNameVotes[0].contestant_name || 'thí sinh này';
+        await triggerAutoBanAndPurge(`Người bình chọn "${cleanVoterName}" đổi Gmail để buff lần 2 cho thí sinh ${cName}`);
+        return res.status(403).json({
+          error: `🚫 HỆ THỐNG PHÁT HIỆN HÀNH VI BUFF PHIẾU LẦN 2! Người bình chọn "${cleanVoterName}" đã có phiếu cho "${cName}". Hành vi đổi Gmail gửi lại đã bị ngăn chặn, IP (${voterIp}) đã bị BAN và các phiếu gian lận trước đó đã bị xóa bỏ!`,
+          code: 'AUTO_BANNED_SAME_NAME_CONTESTANT',
           contestant_id: contestant_id
         });
       }
@@ -1499,9 +1597,11 @@ app.post('/api/vote', async (req, res) => {
       const ipVoteCount = ipCountRows[0]?.count || 0;
       const MAX_VOTES_PER_IP_CONTESTANT = 2;
       if (ipVoteCount >= MAX_VOTES_PER_IP_CONTESTANT) {
-        return res.status(400).json({
-          error: `🚫 Đường truyền mạng (IP: ${voterIp}) đã đạt giới hạn tối đa ${MAX_VOTES_PER_IP_CONTESTANT} lượt bình chọn cho thí sinh này! Để ngăn chặn buff phiếu gian lận, mỗi kết nối mạng chỉ được bình chọn tối đa ${MAX_VOTES_PER_IP_CONTESTANT} lần cho cùng 1 thí sinh. Bạn có thể bình chọn cho thí sinh khác.`,
-          code: 'IP_CONTESTANT_LIMIT_EXCEEDED',
+        const cName = (contestantExists[0] && contestantExists[0].name) ? contestantExists[0].name : 'thí sinh này';
+        await triggerAutoBanAndPurge(`Đường truyền IP ${voterIp} cố tình gửi quá ${MAX_VOTES_PER_IP_CONTESTANT} phiếu cho thí sinh ${cName}`);
+        return res.status(403).json({
+          error: `🚫 PHÁT HIỆN HÀNH VI BUFF PHIẾU! Đường truyền IP (${voterIp}) đã vượt quá giới hạn và tiếp tục gửi phiếu gian lận lần 2. IP đã bị BAN và các phiếu dồn gian lận trước đó đã bị xóa bỏ!`,
+          code: 'AUTO_BANNED_IP_LIMIT_EXCEEDED',
           contestant_id: contestant_id
         });
       }

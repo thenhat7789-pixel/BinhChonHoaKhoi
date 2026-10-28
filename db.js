@@ -407,6 +407,46 @@ async function initDB() {
     }
     // ─────────────────────────────────────────────────────────────────────────────
 
+    // ─── BOT SHIELD: TỰ ĐỘNG BAN CÁC IP TOOL BOT VÀ QUÉT XÓA SẠCH PHIẾU GIAN LẬN ───
+    try {
+      // 1. Tìm các IP có dấu hiệu bot (_iphone hoặc email @example.invalid)
+      const { rows: botIps } = await client.query(`
+        SELECT DISTINCT voter_ip 
+        FROM votes 
+        WHERE voter_ip LIKE '%_iphone%' 
+           OR google_email LIKE '%@example.invalid%'
+      `);
+      
+      if (botIps && botIps.length > 0) {
+        let banCount = 0;
+        for (const bv of botIps) {
+          const rawIp = (bv.voter_ip || '').split('_')[0].trim();
+          if (rawIp && rawIp !== 'unknown') {
+            await client.query(`
+              INSERT INTO banned_ips (ip, reason) 
+              VALUES ($1, 'Tự động Ban: Phát hiện tool bot giả lập buff phiếu gian lận') 
+              ON CONFLICT (ip) DO UPDATE SET reason = EXCLUDED.reason
+            `, [rawIp]);
+            banCount++;
+          }
+        }
+        console.log(`🛡️ [Bot Shield] Đã tự động BAN ${banCount} IP bot gian lận vào danh sách đen.`);
+      }
+
+      // 2. Tự động xóa sạch toàn bộ các phiếu bot ảo này khỏi bảng votes
+      const { rowCount: deletedBotVotes } = await client.query(`
+        DELETE FROM votes 
+        WHERE voter_ip LIKE '%_iphone%' 
+           OR google_email LIKE '%@example.invalid%'
+      `);
+      if (deletedBotVotes > 0) {
+        console.log(`🧹 [Bot Shield] Đã tự động xóa sạch ${deletedBotVotes} phiếu buff gian lận khỏi database!`);
+      }
+    } catch (botErr) {
+      console.warn('⚠️ [Bot Shield] Lỗi khởi động lá chắn bot:', botErr.message);
+    }
+    // ─────────────────────────────────────────────────────────────────────────────
+
     console.log('✅ Database tables ready');
   } catch (err) {
     console.error('❌ Lỗi kết nối / khởi tạo DB:', err.message);
