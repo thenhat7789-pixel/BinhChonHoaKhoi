@@ -1,0 +1,8 @@
+.vercel
+node_modules/
+.env
+*.log
+.DS_Store
+scratch/
+scripts/*
+!scripts/cleanup-db.js
